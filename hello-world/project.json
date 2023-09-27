@@ -1,5 +1,5 @@
 {
-  "name": "hello_world",
+  "name": "hello-world",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "sourceRoot": "./hello-world/src",
@@ -12,11 +12,19 @@
       "configurations": {
         "production": {
           "release": true
+        },
+        "web": {
+          "release": true,
+          "target": "wasm32-unknown-unknown"
         }
       }
     },
-    "launch": {
-      "executor": "@nxrs"
+    "run": {
+      "executor": "@nxrs/cargo:build",
+      "options": {
+        "release": false,
+        "run": true
+      }
     },
     "test": {
       "executor": "@nxrs/cargo:test",

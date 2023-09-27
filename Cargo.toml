@@ -4,6 +4,9 @@ members = [
     "./hello-world"
 ]
 
+[workspace.dependencies.bevy]
+version = "0.11.2"
+
 [profile.dev]
 opt-level = 1
 
