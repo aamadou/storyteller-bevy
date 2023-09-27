@@ -1,0 +1,13 @@
+{
+  "name": "@storyteller/source",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {},
+  "private": true,
+  "devDependencies": {
+    "@nx/js": "16.9.1",
+    "@nx/workspace": "16.9.1",
+    "@nxrs/cargo": "^0.3.3",
+    "nx": "16.9.1"
+  }
+}
