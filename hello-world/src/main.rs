@@ -12,7 +12,13 @@ fn main() {
 
     App::new()
         .add_plugins((DefaultPlugins, OrbitCamPlugin, TestScenePlugin))
-        .add_systems(Update, draw_world_axes.after(orbit_cam::pan_orbit_camera))
+        .add_systems(
+            Update,
+            (
+                draw_world_axes.after(orbit_cam::pan_orbit_camera),
+                report_framerate,
+            ),
+        )
         .run();
 }
 
@@ -27,4 +33,9 @@ fn draw_world_axes(mut gizmos: Gizmos, q: Query<&OrbitCam>) {
     draw_axis(Vec3::X, Color::RED);
     draw_axis(Vec3::Y, Color::GREEN);
     draw_axis(Vec3::Z, Color::BLUE);
+}
+
+fn report_framerate(time: Res<Time>) {
+    let ms = time.delta().as_micros() as f32 / 1000.0;
+    info!("{:.2} fps", 1000.0 / ms);
 }
