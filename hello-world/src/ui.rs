@@ -1,10 +1,15 @@
-use bevy::prelude::*;
+use bevy::{
+    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
+    prelude::*,
+};
 
 pub struct UiLayerPlugin;
 
 impl Plugin for UiLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, layout).add_systems(Update, update);
+        app.add_plugins(FrameTimeDiagnosticsPlugin)
+            .add_systems(Startup, layout)
+            .add_systems(Update, update);
     }
 }
 
@@ -42,9 +47,19 @@ fn layout(mut cmd: Commands) {
     });
 }
 
-fn update(time: Res<Time>, mut counter: Query<&mut Text, With<FramerateCounter>>) {
-    let ms = time.delta().as_micros() as f32 / 1000.;
-    let fps = 1000. / ms;
+fn update(
+    time: Res<Time>,
+    diag: Res<DiagnosticsStore>,
+    mut counter: Query<&mut Text, With<FramerateCounter>>,
+) {
+    if let Some(fps_diag) = diag.get(FrameTimeDiagnosticsPlugin::FPS) {
+        let fps = if let Some(fps_smoothed) = fps_diag.smoothed() {
+            fps_smoothed
+        } else {
+            let ms = time.delta().as_micros() as f64 / 1000.;
+            1000. / ms
+        };
 
-    counter.single_mut().sections[0].value = format!("{fps:.2} fps");
+        counter.single_mut().sections[0].value = format!("{fps:.2} fps");
+    }
 }
