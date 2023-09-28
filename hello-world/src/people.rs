@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use bevy::{
-    prelude::{App, Commands, Component, Query, Res, ResMut, Resource, Startup, Update, With},
+    prelude::{
+        info, App, Commands, Component, Query, Res, ResMut, Resource, Startup, Update, With,
+    },
     time::{Time, TimerMode},
 };
 
@@ -48,7 +50,7 @@ fn startup(mut cmds: Commands) {
 fn greet(time: Res<Time>, mut timer: ResMut<Timer>, q: Query<&Name, With<Person>>) {
     if timer.tick(time.delta()).just_finished() {
         for name in &q {
-            println!("Hello, {}!", name.0);
+            info!("Hello, {}!", name.0);
         }
     }
 }
