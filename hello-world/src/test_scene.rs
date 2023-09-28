@@ -59,18 +59,36 @@ fn spawn_scene(
     });
 
     // Plane
+    let plane = meshes.add(Mesh::from(shape::Plane {
+        size: 200.0,
+        subdivisions: 0,
+    }));
+    let proc_grid = mat_proc_grid.add(ProceduralGridMaterial {});
+
     cmd.spawn((
-        MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane {
-                size: 200.0,
-                subdivisions: 0,
-            })),
-            material: mat_proc_grid.add(ProceduralGridMaterial {}),
-            ..default()
-        },
-        NotShadowCaster,
+        SpatialBundle::from_transform(Transform::IDENTITY),
         WorldGridPlane,
-    ));
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            MaterialMeshBundle {
+                mesh: plane.clone(),
+                material: proc_grid.clone(),
+                transform: Transform::IDENTITY,
+                ..default()
+            },
+            NotShadowCaster,
+        ));
+        parent.spawn((
+            MaterialMeshBundle {
+                mesh: plane,
+                material: proc_grid,
+                transform: Transform::IDENTITY.looking_to(Vec3::Z, Vec3::NEG_Y),
+                ..default()
+            },
+            NotShadowCaster,
+        ));
+    });
 }
 
 fn move_plane_with_camera(
