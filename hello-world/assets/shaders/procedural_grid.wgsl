@@ -42,8 +42,9 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     let depth = in.position.z;
     let pos = in.world_position;
 
-    let dense = grid_lines(pos, depth,  1.0, 0.0001, 0.01);
-    let sparse = grid_lines(pos, depth, 0.1, 0.00005, 0.005);
+    let dense  = grid_lines(pos, depth, 10.0, 0.001,   0.1);
+    let base   = grid_lines(pos, depth,  1.0, 0.0001,  0.01);
+    let sparse = grid_lines(pos, depth,  0.1, 0.00005, 0.005);
 
-    return vec4<f32>(0.5, 0.5, 0.5, 0.5) * min(0.5, saturate(dense + sparse));
+    return vec4<f32>(0.5, 0.5, 0.5, 0.5) * min(0.5, saturate(dense + base + sparse));
 }
