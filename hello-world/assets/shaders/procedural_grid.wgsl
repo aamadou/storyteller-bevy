@@ -28,8 +28,8 @@ fn grid_lines(pos: vec4<f32>, depth: f32, scale: f32, depth_min: f32, depth_max:
 
     let thickness = (0.0333 * scale) / (depth * 100.0);
 
-    var x = smoothstep(0.0, thickness, fracs.x);
-    var z = smoothstep(0.0, thickness, fracs.z);
+    let x = smoothstep(0.0, thickness, fracs.x);
+    let z = smoothstep(0.0, thickness, fracs.z);
     let value = 1.0 - saturate(x * z);
 
     let mask = inv_lerp(depth_min, depth_max, depth);
@@ -45,5 +45,5 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     let dense = grid_lines(pos, depth,  1.0, 0.0001, 0.01);
     let sparse = grid_lines(pos, depth, 0.1, 0.00005, 0.005);
 
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0) * 0.5 * saturate(dense + sparse);
+    return vec4<f32>(0.5, 0.5, 0.5, 0.5) * min(0.5, saturate(dense + sparse));
 }
