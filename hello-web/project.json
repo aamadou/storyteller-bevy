@@ -7,6 +7,12 @@
   "targets": {
     "build": {
       "executor": "@nx/vite:build",
+      "dependsOn": [
+        {
+          "projects": ["hello-world"],
+          "target": "build:web"
+        }
+      ],
       "outputs": [
         "{options.outputPath}"
       ],
@@ -26,6 +32,12 @@
     "serve": {
       "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
+      "dependsOn": [
+        {
+          "projects": ["hello-world"],
+          "target": "build:web"
+        }
+      ],
       "options": {
         "buildTarget": "hello-web:build"
       },
