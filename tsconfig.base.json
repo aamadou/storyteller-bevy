@@ -15,7 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@storyteller/hello-world": ["dist/hello-world"]
+      "@storyteller/studio": ["dist/studio"]
     }
   },
   "exclude": ["node_modules", "tmp"]

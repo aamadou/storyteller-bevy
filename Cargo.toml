@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "./hello-world"
+    "./studio"
 ]
 
 [workspace.dependencies.bevy]

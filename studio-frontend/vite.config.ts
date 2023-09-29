@@ -9,7 +9,7 @@ import topLevelAwait from "vite-plugin-top-level-await";
 import mergeAssetsDirs from "./vite-plugins/multiple-assets";
 
 export default defineConfig({
-	cacheDir: "../node_modules/.vite/hello-web",
+	cacheDir: "../node_modules/.vite/studio-frontend",
 	server:{
 		port: 4200,
 		host: "localhost",
@@ -23,8 +23,8 @@ export default defineConfig({
 		wasm(),
 		topLevelAwait(),
 		mergeAssetsDirs([
-			"hello-web/public",
-			"dist/hello-world/public",
+			"studio-frontend/public",
+			"dist/studio/public",
 		]),
 	],
 });

@@ -1,15 +1,15 @@
 [package]
-name = "hello-world"
+name = "studio"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "hello_world"
+name = "studio"
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [[bin]]
-name = "hello-world-standalone"
+name = "studio-standalone"
 path = "src/main.rs"
 
 [dependencies]

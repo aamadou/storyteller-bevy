@@ -1,4 +1,4 @@
-import * as helloWorld from "@storyteller/hello-world";
+import * as studio from "@storyteller/studio";
 
 import "./app.element.scss";
 
@@ -13,7 +13,7 @@ export class AppElement extends HTMLElement {
 		// CLI, we can craft our own JS API to interact with Bevy! \o/ As a start,
 		// we should exploit this to pass an explicit canvas size to Bevy and keep
 		// it up to date with the browser viewport size.
-		helloWorld.init();
+		studio.init();
 	}
 }
 customElements.define("app-root", AppElement);

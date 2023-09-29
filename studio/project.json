@@ -1,8 +1,8 @@
 {
-  "name": "hello-world",
+  "name": "studio",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "./hello-world/src",
+  "sourceRoot": "./studio/src",
   "targets": {
     "build": {
       "executor": "@nxrs/cargo:build",
@@ -19,11 +19,11 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "wasm-pack build --out-dir ../dist/hello-world/ -- --features wasm",
+          "wasm-pack build --out-dir ../dist/studio/ -- --features wasm",
           "node scripts/copy-assets.mjs"
         ],
-        "cwd": "hello-world",
-        "envFile": "hello-world/.env",
+        "cwd": "studio",
+        "envFile": "studio/.env",
         "parallel": false
       }
     },
@@ -32,7 +32,7 @@
       "options": {
         "release": false,
         "run": true,
-        "bin": "hello-world-standalone"
+        "bin": "studio-standalone"
       }
     },
     "test": {

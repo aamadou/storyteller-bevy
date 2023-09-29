@@ -1,15 +1,15 @@
 {
-  "name": "hello-web",
+  "name": "studio-frontend",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "hello-web/src",
+  "sourceRoot": "studio-frontend/src",
   "tags": [],
   "targets": {
     "build": {
       "executor": "@nx/vite:build",
       "dependsOn": [
         {
-          "projects": ["hello-world"],
+          "projects": ["studio"],
           "target": "build:web"
         }
       ],
@@ -18,7 +18,7 @@
       ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/hello-web"
+        "outputPath": "dist/studio-frontend"
       },
       "configurations": {
         "development": {
@@ -34,20 +34,20 @@
       "defaultConfiguration": "development",
       "dependsOn": [
         {
-          "projects": ["hello-world"],
+          "projects": ["studio"],
           "target": "build:web"
         }
       ],
       "options": {
-        "buildTarget": "hello-web:build"
+        "buildTarget": "studio-frontend:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "hello-web:build:development",
+          "buildTarget": "studio-frontend:build:development",
           "hmr": true
         },
         "production": {
-          "buildTarget": "hello-web:build:production",
+          "buildTarget": "studio-frontend:build:production",
           "hmr": false
         }
       }
@@ -56,14 +56,14 @@
       "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "hello-web:build"
+        "buildTarget": "studio-frontend:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "hello-web:build:development"
+          "buildTarget": "studio-frontend:build:development"
         },
         "production": {
-          "buildTarget": "hello-web:build:production"
+          "buildTarget": "studio-frontend:build:production"
         }
       }
     }
