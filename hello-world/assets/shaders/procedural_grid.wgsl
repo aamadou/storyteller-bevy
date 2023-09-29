@@ -1,10 +1,3 @@
-// TODO: Figure out how many of these imports we actually need
-#import bevy_pbr::mesh_view_bindings
-#import bevy_pbr::mesh_bindings
-
-#import bevy_pbr::mesh_functions
-#import bevy_pbr::prepass_utils
-
 #import bevy_pbr::mesh_vertex_output MeshVertexOutput
 
 fn inv_lerp(a: f32, b: f32, v: f32) -> f32 {
@@ -26,18 +19,7 @@ fn inv_lerp(a: f32, b: f32, v: f32) -> f32 {
 ///     the final output.
 fn grid_lines(pos: vec4<f32>, depth: f32, scale: f32, depth_min: f32, depth_max: f32) -> f32 {
     let ref_coords = abs(pos) * scale;
-
-    // TODO: `modf` no longer takes a pointer as its second argument, but that
-    // change is not yet reflected in the Naga version used at time of writing.
-    // When Bevy updates its Naga dependency, this will need to be updated:
-    // ```
-    // let fracs = modf(ref_coords).fract;
-    // ```
-    // Reference: https://www.w3.org/TR/2023/WD-WGSL-20230927/#modf-builtin
-    var wholes = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-    modf(ref_coords, &wholes);
-    let fracs = ref_coords - wholes;
-
+    let fracs = fract(ref_coords);
     let thickness = (0.0333 * scale) / (depth * 100.0);
 
     let x = smoothstep(0.0, thickness, fracs.x);
