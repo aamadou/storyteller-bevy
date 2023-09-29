@@ -12,11 +12,15 @@
       "configurations": {
         "production": {
           "release": true
-        },
-        "web": {
-          "release": true,
-          "target": "wasm32-unknown-unknown"
         }
+      }
+    },
+    "build:web": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "wasm-pack build --out-dir ../dist/hello-world/ -- --features wasm",
+        "cwd": "hello-world",
+        "env": "hello-world/.env"
       }
     },
     "run": {

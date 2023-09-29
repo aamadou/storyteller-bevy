@@ -3,17 +3,84 @@ name = "hello-world"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bevy = { workspace = true }
+wasm-bindgen = { version = "0.2.84", optional = true }
+console_error_panic_hook = { version = "0.1.7", optional = true }
 
-[target.'cfg(target_family = "wasm")'.dependencies]
-console_error_panic_hook = "0.1.7"
+[features]
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:console_error_panic_hook",
+]
+
+[dependencies.bevy]
+workspace = true
+default-features = false
+# TODO: Narrow this down to the features we actually need
+# FIXME: WebGPU is sparsely supported, but using the default WebGL backend
+#       causes a panic upstream: "Tex storage 2D multisample is not supported"
+features = [
+    "animation",
+    "bevy_asset",
+    "bevy_audio",
+    "bevy_gilrs",
+    "bevy_scene",
+    "bevy_winit",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_gltf",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_ui",
+    "png",
+    "hdr",
+    "ktx2",
+    "zstd",
+    "vorbis",
+    "x11",
+    "filesystem_watcher",
+    "bevy_gizmos",
+    "android_shared_stdcxx",
+    "tonemapping_luts",
+    "default_font",
+]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.bevy]
 workspace = true
-features = ["dynamic_linking"]
+default-features = false
+features = [
+    "animation",
+    "bevy_asset",
+    "bevy_audio",
+    "bevy_gilrs",
+    "bevy_scene",
+    "bevy_winit",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_gltf",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_ui",
+    "png",
+    "hdr",
+    "ktx2",
+    "zstd",
+    "vorbis",
+    "x11",
+    "filesystem_watcher",
+    "bevy_gizmos",
+    "android_shared_stdcxx",
+    "tonemapping_luts",
+    "default_font",
+    # TODO: This line is the only difference from default. Is there a way to
+    #       deduplicate the feature list?
+    "dynamic_linking",
+]
 
 # FIXME: Profiles for the non-root package are ignored, but [target] keys are
 # not allowed in the root package >_<
