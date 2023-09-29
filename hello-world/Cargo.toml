@@ -4,17 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+name = "hello_world"
 crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hello-world-standalone"
+path = "src/main.rs"
 
 [dependencies]
-wasm-bindgen = { version = "0.2.84", optional = true }
+wasm-bindgen = { version = "0.2.84" }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
 [features]
-wasm = [
-    "dep:wasm-bindgen",
-    "dep:console_error_panic_hook",
-]
+wasm = ["dep:console_error_panic_hook"]
 
 [dependencies.bevy]
 workspace = true

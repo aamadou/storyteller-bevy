@@ -31,7 +31,8 @@
       "executor": "@nxrs/cargo:build",
       "options": {
         "release": false,
-        "run": true
+        "run": true,
+        "bin": "hello-world-standalone"
       }
     },
     "test": {
