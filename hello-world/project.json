@@ -18,9 +18,13 @@
     "build:web": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "wasm-pack build --out-dir ../dist/hello-world/ -- --features wasm",
+        "commands": [
+          "wasm-pack build --out-dir ../dist/hello-world/ -- --features wasm",
+          "node scripts/copy-assets.mjs"
+        ],
         "cwd": "hello-world",
-        "env": "hello-world/.env"
+        "envFile": "hello-world/.env",
+        "parallel": false
       }
     },
     "run": {
