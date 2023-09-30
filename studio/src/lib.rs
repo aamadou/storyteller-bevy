@@ -17,21 +17,25 @@ pub fn init(viewport_size: ViewportSize) {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
 
-    App::new()
-        .add_plugins((
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    resolution: viewport_size.into(),
-                    ..default()
-                }),
+    let mut app = App::new();
+
+    #[cfg(target_arch = "wasm32")]
+    app.add_plugins(viewport::wasm::ViewportPlugin);
+
+    app.add_plugins((
+        DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                resolution: viewport_size.into(),
                 ..default()
             }),
-            OrbitCamPlugin,
-            TestScenePlugin,
-            UiLayerPlugin,
-        ))
-        .add_systems(Update, draw_world_axes.after(orbit_cam::pan_orbit_camera))
-        .run();
+            ..default()
+        }),
+        OrbitCamPlugin,
+        TestScenePlugin,
+        UiLayerPlugin,
+    ))
+    .add_systems(Update, draw_world_axes.after(orbit_cam::pan_orbit_camera))
+    .run();
 }
 
 fn draw_world_axes(mut gizmos: Gizmos, q: Query<&OrbitCam>) {
