@@ -1,24 +1,31 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::prelude::*;
+use orbit_cam::{OrbitCam, OrbitCamPlugin};
+use test_scene::TestScenePlugin;
+use ui::UiLayerPlugin;
+use viewport::ViewportSize;
 use wasm_bindgen::prelude::*;
 
 mod orbit_cam;
 mod test_scene;
 mod ui;
-
-use orbit_cam::{OrbitCam, OrbitCamPlugin};
-use test_scene::TestScenePlugin;
-use ui::UiLayerPlugin;
+mod viewport;
 
 #[wasm_bindgen]
-pub fn init() {
+pub fn init(viewport_size: ViewportSize) {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
 
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    resolution: viewport_size.into(),
+                    ..default()
+                }),
+                ..default()
+            }),
             OrbitCamPlugin,
             TestScenePlugin,
             UiLayerPlugin,

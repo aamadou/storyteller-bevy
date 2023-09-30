@@ -1,3 +1,3 @@
 fn main() {
-    studio::init();
+    studio::init(Default::default());
 }
