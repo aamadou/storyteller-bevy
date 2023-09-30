@@ -4,7 +4,7 @@ use bevy::{
     core_pipeline::prepass::{DepthPrepass, NormalPrepass},
     input::mouse::{MouseButton, MouseMotion},
     prelude::*,
-    window::PrimaryWindow,
+    window::{CursorGrabMode, PrimaryWindow},
 };
 
 pub struct OrbitCamPlugin;
@@ -64,13 +64,27 @@ fn spawn_camera(mut cmd: Commands) {
 }
 
 pub fn pan_orbit_camera(
-    window: Query<&Window, With<PrimaryWindow>>,
+    mut window: Query<&mut Window, With<PrimaryWindow>>,
     mut mouse_motion: EventReader<MouseMotion>,
     mouse_buttons: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
     mut camera: Query<(&mut OrbitCam, &mut Transform, &Projection)>,
 ) {
-    if !(keyboard.pressed(KeyCode::AltLeft) || keyboard.pressed(KeyCode::AltRight)) {
+    if (keyboard.just_released(KeyCode::AltLeft) && !keyboard.pressed(KeyCode::AltRight))
+        || (keyboard.just_released(KeyCode::AltRight) && !keyboard.pressed(KeyCode::AltLeft))
+        || mouse_buttons.just_released(OrbitCam::ORBIT_BTN)
+        || mouse_buttons.just_released(OrbitCam::PAN_BTN)
+        || mouse_buttons.just_released(OrbitCam::ZOOM_BTN)
+    {
+        let mut window = window.single_mut();
+        window.cursor.visible = true;
+        window.cursor.grab_mode = CursorGrabMode::None;
+    }
+
+    if !(keyboard.pressed(KeyCode::AltLeft)
+        || keyboard.pressed(KeyCode::AltRight)
+        || mouse_buttons.pressed(OrbitCam::PAN_BTN))
+    {
         return;
     }
 
@@ -92,10 +106,20 @@ pub fn pan_orbit_camera(
         return;
     };
 
-    let window = window.single();
     let mouse_delta = mouse_motion
         .into_iter()
         .fold(Vec2::ZERO, |accum, current| accum + current.delta);
+
+    // TODO: This is nice because it allows movement input beyond the limits of
+    //       the viewport, but it's a little awkward that the cursor doesn't
+    //       move while confined and hidden. We have a `set_cursor_position`
+    //       API, so maybe do the Blender thing and let the cursor wrap around
+    //       at the viewport edges?
+    let mut window = window.single_mut();
+    window.cursor.visible = false;
+    window.cursor.grab_mode = CursorGrabMode::Confined;
+
+    let window = window.as_ref();
 
     match control_mode {
         ControlMode::Orbit => {
@@ -105,7 +129,7 @@ pub fn pan_orbit_camera(
             do_pan(proj, window, mouse_delta, &mut xform, &mut orbit);
         }
         ControlMode::Zoom => {
-            let delta = (mouse_delta.y * 1.5) / window.height();
+            let delta = (mouse_delta.y * 1.5) / (window.physical_height() as f32);
             orbit.radius -= orbit.radius * delta;
             xform.translation = orbit.focus + xform.back() * orbit.radius;
         }
@@ -119,13 +143,13 @@ fn do_orbit(win: &Window, mouse_delta: Vec2, xform: &mut Transform, orbit: &Orbi
 
     // Calculate rotation
     let delta_x = {
-        let delta = mouse_delta.x / win.width() * consts::PI * 2.0;
+        let delta = mouse_delta.x / (win.physical_width() as f32) * consts::PI * 2.0;
         match orbit.upside_down {
             true => -delta,
             false => delta,
         }
     };
-    let delta_y = mouse_delta.y / win.height() * consts::PI;
+    let delta_y = mouse_delta.y / (win.physical_height() as f32) * consts::PI;
 
     let yaw = Quat::from_rotation_y(-delta_x);
     let pitch = Quat::from_rotation_x(-delta_y);
@@ -151,8 +175,8 @@ fn do_pan(
         Projection::Perspective(p) => {
             mouse_delta
                 * Vec2 {
-                    x: (p.fov * p.aspect_ratio) / win.width(),
-                    y: p.fov / win.height(),
+                    x: (p.fov * p.aspect_ratio) / (win.physical_width() as f32),
+                    y: p.fov / (win.physical_height() as f32),
                 }
         }
         _ => mouse_delta,
@@ -161,7 +185,7 @@ fn do_pan(
     // Pan along local XY plane, with the distance scaled by the radius
     let up = xform.up();
     let left = xform.left();
-    let delta = (pan.y * up + pan.x * left) * orbit.radius * 0.8;
+    let delta = (pan.y * up + pan.x * left) * orbit.radius;
 
     // Update camera translation and focus point
     xform.translation += delta;

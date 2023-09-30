@@ -70,7 +70,7 @@ pub mod wasm {
     impl Plugin for ViewportPlugin {
         fn build(&self, app: &mut App) {
             app.add_event::<ViewportResizeEvent>()
-                .add_systems(PreUpdate, dispatch_viewport_events)
+                .add_systems(PreUpdate, dispatch_resize_events)
                 .add_systems(Update, sync_window_to_viewport);
         }
     }
@@ -82,17 +82,13 @@ pub mod wasm {
         mut events: EventReader<ViewportResizeEvent>,
         mut window: Query<&mut Window>,
     ) {
-        let mut resize = None;
-        for event in events.into_iter() {
-            resize = Some(event.0);
-        }
-
-        if let Some(ViewportSize { width, height }) = resize {
+        if let Some(event) = events.into_iter().last() {
+            let ViewportSize { width, height } = event.0;
             window.single_mut().resolution.set(width, height);
         }
     }
 
-    fn dispatch_viewport_events(mut events: EventWriter<ViewportResizeEvent>) {
+    fn dispatch_resize_events(mut events: EventWriter<ViewportResizeEvent>) {
         let buffer = RESIZE_BUF.get_or_init(|| ReentrantMutex::new(RefCell::new(None)));
         if let Some(lock) = buffer.try_lock() {
             if let Some(resize) = lock.borrow_mut().take() {
