@@ -54,7 +54,13 @@
     },
     "preview": {
       "executor": "@nx/vite:preview-server",
-      "defaultConfiguration": "development",
+      "defaultConfiguration": "production",
+      "dependsOn": [
+        {
+          "projects": ["studio"],
+          "target": "build:web"
+        }
+      ],
       "options": {
         "buildTarget": "studio-frontend:build"
       },
