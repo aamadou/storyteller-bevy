@@ -27,11 +27,10 @@
         "parallel": false
       }
     },
-    "run": {
-      "executor": "@nxrs/cargo:build",
+    "dev": {
+      "executor": "@nxrs/cargo:run",
       "options": {
-        "release": false,
-        "run": true,
+        "profile": "dev-custom",
         "bin": "studio-standalone"
       }
     },
