@@ -11,9 +11,6 @@ export class AppElement extends HTMLElement {
 		const width = window.innerWidth;
 		const height = window.innerHeight;
 		try {
-			// TODO: This siezes up the whole browser for several seconds, presumably
-			// while the WASM binary is loading. Is there any way to do this
-			// asynchronously?
 			studio.init(new ViewportSize(width, height));
 		} catch (err) {
 			if (!(err as Error).message?.startsWith("Using exceptions for control flow"))
