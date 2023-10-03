@@ -54,7 +54,7 @@ impl SkyboxPaths {
 }
 
 fn setup(mut cmd: Commands, assets: Res<AssetServer>) {
-    cmd.insert_resource(Cubemap::new("promenade_de_vidy_4k", &assets));
+    cmd.insert_resource(Cubemap::new("scythian_tombs_4k", &assets));
 }
 
 fn asset_loaded(
