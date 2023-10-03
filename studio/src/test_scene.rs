@@ -13,10 +13,7 @@ pub struct TestScenePlugin;
 impl Plugin for TestScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
-            .add_plugins(MaterialPlugin::<ProceduralGridMaterial> {
-                prepass_enabled: true,
-                ..default()
-            })
+            .add_plugins(MaterialPlugin::<ProceduralGridMaterial>::default())
             .add_systems(Startup, spawn_scene)
             .add_systems(
                 PostUpdate,

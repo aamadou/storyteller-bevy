@@ -1,7 +1,6 @@
 use std::f32::consts;
 
 use bevy::{
-    core_pipeline::prepass::{DepthPrepass, NormalPrepass},
     input::mouse::{MouseButton, MouseMotion},
     prelude::*,
     window::{CursorGrabMode, PrimaryWindow},
@@ -52,10 +51,12 @@ fn spawn_camera(mut cmd: Commands) {
     cmd.spawn((
         Camera3dBundle {
             transform: camera_xform,
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
             ..default()
         },
-        DepthPrepass,
-        NormalPrepass,
         OrbitCam {
             radius: camera_xform.translation.length(),
             ..default()
