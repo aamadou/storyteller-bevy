@@ -34,25 +34,11 @@ fn spawn_scene(
     mut std_mats: ResMut<Assets<StandardMaterial>>,
     mut mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
 ) {
-    let mut light_xform = Transform::IDENTITY;
-    light_xform.rotation = Quat::from_rotation_y(f32::to_radians(-70.0)) * light_xform.rotation;
-    light_xform.rotation *= Quat::from_rotation_x(f32::to_radians(-60.0));
-
-    cmd.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            illuminance: 25_000.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: light_xform,
-        ..default()
-    });
-
-    // Cube
+    // Sphere
     cmd.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+        mesh: meshes.add(Mesh::try_from(shape::Icosphere::default()).unwrap()),
         material: std_mats.add(StandardMaterial {
-            base_color: Color::SILVER,
+            base_color: Color::WHITE,
             ..default()
         }),
         transform: Transform::IDENTITY,

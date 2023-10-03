@@ -2,12 +2,14 @@
 
 use bevy::prelude::*;
 use orbit_cam::{OrbitCam, OrbitCamPlugin};
+use skybox::SkyboxPlugin;
 use test_scene::TestScenePlugin;
 use ui::UiLayerPlugin;
 use viewport::ViewportSize;
 use wasm_bindgen::prelude::*;
 
 mod orbit_cam;
+mod skybox;
 mod test_scene;
 mod ui;
 mod viewport;
@@ -32,6 +34,7 @@ pub fn init(viewport_size: ViewportSize) {
         }),
         OrbitCamPlugin,
         TestScenePlugin,
+        SkyboxPlugin,
         UiLayerPlugin,
     ))
     .add_systems(Update, draw_world_axes.after(orbit_cam::pan_orbit_camera))
