@@ -2,6 +2,7 @@ use std::f32::consts;
 
 use bevy::{
     input::mouse::{MouseButton, MouseMotion},
+    math::vec3,
     prelude::*,
     window::{CursorGrabMode, PrimaryWindow},
 };
@@ -46,7 +47,8 @@ enum ControlMode {
 }
 
 fn spawn_camera(mut cmd: Commands) {
-    let camera_xform = Transform::from_xyz(-2.5, 3.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y);
+    let focus = vec3(0., 1.5, 0.);
+    let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
 
     cmd.spawn((
         Camera3dBundle {
@@ -58,6 +60,7 @@ fn spawn_camera(mut cmd: Commands) {
             ..default()
         },
         OrbitCam {
+            focus,
             radius: camera_xform.translation.length(),
             ..default()
         },

@@ -28,6 +28,7 @@ const mimeTypes = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".gif": "image/gif",
+    ".gltf": "model/gltf+json",
     ".hdr": "image/vnd.radiance",
     ".ktx": "image/ktx",
     ".ktx2": "image/ktx",

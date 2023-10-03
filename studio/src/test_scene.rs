@@ -27,18 +27,13 @@ struct WorldGridPlane;
 
 fn spawn_scene(
     mut cmd: Commands,
+    assets: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut std_mats: ResMut<Assets<StandardMaterial>>,
     mut mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
 ) {
-    // Sphere
-    cmd.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::try_from(shape::Icosphere::default()).unwrap()),
-        material: std_mats.add(StandardMaterial {
-            base_color: Color::WHITE,
-            ..default()
-        }),
-        transform: Transform::IDENTITY,
+    // Skeletal mesh
+    cmd.spawn(SceneBundle {
+        scene: assets.load("gltf/base_human_male.gltf#Scene0"),
         ..default()
     });
 
