@@ -3,4 +3,5 @@
 set -euxo pipefail
 
 npm ci
-npx nx build studio-frontend
+npx nx run studio:build:web
+npx nx run studio-frontend:build:production
