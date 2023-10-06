@@ -1,13 +1,15 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::prelude::*;
-use orbit_cam::{OrbitCam, OrbitCamPlugin};
+use input::StudioInputPlugin;
+use orbit_cam::{CameraMotionSystem, OrbitCam, OrbitCamPlugin};
 use skybox::SkyboxPlugin;
 use test_scene::TestScenePlugin;
 use ui::UiLayerPlugin;
 use viewport::ViewportSize;
 use wasm_bindgen::prelude::*;
 
+mod input;
 mod orbit_cam;
 mod skybox;
 mod test_scene;
@@ -32,12 +34,13 @@ pub fn init(viewport_size: ViewportSize) {
             }),
             ..default()
         }),
+        StudioInputPlugin,
         OrbitCamPlugin,
         TestScenePlugin,
         SkyboxPlugin,
         UiLayerPlugin,
     ))
-    .add_systems(Update, draw_world_axes.after(orbit_cam::pan_orbit_camera))
+    .add_systems(Update, draw_world_axes.after(CameraMotionSystem))
     .run();
 }
 
