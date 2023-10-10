@@ -1,6 +1,5 @@
-import { match } from "@storyteller/utility";
 import { on } from "@storyteller/framework";
-import { LitElement, html, unsafeCSS } from "lit";
+import { LitElement, html, nothing, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
 import styles from "./button.element.scss?inline";
@@ -21,10 +20,10 @@ export class ButtonElement extends LitElement {
 	}
 
 	protected override render = () => html`
-		${match (this.icon, {
-			"circle-info": () => html`<fa-circle-info class="icon"></fa-circle-info>`,
-			_: () => null,
-		})}
+		${this.icon
+			? html`<sts-icon icon=${this.icon} aria-hidden="true"></sts-icon>`
+			: nothing}
+
 		<slot></slot>
 	`
 }

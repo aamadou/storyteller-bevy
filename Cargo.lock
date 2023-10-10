@@ -2856,6 +2856,7 @@ name = "studio"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bitflags 2.4.0",
  "console_error_panic_hook",
  "parking_lot",
  "wasm-bindgen",
