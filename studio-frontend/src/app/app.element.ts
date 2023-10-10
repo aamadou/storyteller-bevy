@@ -1,13 +1,40 @@
+import { on } from "@storyteller/framework";
 import * as studio from "@storyteller/studio";
 import { ViewportSize } from "@storyteller/studio";
-import { throttle } from "lodash";
+import { LitElement, html, unsafeCSS } from "lit";
+import { customElement, state } from "lit/decorators.js";
 
-import "./app.element.scss";
+import "./button.element";
+import "./help.element";
+import "./icons/fa-circle-info.element";
 
-export class AppElement extends HTMLElement {
-	static observedAttributes = [];
+import styles from "./app.element.scss?inline";
 
-	connectedCallback(): void {
+@customElement("app-root")
+export class AppElement extends LitElement {
+	static override styles = unsafeCSS(styles);
+
+	@state() showHelp = false;
+
+	#studioCanvas?: HTMLCanvasElement | null;
+
+	override connectedCallback(): void {
+		this.#studioCanvas = this.#initStudio();
+		super.connectedCallback();
+	}
+
+	@on("window:resize")
+	onWindowResize(): void {
+		const width = window.innerWidth;
+		const height = window.innerHeight;
+		studio.resize(new ViewportSize(width, height));
+	}
+
+	toggleHelp(): void {
+		this.showHelp = !this.showHelp;
+	}
+
+	#initStudio(): HTMLCanvasElement | null {
 		const width = window.innerWidth;
 		const height = window.innerHeight;
 		try {
@@ -17,17 +44,19 @@ export class AppElement extends HTMLElement {
 				throw err;
 		}
 
-		window.addEventListener("resize", this.onResize);
+		return document.querySelector<HTMLCanvasElement>(`canvas[alt="Storyteller Studio"]`);
 	}
 
-	disconnectedCallback(): void {
-		window.removeEventListener("resize", this.onResize);
-	}
+	protected override render = () => html`
+		<sts-button class="btn-help"
+			icon="circle-info"
+			@click=${this.toggleHelp}
+		>
+			Help
+		</sts-button>
 
-	onResize = throttle(() => {
-		const width = window.innerWidth;
-		const height = window.innerHeight;
-		studio.resize(new ViewportSize(width, height));
-	}, 16.666);
+		${this.showHelp ? html`
+			<sts-help class="help"></sts-help>
+		` : null}
+	`;
 }
-customElements.define("app-root", AppElement);
