@@ -53,9 +53,13 @@ function renderSvg(iconId: string) {
 			.map(([, attr, value]) => [attr, value])
 	);
 
-	return html`
+	const result = html`
 		<svg ${spread(attrs)}>
 			${unsafeSVG(body)}
 		</svg>
 	`;
+
+	RENDER_RESULTS.set(iconId, result);
+
+	return result;
 }
