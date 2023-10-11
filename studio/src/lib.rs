@@ -15,6 +15,7 @@ use ui::UiLayerPlugin;
 use viewport::ViewportSize;
 use wasm_bindgen::prelude::*;
 
+mod design_system;
 mod input;
 mod interaction;
 mod orbit_cam;

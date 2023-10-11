@@ -1,5 +1,7 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 
+use crate::design_system;
+
 use super::{InteractionMode, InteractionTransform, Selected, TransformSpace};
 
 pub(super) fn draw(
@@ -53,9 +55,9 @@ fn draw_translate_gizmo(xform: &Transform, gizmos: &mut Gizmos, space: Transform
         gizmos.line(origin, end, color);
     };
 
-    draw_axis(basis.local_x(), Color::RED);
-    draw_axis(basis.local_y(), Color::GREEN);
-    draw_axis(basis.local_z(), Color::BLUE);
+    draw_axis(basis.local_x(), design_system::Color::RED);
+    draw_axis(basis.local_y(), design_system::Color::GREEN);
+    draw_axis(basis.local_z(), design_system::Color::BLUE);
 }
 
 #[inline]
@@ -66,7 +68,7 @@ fn draw_rotate_gizmo(xform: &Transform, gizmos: &mut Gizmos, space: TransformSpa
         TransformSpace::World => &Transform::IDENTITY,
     };
 
-    gizmos.circle(origin, basis.local_x(), radius, Color::RED);
-    gizmos.circle(origin, basis.local_y(), radius, Color::GREEN);
-    gizmos.circle(origin, basis.local_z(), radius, Color::BLUE);
+    gizmos.circle(origin, basis.local_x(), radius, design_system::Color::RED);
+    gizmos.circle(origin, basis.local_y(), radius, design_system::Color::GREEN);
+    gizmos.circle(origin, basis.local_z(), radius, design_system::Color::BLUE);
 }
