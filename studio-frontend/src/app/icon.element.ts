@@ -1,5 +1,5 @@
 import { match } from "@storyteller/utility";
-import { ElementPart, LitElement, html, nothing, unsafeCSS } from "lit";
+import { ElementPart, LitElement, TemplateResult, html, nothing, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { Directive, directive } from "lit/directive.js";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
@@ -24,24 +24,30 @@ export class IconElement extends LitElement {
 			<slot></slot>
 		</span>
 		<div class="svg-wrapper" role="presentation">
-			${match (this.icon, {
-				"circle-info": () => renderSvg(fasCircleInfo),
-				"cube": () => renderSvg(fasCube),
-				"globe": () => renderSvg(fasGlobe),
-				"up-down-left-right": () => renderSvg(fasUpDownLeftRight),
-				"rotate": () => renderSvg(fasRotate),
-				"scale": () => renderSvg(fasScale),
-				_: () => nothing,
-			})}
+			${renderSvg(this.icon)}
 		</div>
 	`;
 }
 
-// TODO: Consider moving this
-function renderSvg(fullSvg: string) {
-	console.log("parsing:", fullSvg);
+const RENDER_RESULTS = new Map<string, TemplateResult>();
 
-	const [, attrsString, body] = fullSvg.match(/<svg(.+?)>(.+?)<\/svg>/)!;
+function renderSvg(iconId: string) {
+	if (RENDER_RESULTS.has(iconId))
+		return RENDER_RESULTS.get(iconId)!;
+
+	const svgSrc = match (iconId, {
+		"circle-info": () => fasCircleInfo,
+		"cube": () => fasCube,
+		"globe": () => fasGlobe,
+		"up-down-left-right": () => fasUpDownLeftRight,
+		"rotate": () => fasRotate,
+		"scale": () => fasScale,
+		_: () => null,
+	});
+
+	if (!svgSrc) return nothing;
+
+	const [, attrsString, body] = svgSrc.match(/<svg(.+?)>(.+?)<\/svg>/)!;
 	const attrs = Object.fromEntries(
 		Array.from(attrsString.matchAll(/([-:_a-zA-Z0-9]+)(?:=['"]?([^'"]*)['"]?)/g))
 			.map(([, attr, value]) => [attr, value])
