@@ -18,6 +18,7 @@ use wasm_bindgen::prelude::*;
 mod design_system;
 mod input;
 mod interaction;
+mod math;
 mod orbit_cam;
 mod skybox;
 mod test_scene;

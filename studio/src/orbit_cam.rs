@@ -6,7 +6,10 @@ use bevy::{
     window::{CursorGrabMode, PrimaryWindow},
 };
 
-use crate::input::{Action, CameraMotion, InputAction, Lifecycle};
+use crate::{
+    input::{Action, CameraMotion, InputAction, Lifecycle},
+    math::NearlyEq,
+};
 
 pub struct OrbitCamPlugin;
 
@@ -285,26 +288,4 @@ fn do_rotate(win: &Window, delta: Vec2, xform: &mut Transform, orbit_cam: &mut O
 #[inline]
 fn curve_sin(t: f32) -> f32 {
     -1. * (f32::cos(t * consts::PI) / 2.) + 0.5
-}
-
-trait NearlyEq {
-    type Rhs;
-
-    fn nearly_eq(self, rhs: Self::Rhs) -> bool;
-}
-
-impl NearlyEq for f32 {
-    type Rhs = Self;
-
-    fn nearly_eq(self, rhs: Self::Rhs) -> bool {
-        (self - rhs).abs() < Self::EPSILON
-    }
-}
-
-impl NearlyEq for Vec3 {
-    type Rhs = Self;
-
-    fn nearly_eq(self, rhs: Self::Rhs) -> bool {
-        self.x.nearly_eq(rhs.x) && self.y.nearly_eq(rhs.y) && self.z.nearly_eq(rhs.z)
-    }
 }
