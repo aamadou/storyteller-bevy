@@ -4,12 +4,12 @@ import { LitElement, TemplateResult, html, nothing, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 
-import fasCircleInfo from "@fortawesome/fontawesome-pro/svgs/solid/circle-info.svg?raw";
-import fasCube from "@fortawesome/fontawesome-pro/svgs/solid/cube.svg?raw";
-import fasGlobe from "@fortawesome/fontawesome-pro/svgs/solid/globe.svg?raw";
-import fasUpDownLeftRight from "@fortawesome/fontawesome-pro/svgs/solid/up-down-left-right.svg?raw";
-import fasRotate from "@fortawesome/fontawesome-pro/svgs/solid/rotate.svg?raw";
-import fasScale from "@fortawesome/fontawesome-pro/svgs/solid/arrow-up-right-and-arrow-down-left-from-center.svg?raw";
+import fasCircleInfo from "@fortawesome/fontawesome-pro/svgs/regular/circle-info.svg?raw";
+import fasCube from "@fortawesome/fontawesome-pro/svgs/regular/cube.svg?raw";
+import fasGlobe from "@fortawesome/fontawesome-pro/svgs/regular/globe.svg?raw";
+import fasUpDownLeftRight from "@fortawesome/fontawesome-pro/svgs/regular/arrows-up-down-left-right.svg?raw";
+import fasRotate from "@fortawesome/fontawesome-pro/svgs/regular/arrows-rotate.svg?raw";
+import fasScale from "@fortawesome/fontawesome-pro/svgs/regular/arrow-up-right-and-arrow-down-left-from-center.svg?raw";
 
 import styles from "./icon.element.scss?inline";
 
