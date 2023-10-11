@@ -1,7 +1,7 @@
+import { spread } from "@storyteller/framework";
 import { match } from "@storyteller/utility";
-import { ElementPart, LitElement, TemplateResult, html, nothing, unsafeCSS } from "lit";
+import { LitElement, TemplateResult, html, nothing, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { Directive, directive } from "lit/directive.js";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 
 import fasCircleInfo from "@fortawesome/fontawesome-pro/svgs/solid/circle-info.svg?raw";
@@ -59,17 +59,3 @@ function renderSvg(iconId: string) {
 		</svg>
 	`;
 }
-
-// TODO: Definitely move this
-const spread = directive(class extends Directive {
-	override render(_: Record<string, string>) {
-		return nothing;
-	}
-
-	override update(part: ElementPart, [attrs]: [Record<string, string>]) {
-		for (let [key, value] of Object.entries(attrs)) {
-			part.element.setAttribute(key, value);
-		}
-		return part;
-	}
-});
