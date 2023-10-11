@@ -6,11 +6,17 @@ use crate::design_system;
 
 use super::{InteractionMode, InteractionTransform, Selected, TransformSpace};
 
+#[derive(Clone, Copy)]
+enum GizmoVariant {
+    Full,
+    Partial,
+}
+
 pub(super) fn draw(
     q_selection: Query<&GlobalTransform, With<Selected>>,
     q_camera_xform: Query<&Transform, With<Camera>>,
     q_window: Query<&Window, With<PrimaryWindow>>,
-    interaction_mode: Res<InteractionMode>,
+    mode: Res<InteractionMode>,
     mut gizmos: Gizmos,
     mut config: ResMut<GizmoConfig>,
 ) {
@@ -21,7 +27,6 @@ pub(super) fn draw(
         config.line_perspective = false;
         config.depth_bias = -1.;
 
-        let InteractionMode { transform, space } = *interaction_mode;
         let camera_xform = q_camera_xform.single();
 
         // TODO: We only want to render one gizmo -- this is just for testing
@@ -33,40 +38,83 @@ pub(super) fn draw(
             // you dial the camera's focal length way down, so I'm gonna call it
             // good enough.
             let dist = Vec3::distance(camera_xform.translation, xform.translation);
+            let size = dist / 20.;
 
-            if transform.contains(InteractionTransform::TRANSLATE) {
-                draw_translate_gizmo(&xform, &mut gizmos, space, dist / 12.5);
+            let variant = if mode
+                .transform
+                .contains(InteractionTransform::TRANSLATE | InteractionTransform::ROTATE)
+            {
+                GizmoVariant::Partial
+            } else {
+                GizmoVariant::Full
+            };
+
+            if mode.transform.contains(InteractionTransform::TRANSLATE) {
+                draw_translate_gizmo(&mut gizmos, variant, &xform, mode.space, size);
             }
-            if transform.contains(InteractionTransform::ROTATE) {
-                draw_rotate_gizmo(&xform, camera_xform, &mut gizmos, space, dist / 20.);
+            if mode.transform.contains(InteractionTransform::ROTATE) {
+                draw_rotate_gizmo(&mut gizmos, variant, &xform, camera_xform, mode.space, size);
             }
         }
     }
 }
 
+// FIXME: We might need more control over the Z-ordering / depth bias than the
+//        Bevy gizmos give us. :/
+
 #[inline]
-fn draw_translate_gizmo(xform: &Transform, gizmos: &mut Gizmos, space: TransformSpace, size: f32) {
+fn draw_translate_gizmo(
+    gizmos: &mut Gizmos,
+    variant: GizmoVariant,
+    xform: &Transform,
+    space: TransformSpace,
+    size: f32,
+) {
     let origin = xform.translation;
     let basis = match space {
         TransformSpace::Local => xform,
         TransformSpace::World => &Transform::IDENTITY,
     };
 
-    let mut draw_axis = |direction: Vec3, color: Color| {
-        let end = origin + direction * size;
-        gizmos.line(origin, end, color);
-    };
+    match variant {
+        GizmoVariant::Full => {
+            gizmos.sphere(origin, Quat::IDENTITY, size * 0.125, Color::WHITE);
 
-    draw_axis(basis.local_x(), design_system::Color::RED);
-    draw_axis(basis.local_y(), design_system::Color::GREEN);
-    draw_axis(basis.local_z(), design_system::Color::BLUE);
+            let mut draw_axis = |direction: Vec3, color: Color| {
+                let end = origin + direction * size * 1.4;
+                gizmos.line(origin, end, color);
+
+                let cone_base = origin + direction * size;
+                let radius = size * 0.1;
+                let length = size * 0.4;
+                gizmos.cone(cone_base, direction, radius, length, color);
+            };
+
+            draw_axis(basis.local_x(), design_system::Color::RED);
+            draw_axis(basis.local_y(), design_system::Color::GREEN);
+            draw_axis(basis.local_z(), design_system::Color::BLUE);
+        }
+        GizmoVariant::Partial => {
+            let mut draw_axis = |direction: Vec3, color: Color| {
+                let cone_base = origin + direction * size * 1.4;
+                let radius = size * 0.1;
+                let length = size * 0.4;
+                gizmos.cone(cone_base, direction, radius, length, color);
+            };
+
+            draw_axis(basis.local_x(), design_system::Color::RED);
+            draw_axis(basis.local_y(), design_system::Color::GREEN);
+            draw_axis(basis.local_z(), design_system::Color::BLUE);
+        }
+    }
 }
 
 #[inline]
 fn draw_rotate_gizmo(
+    gizmos: &mut Gizmos,
+    variant: GizmoVariant,
     xform: &Transform,
     camera_xform: &Transform,
-    gizmos: &mut Gizmos,
     space: TransformSpace,
     radius: f32,
 ) {
@@ -75,32 +123,66 @@ fn draw_rotate_gizmo(
         TransformSpace::Local => xform,
         TransformSpace::World => &Transform::IDENTITY,
     };
+    let camera_fwd = camera_xform.forward();
 
     // Draw a screen-space rotator ring
     gizmos.circle(origin, camera_xform.forward(), radius * 1.2, Color::WHITE);
 
-    // Draw a semicircle for each of the X, Y and Z axes
+    draw_rotator_axis_rings(
+        gizmos,
+        RotatorRings::Near,
+        origin,
+        camera_fwd,
+        basis,
+        radius,
+    );
+
+    if matches!(variant, GizmoVariant::Full) {
+        draw_rotator_axis_rings(gizmos, RotatorRings::Far, origin, camera_fwd, basis, radius);
+    }
+}
+
+enum RotatorRings {
+    Near,
+    Far,
+}
+
+#[inline]
+fn draw_rotator_axis_rings(
+    gizmos: &mut Gizmos,
+    which: RotatorRings,
+    origin: Vec3,
+    camera_fwd: Vec3,
+    basis: &Transform,
+    radius: f32,
+) {
     for (normal, color) in [
         (basis.local_x(), design_system::Color::RED),
         (basis.local_y(), design_system::Color::GREEN),
         (basis.local_z(), design_system::Color::BLUE),
     ] {
-        let perp = Vec3::cross(normal, camera_xform.forward()).normalize();
-        let start = origin + perp * radius;
+        let (color, perp) = match which {
+            RotatorRings::Near => (color, Vec3::cross(normal, camera_fwd)),
+            RotatorRings::Far => (color.with_a(0.2), Vec3::cross(camera_fwd, normal)),
+        };
+
+        let start = origin + perp.normalize() * radius;
 
         gizmos.arc(origin, normal, start, consts::PI, color);
     }
 }
 
-trait Arc {
+trait GizmoExtras {
     /// Draw an arc around `center` with angular `length` (in radians),
     /// beginning at `point` and progressing counter-clockwise around `axis`
     /// (if axis were pointed toward the viewer). The radius is derived from the
     /// distance between `center` and `start`.
     fn arc(&mut self, center: Vec3, axis: Vec3, start: Vec3, length: f32, color: Color);
+
+    fn cone(&mut self, base: Vec3, normal: Vec3, radius: f32, length: f32, color: Color);
 }
 
-impl<'a> Arc for Gizmos<'a> {
+impl<'a> GizmoExtras for Gizmos<'a> {
     fn arc(&mut self, center: Vec3, normal: Vec3, start: Vec3, length: f32, color: Color) {
         let two_pi = consts::PI * 2.;
         let segments = f32::round(32. * (length / two_pi));
@@ -112,6 +194,23 @@ impl<'a> Arc for Gizmos<'a> {
             let next = rotator * vector;
             self.line(center + vector, center + next, color);
             vector = next;
+        }
+    }
+
+    fn cone(&mut self, base: Vec3, normal: Vec3, radius: f32, length: f32, color: Color) {
+        self.circle(base, normal, radius, color);
+
+        let angle_inc = (consts::PI * 2.) / 32.;
+        let rotator = Mat3::from_axis_angle(normal, angle_inc);
+        let perp = normal.any_orthonormal_pair().0;
+        let first = base + perp * radius;
+        let end = base + normal * length;
+
+        let mut vector = first - base;
+        for _ in 0..32 {
+            let start = base + vector;
+            self.line(start, end, color);
+            vector = rotator * vector;
         }
     }
 }
