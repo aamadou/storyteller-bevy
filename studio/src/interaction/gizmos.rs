@@ -80,7 +80,11 @@ fn draw_translate_gizmo(
         GizmoVariant::Full => {
             gizmos.sphere(origin, Quat::IDENTITY, size * 0.125, Color::WHITE);
 
-            let mut draw_axis = |direction: Vec3, color: Color| {
+            for (direction, color) in [
+                (basis.local_x(), design_system::Color::RED),
+                (basis.local_y(), design_system::Color::GREEN),
+                (basis.local_z(), design_system::Color::BLUE),
+            ] {
                 let end = origin + direction * size * 1.4;
                 gizmos.line(origin, end, color);
 
@@ -88,23 +92,19 @@ fn draw_translate_gizmo(
                 let radius = size * 0.1;
                 let length = size * 0.4;
                 gizmos.cone(cone_base, direction, radius, length, color);
-            };
-
-            draw_axis(basis.local_x(), design_system::Color::RED);
-            draw_axis(basis.local_y(), design_system::Color::GREEN);
-            draw_axis(basis.local_z(), design_system::Color::BLUE);
+            }
         }
         GizmoVariant::Partial => {
-            let mut draw_axis = |direction: Vec3, color: Color| {
+            for (direction, color) in [
+                (basis.local_x(), design_system::Color::RED),
+                (basis.local_y(), design_system::Color::GREEN),
+                (basis.local_z(), design_system::Color::BLUE),
+            ] {
                 let cone_base = origin + direction * size * 1.4;
                 let radius = size * 0.1;
                 let length = size * 0.4;
                 gizmos.cone(cone_base, direction, radius, length, color);
-            };
-
-            draw_axis(basis.local_x(), design_system::Color::RED);
-            draw_axis(basis.local_y(), design_system::Color::GREEN);
-            draw_axis(basis.local_z(), design_system::Color::BLUE);
+            }
         }
     }
 }
