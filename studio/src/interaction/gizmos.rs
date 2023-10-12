@@ -90,31 +90,30 @@ fn draw_translate_gizmo(
 
         color = color.with_a(alpha);
 
-        let cone_base = match variant {
-            GizmoVariant::Full => {
-                // TODO: It's probably bad form to put a bunch of side-effects
-                //       like this in a value-producing expression
-                let start = origin + direction * size * 0.25;
-                let end = origin + direction * size * 1.6;
-                gizmos.line(start, end, color);
+        if matches!(variant, GizmoVariant::Full) {
+            let start = origin + direction * size * 0.25;
+            let end = origin + direction * size * 1.6;
+            gizmos.line(start, end, color);
 
-                let midpoint_self = origin + ((end - origin) / 2.);
-                let (ortho, mut color_ortho) = get_ortho(basis, direction);
+            let midpoint_self = origin + ((end - origin) / 2.);
+            let (ortho, mut color_ortho) = get_ortho(basis, direction);
 
-                let ortho_alpha = (1. - Vec3::dot(camera_xform.forward(), ortho).abs())
-                    .remap((0., 0.1), (0., 1.))
-                    .clamp(0., 1.);
+            let ortho_alpha = (1. - Vec3::dot(camera_xform.forward(), ortho).abs())
+                .remap((0., 0.1), (0., 1.))
+                .clamp(0., 1.);
 
-                color_ortho = color_ortho.with_a(f32::min(ortho_alpha, alpha));
+            color_ortho = color_ortho.with_a(f32::min(ortho_alpha, alpha));
 
-                let ortho_end = origin + ortho * size * 1.6;
-                let midpoint_ortho = origin + ((ortho_end - origin) / 2.);
-                gizmos.line_gradient(midpoint_self, midpoint_ortho, color, color_ortho);
+            let ortho_end = origin + ortho * size * 1.6;
+            let midpoint_ortho = origin + ((ortho_end - origin) / 2.);
+            gizmos.line_gradient(midpoint_self, midpoint_ortho, color, color_ortho);
+        }
 
-                origin + direction * size * 1.2
-            }
-            GizmoVariant::Partial => origin + direction * size * 1.4,
+        let factor = match variant {
+            GizmoVariant::Full => 1.2,
+            GizmoVariant::Partial => 1.4,
         };
+        let cone_base = origin + direction * size * factor;
 
         let radius = size * 0.1;
         let length = size * 0.4;
