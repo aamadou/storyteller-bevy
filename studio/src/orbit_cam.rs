@@ -8,7 +8,7 @@ use bevy::{
 
 use crate::{
     input::{Action, CameraMotion, InputAction, Lifecycle},
-    math::NearlyEq,
+    math::{self, NearlyEq},
 };
 
 pub struct OrbitCamPlugin;
@@ -157,7 +157,7 @@ fn update_velocity(
         } else if t.0.nearly_eq(1.) {
             target_vel
         } else {
-            Vec3::lerp(velocity.0, target_vel, curve_sin(t.0))
+            Vec3::lerp(velocity.0, target_vel, math::curve_sin(t.0))
         };
     }
 }
@@ -280,12 +280,4 @@ fn do_rotate(win: &Window, delta: Vec2, xform: &mut Transform, orbit_cam: &mut O
 
     // Update focus point
     orbit_cam.focus = xform.translation + xform.forward() * orbit_cam.radius;
-}
-
-/// Fit a [0, 1] `t` interpolation parameter to a sine curve
-///
-/// https://www.desmos.com/calculator/k9x4c4cr5y
-#[inline]
-fn curve_sin(t: f32) -> f32 {
-    -1. * (f32::cos(t * consts::PI) / 2.) + 0.5
 }

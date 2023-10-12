@@ -2,7 +2,7 @@ use std::f32::consts;
 
 use bevy::{prelude::*, window::PrimaryWindow};
 
-use crate::design_system;
+use crate::{design_system, math::Lerp};
 
 use super::{InteractionMode, InteractionTransform, Selected, TransformSpace};
 
@@ -50,7 +50,7 @@ pub(super) fn draw(
             };
 
             if mode.transform.contains(InteractionTransform::TRANSLATE) {
-                draw_translate_gizmo(&mut gizmos, variant, &xform, mode.space, size);
+                draw_translate_gizmo(&mut gizmos, variant, &xform, camera_xform, mode.space, size);
             }
             if mode.transform.contains(InteractionTransform::ROTATE) {
                 draw_rotate_gizmo(&mut gizmos, variant, &xform, camera_xform, mode.space, size);
@@ -67,6 +67,7 @@ fn draw_translate_gizmo(
     gizmos: &mut Gizmos,
     variant: GizmoVariant,
     xform: &Transform,
+    camera_xform: &Transform,
     space: TransformSpace,
     size: f32,
 ) {
@@ -76,36 +77,65 @@ fn draw_translate_gizmo(
         TransformSpace::World => &Transform::IDENTITY,
     };
 
-    match variant {
-        GizmoVariant::Full => {
-            gizmos.sphere(origin, Quat::IDENTITY, size * 0.125, Color::WHITE);
+    gizmos.circle(origin, camera_xform.forward(), size * 0.2, Color::WHITE);
 
-            for (direction, color) in [
-                (basis.local_x(), design_system::Color::RED),
-                (basis.local_y(), design_system::Color::GREEN),
-                (basis.local_z(), design_system::Color::BLUE),
-            ] {
-                let end = origin + direction * size * 1.4;
-                gizmos.line(origin, end, color);
+    for (direction, mut color) in [
+        (basis.local_x(), design_system::Color::RED),
+        (basis.local_y(), design_system::Color::GREEN),
+        (basis.local_z(), design_system::Color::BLUE),
+    ] {
+        let alpha = (1. - Vec3::dot(camera_xform.forward(), direction).abs())
+            .remap((0., 0.1), (0., 1.))
+            .clamp(0., 1.);
 
-                let cone_base = origin + direction * size;
-                let radius = size * 0.1;
-                let length = size * 0.4;
-                gizmos.cone(cone_base, direction, radius, length, color);
+        color = color.with_a(alpha);
+
+        let cone_base = match variant {
+            GizmoVariant::Full => {
+                let start = origin + direction * size * 0.25;
+                let end = origin + direction * size * 1.6;
+                gizmos.line(start, end, color);
+
+                let midpoint_self = origin + ((end - origin) / 2.);
+                let (ortho, mut color_ortho) = get_ortho(basis, direction);
+
+                let ortho_alpha = (1. - Vec3::dot(camera_xform.forward(), ortho).abs())
+                    .remap((0., 0.1), (0., 1.))
+                    .clamp(0., 1.);
+
+                color_ortho = color_ortho.with_a(f32::min(ortho_alpha, alpha));
+
+                let ortho_end = origin + ortho * size * 1.6;
+                let midpoint_ortho = origin + ((ortho_end - origin) / 2.);
+                gizmos.line_gradient(midpoint_self, midpoint_ortho, color, color_ortho);
+
+                origin + direction * size * 1.2
             }
-        }
-        GizmoVariant::Partial => {
-            for (direction, color) in [
-                (basis.local_x(), design_system::Color::RED),
-                (basis.local_y(), design_system::Color::GREEN),
-                (basis.local_z(), design_system::Color::BLUE),
-            ] {
-                let cone_base = origin + direction * size * 1.4;
-                let radius = size * 0.1;
-                let length = size * 0.4;
-                gizmos.cone(cone_base, direction, radius, length, color);
-            }
-        }
+            GizmoVariant::Partial => origin + direction * size * 1.4,
+        };
+
+        let radius = size * 0.1;
+        let length = size * 0.4;
+        gizmos.cone(cone_base, direction, radius, length, color);
+    }
+}
+
+#[inline]
+fn get_ortho(xform: &Transform, compare: Vec3) -> (Vec3, Color) {
+    let x = xform.local_x();
+    let y = xform.local_y();
+    let z = xform.local_z();
+
+    let diff_x = (compare - x).length_squared();
+    let diff_y = (compare - y).length_squared();
+    let diff_z = (compare - z).length_squared();
+
+    if diff_x < diff_y && diff_x < diff_z {
+        (y, design_system::Color::GREEN)
+    } else if diff_y < diff_x && diff_y < diff_z {
+        (z, design_system::Color::BLUE)
+    } else {
+        (x, design_system::Color::RED)
     }
 }
 
