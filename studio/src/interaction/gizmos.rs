@@ -32,7 +32,7 @@ pub(super) fn draw(
         // TODO: We only want to render one gizmo -- this is just for testing
         for world_xform in q_selection.iter() {
             let xform = world_xform.compute_transform();
-            // Note: Scaling the gizmo size by this isn't perfect due to
+            // Note: Scaling the gizmo size like this isn't perfect due to
             // distortion from the perspective projection. It bugged me at
             // first, but even Blender exhibits this type of gizmo distortion if
             // you dial the camera's focal length way down, so I'm gonna call it
@@ -60,7 +60,12 @@ pub(super) fn draw(
 }
 
 // FIXME: We might need more control over the Z-ordering / depth bias than the
-//        Bevy gizmos give us. :/
+//        Bevy gizmos give us. As best as I can tell, the elements are drawn in
+//        reverse invocation order (the methods called last are rendered first,
+//        like the commands are being popped from a LIFO stack), but it's not
+//        100% consistent and there seems to be lots of flickering / Z-fighting.
+//        Might not be a big deal, so I'm inclined to roll with it for now and
+//        see how users respond.
 
 #[inline]
 fn draw_translate_gizmo(
@@ -77,27 +82,36 @@ fn draw_translate_gizmo(
         TransformSpace::World => &Transform::IDENTITY,
     };
 
-    gizmos.circle(origin, camera_xform.forward(), size * 0.2, Color::WHITE);
-
     for (direction, mut color) in [
         (basis.local_x(), design_system::Color::RED),
         (basis.local_y(), design_system::Color::GREEN),
         (basis.local_z(), design_system::Color::BLUE),
     ] {
+        // Fade the arrow out when it's pointed directly at the camera.
+        // (Prevents overlapping/obscuring the center screen-space ring, or just
+        // generally getting in the way when it's not very useful to grab onto.)
         let alpha = (1. - Vec3::dot(camera_xform.forward(), direction).abs())
             .remap((0., 0.1), (0., 1.))
             .clamp(0., 1.);
 
         color = color.with_a(alpha);
 
+        // In "Partial" mode, we only draw the center ring and the arrow tips to
+        // leave room for the rotator rings.
         if matches!(variant, GizmoVariant::Full) {
+            // Draw a line from just outside the center ring to the tip of the arrow
             let start = origin + direction * size * 0.25;
             let end = origin + direction * size * 1.6;
             gizmos.line(start, end, color);
 
+            // Draw a line from the midpoint of this arrow to the midpoint of
+            // the next one. This "crossbar" can be used to translate the object
+            // on the plane defined by the corresponding axes.
             let midpoint_self = origin + ((end - origin) / 2.);
             let (ortho, mut color_ortho) = get_ortho(basis, direction);
 
+            // Fade the crossbar when its plane is edge-on with the camera, just
+            // like we did for the arrow pointing toward/away from the camera.
             let ortho_alpha = (1. - Vec3::dot(camera_xform.forward(), ortho).abs())
                 .remap((0., 0.1), (0., 1.))
                 .clamp(0., 1.);
@@ -109,6 +123,7 @@ fn draw_translate_gizmo(
             gizmos.line_gradient(midpoint_self, midpoint_ortho, color, color_ortho);
         }
 
+        // Draw the arrow tip
         let factor = match variant {
             GizmoVariant::Full => 1.2,
             GizmoVariant::Partial => 1.4,
@@ -119,8 +134,15 @@ fn draw_translate_gizmo(
         let length = size * 0.4;
         gizmos.cone(cone_base, direction, radius, length, color);
     }
+
+    // Draw the center ring. This can be dragged around to translate the object
+    // in screen-space (i.e. on the camera's XY plane).
+    gizmos.circle(origin, camera_xform.forward(), size * 0.2, Color::WHITE);
 }
 
+// Dumb helper function for grabbing the normal vector/color for the translation
+// gizmo's next arrow. We use this to determine where and how to render the
+// planar translation "crossbars".
 #[inline]
 fn get_ortho(xform: &Transform, compare: Vec3) -> (Vec3, Color) {
     let x = xform.local_x();
@@ -156,9 +178,13 @@ fn draw_rotate_gizmo(
     };
     let camera_fwd = camera_xform.forward();
 
-    // Draw a screen-space rotator ring
-    gizmos.circle(origin, camera_xform.forward(), radius * 1.2, Color::WHITE);
+    // Draw a ring around the whole gizmo for rotating the object in screen
+    // space (i.e. around the camera's forward vector).
+    gizmos.circle(origin, camera_fwd, radius * 1.2, Color::WHITE);
 
+    // Draw semicircles for the main basis vector axes, bisected by the camera's
+    // XY plane. The `RotatorRings` argument determines which side of the plane
+    // to draw on.
     draw_rotator_axis_rings(
         gizmos,
         RotatorRings::Near,
@@ -168,6 +194,8 @@ fn draw_rotate_gizmo(
         radius,
     );
 
+    // We skip drawing the far-side of the rings in "Partial" mode to cut down
+    // on visual noise and leave less room for mis-clicks.
     if matches!(variant, GizmoVariant::Full) {
         draw_rotator_axis_rings(gizmos, RotatorRings::Far, origin, camera_fwd, basis, radius);
     }
@@ -192,6 +220,12 @@ fn draw_rotator_axis_rings(
         (basis.local_y(), design_system::Color::GREEN),
         (basis.local_z(), design_system::Color::BLUE),
     ] {
+        // The line of intersection between two planes will be mutually
+        // orthogonal to the normal vectors of those planes, so we can find the
+        // points of intersection between the ring and the camera plane by
+        // taking the cross product of the camera direction and the rotation
+        // axis, and scaling it by the ring's radius. The order of the operands
+        // determines which of the intersection points we get.
         let (color, perp) = match which {
             RotatorRings::Near => (color, Vec3::cross(normal, camera_fwd)),
             RotatorRings::Far => (color.with_a(0.2), Vec3::cross(camera_fwd, normal)),
@@ -205,7 +239,7 @@ fn draw_rotator_axis_rings(
 
 trait GizmoExtras {
     /// Draw an arc around `center` with angular `length` (in radians),
-    /// beginning at `point` and progressing counter-clockwise around `axis`
+    /// beginning at `start` and progressing counter-clockwise around `axis`
     /// (if axis were pointed toward the viewer). The radius is derived from the
     /// distance between `center` and `start`.
     fn arc(&mut self, center: Vec3, axis: Vec3, start: Vec3, length: f32, color: Color);
@@ -233,7 +267,7 @@ impl<'a> GizmoExtras for Gizmos<'a> {
 
         let angle_inc = (consts::PI * 2.) / 32.;
         let rotator = Mat3::from_axis_angle(normal, angle_inc);
-        let perp = normal.any_orthonormal_pair().0;
+        let perp = normal.any_orthonormal_vector();
         let first = base + perp * radius;
         let end = base + normal * length;
 
