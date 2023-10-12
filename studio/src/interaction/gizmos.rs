@@ -92,6 +92,8 @@ fn draw_translate_gizmo(
 
         let cone_base = match variant {
             GizmoVariant::Full => {
+                // TODO: It's probably bad form to put a bunch of side-effects
+                //       like this in a value-producing expression
                 let start = origin + direction * size * 0.25;
                 let end = origin + direction * size * 1.6;
                 gizmos.line(start, end, color);
