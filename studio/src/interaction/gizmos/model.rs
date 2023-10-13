@@ -186,14 +186,7 @@ impl GizmoElement {
 
         let start = xform.translation + a * base_size * 0.925;
         let end = xform.translation + b * base_size * 0.925;
-
-        let vector = end - start;
-        let length = vector.length();
-        let direction = vector / length;
-
-        line.origin = start;
-        line.direction = direction;
-        line.length = length;
+        *line = Line::from((start, end));
     }
 
     #[inline]
@@ -311,5 +304,30 @@ bitflags! {
         const XYZ       = 0b0111;
         const SCREEN_XY = 0b1011;
         const SCREEN_Z  = 0b1100;
+    }
+}
+
+impl From<(Vec3, Vec3)> for Line {
+    #[inline]
+    fn from(value: (Vec3, Vec3)) -> Self {
+        let (start, end) = value;
+        let vector = end - start;
+        let length = vector.length();
+        let direction = vector / length;
+
+        Self {
+            origin: start,
+            direction,
+            length,
+        }
+    }
+}
+
+impl From<Line> for (Vec3, Vec3) {
+    #[inline]
+    fn from(value: Line) -> Self {
+        let start = value.origin;
+        let end = start + value.direction * value.length;
+        (start, end)
     }
 }
