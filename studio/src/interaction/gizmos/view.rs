@@ -156,16 +156,16 @@ fn fade_aligned_control(axes: Axes, xform: &Transform, cam_pos: Vec3) -> f32 {
         _ => panic!("Unexpected `axes` value provided to `fade_aligned_control`: {axes:?}"),
     };
 
-    let base_factor = match axes {
-        Axes::X | Axes::Y | Axes::Z => 1. - Vec3::dot(to_camera, direction).abs(),
-        Axes::XY | Axes::XZ | Axes::YZ => Vec3::dot(to_camera, direction).abs(),
+    match axes {
+        Axes::X | Axes::Y | Axes::Z => (1. - Vec3::dot(to_camera, direction).abs())
+            .remap((0.05, 0.15), (0., 1.))
+            .clamp(0., 1.),
+        Axes::XY | Axes::XZ | Axes::YZ => Vec3::dot(to_camera, direction)
+            .abs()
+            .remap((0.25, 0.45), (0., 1.))
+            .clamp(0., 1.),
         _ => unreachable!(),
-    };
-
-    #[rustfmt::skip] // This is harder to read without the line breaks
-    return base_factor
-        .remap((0., 0.1), (0., 1.))
-        .clamp(0., 1.);
+    }
 }
 
 trait GizmoExtras {
