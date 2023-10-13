@@ -149,35 +149,21 @@ fn bisect_rotator_ring(ring: &Ring, cam_xform: &Transform) -> (Arc, Arc) {
 #[inline]
 fn fade_aligned_control(axes: Axes, xform: &Transform, cam_pos: Vec3) -> f32 {
     let to_camera = (cam_pos - xform.translation).normalize_or_zero();
+    let direction = match axes {
+        Axes::X | Axes::YZ => xform.local_x(),
+        Axes::Y | Axes::XZ => xform.local_y(),
+        Axes::Z | Axes::XY => xform.local_z(),
+        _ => panic!("Unexpected `axes` value provided to `fade_aligned_control`: {axes:?}"),
+    };
+
     let base_factor = match axes {
-        Axes::X | Axes::Y | Axes::Z => {
-            let direction = match axes {
-                Axes::X => xform.local_x(),
-                Axes::Y => xform.local_y(),
-                Axes::Z => xform.local_z(),
-                _ => unreachable!(),
-            };
-
-            Vec3::dot(to_camera, direction).abs()
-        }
-        Axes::XY | Axes::XZ | Axes::YZ => {
-            let (a, b) = match axes {
-                Axes::XY => (xform.local_x(), xform.local_y()),
-                Axes::YZ => (xform.local_y(), xform.local_z()),
-                Axes::XZ => (xform.local_x(), xform.local_z()),
-                _ => unreachable!(),
-            };
-
-            f32::max(Vec3::dot(to_camera, a).abs(), Vec3::dot(to_camera, b).abs())
-        }
-        _ => panic!(
-            "Unexpected `axes` value provided to `fade_aligned_control`: {:?}",
-            axes
-        ),
+        Axes::X | Axes::Y | Axes::Z => 1. - Vec3::dot(to_camera, direction).abs(),
+        Axes::XY | Axes::XZ | Axes::YZ => Vec3::dot(to_camera, direction).abs(),
+        _ => unreachable!(),
     };
 
     #[rustfmt::skip] // This is harder to read without the line breaks
-    return (1. - base_factor)
+    return base_factor
         .remap((0., 0.1), (0., 1.))
         .clamp(0., 1.);
 }
