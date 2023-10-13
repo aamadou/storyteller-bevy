@@ -3,12 +3,7 @@
 use bevy::prelude::*;
 use input::StudioInputPlugin;
 use interaction::InteractionPlugin;
-#[rustfmt::skip]
-use orbit_cam::{
-    // CameraMotionSystem,
-    // OrbitCam,
-    OrbitCamPlugin,
-};
+use orbit_cam::OrbitCamPlugin;
 use skybox::SkyboxPlugin;
 use test_scene::TestScenePlugin;
 use ui::UiLayerPlugin;
@@ -24,7 +19,8 @@ mod skybox;
 mod test_scene;
 mod ui;
 mod viewport;
-// #[cfg(target_arch = "wasm32")]
+
+#[cfg(target_arch = "wasm32")]
 mod wasm;
 
 #[wasm_bindgen]
@@ -53,19 +49,5 @@ pub fn init(viewport_size: ViewportSize) {
         SkyboxPlugin,
         UiLayerPlugin,
     ))
-    // .add_systems(Update, draw_world_axes.after(CameraMotionSystem))
     .run();
 }
-
-// fn draw_world_axes(mut gizmos: Gizmos, q: Query<&OrbitCam>) {
-//     let &OrbitCam { focus, radius, .. } = q.single();
-
-//     let mut draw_axis = |direction: Vec3, color: Color| {
-//         let end = focus + direction * radius / 15.;
-//         gizmos.line(focus, end, color);
-//     };
-
-//     draw_axis(Vec3::X, Color::RED);
-//     draw_axis(Vec3::Y, Color::GREEN);
-//     draw_axis(Vec3::Z, Color::BLUE);
-// }

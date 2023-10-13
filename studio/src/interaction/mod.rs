@@ -14,6 +14,7 @@ impl Plugin for InteractionPlugin {
             .insert_resource(InteractionMode::default())
             .add_plugins(StudioGizmosPlugin);
 
+        #[cfg(target_arch = "wasm32")]
         app.add_systems(
             PreUpdate,
             (wasm::update_selection_mode, wasm::update_interaction_mode),
@@ -85,7 +86,7 @@ impl Default for TransformSpace {
     }
 }
 
-// #[cfg(target_arch = "wasm32")]
+#[cfg(target_arch = "wasm32")]
 pub mod wasm {
     use bevy::prelude::*;
     use wasm_bindgen::prelude::*;
