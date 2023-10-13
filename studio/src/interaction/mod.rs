@@ -46,28 +46,29 @@ pub struct SelectionMode(SelectionChannel);
 
 #[derive(Resource)]
 pub struct InteractionMode {
-    pub transform: InteractionTransform,
+    pub transform: TransformType,
     pub space: TransformSpace,
 }
 
 impl Default for InteractionMode {
     fn default() -> Self {
         Self {
-            transform: InteractionTransform::TRANSLATE | InteractionTransform::ROTATE,
+            transform: TransformType::TRANSLATE | TransformType::ROTATE,
             space: default(),
         }
     }
 }
 
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[wasm_bindgen]
-pub struct InteractionTransform(u8);
+pub struct TransformType(u8);
 
 bitflags! {
-    impl InteractionTransform: u8 {
-        const TRANSLATE = 0b0001;
-        const ROTATE    = 0b0010;
+    impl TransformType: u8 {
+        const TRANSLATE        = 0b0001;
+        const ROTATE           = 0b0010;
+        const TRANSLATE_ROTATE = 0b0011;
     }
 }
 
@@ -91,13 +92,10 @@ pub mod wasm {
 
     use crate::wasm::{self, WasmMessageBuffer};
 
-    use super::{
-        InteractionMode, InteractionTransform, SelectionChannel, SelectionMode, TransformSpace,
-    };
+    use super::{InteractionMode, SelectionChannel, SelectionMode, TransformSpace, TransformType};
 
     static SELECT_MODE_BUF: WasmMessageBuffer<SelectionChannel> = WasmMessageBuffer::new();
-    static INTERACTION_TRANSFORM_BUF: WasmMessageBuffer<InteractionTransform> =
-        WasmMessageBuffer::new();
+    static INTERACTION_TRANSFORM_BUF: WasmMessageBuffer<TransformType> = WasmMessageBuffer::new();
     static INTERACTION_SPACE_BUF: WasmMessageBuffer<TransformSpace> = WasmMessageBuffer::new();
 
     #[wasm_bindgen(js_name = setSelectionMode)]
@@ -107,7 +105,7 @@ pub mod wasm {
 
     #[wasm_bindgen(js_name = setInteractionTransform)]
     pub fn set_interaction_transform(flags: u8) {
-        wasm::write_message!(INTERACTION_TRANSFORM_BUF, InteractionTransform(flags));
+        wasm::write_message!(INTERACTION_TRANSFORM_BUF, TransformType(flags));
     }
 
     #[wasm_bindgen(js_name = setTransformSpace)]

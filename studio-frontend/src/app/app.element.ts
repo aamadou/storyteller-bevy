@@ -12,7 +12,7 @@ import styles from "./app.element.scss?inline";
 import { match } from "@storyteller/utility";
 
 // FIXME: Figure out how to generate the correct code from `wasm_bindgen`
-enum InteractionTransform {
+enum TransformType {
 	TRANSLATE = 0b0001,
 	ROTATE    = 0b0010,
 }
@@ -92,9 +92,9 @@ export class AppElement extends LitElement {
 		});
 
 		let transform = 0;
-		if (this.translateGizmoEnabled) transform |= InteractionTransform.TRANSLATE;
-		if (this.rotateGizmoEnabled) transform |= InteractionTransform.ROTATE;
-		// TODO: Scale
+		if (this.translateGizmoEnabled) transform |= TransformType.TRANSLATE;
+		if (this.rotateGizmoEnabled) transform |= TransformType.ROTATE;
+		// TODO: Scale?
 
 		studio.setInteractionTransform(transform);
 	}
