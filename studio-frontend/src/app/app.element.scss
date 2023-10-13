@@ -17,13 +17,11 @@
 	top: 16px;
 	left: 50%;
 	transform: translateX(-50%);
-	mix-blend-mode: multiply;
 }
 
 .toolbar-group {
 	display: flex;
 	gap: 2px;
-	mix-blend-mode: multiply;
 }
 
 .btn-toggle {
@@ -44,7 +42,6 @@
 		duration: 0.1s;
 		timing-function: linear;
 	}
-	mix-blend-mode: multiply;
 
 	&:first-child {
 		border: {
@@ -68,7 +65,6 @@
 	&:has(:checked) {
 		background: #7A2C34E3;
 		color: #FFF;
-		background-blend-mode: multiply;
 
 		&:hover {
 			background: #90363F;
