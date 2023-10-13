@@ -1,4 +1,4 @@
-use std::ops;
+use std::{f32::consts, ops};
 
 use super::NearlyEq;
 
@@ -51,4 +51,12 @@ where
         let t = self.inv_lerp(from.0, from.1);
         t.lerp(to.0, to.1)
     }
+}
+
+/// Fit a [0, 1] `t` interpolation parameter to a sine curve
+///
+/// https://www.desmos.com/calculator/k9x4c4cr5y
+#[inline]
+pub fn curve_sin(t: f32) -> f32 {
+    -1. * (f32::cos(t * consts::PI) / 2.) + 0.5
 }
