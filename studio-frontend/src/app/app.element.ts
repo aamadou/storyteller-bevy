@@ -1,6 +1,7 @@
 import { on } from "@storyteller/framework";
 import * as studio from "@storyteller/studio";
 import { TransformSpace, ViewportSize } from "@storyteller/studio";
+import { match } from "@storyteller/utility";
 import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
@@ -9,12 +10,12 @@ import "./help.element";
 import "./icon.element";
 
 import styles from "./app.element.scss?inline";
-import { match } from "@storyteller/utility";
 
 // FIXME: Figure out how to generate the correct code from `wasm_bindgen`
 enum TransformType {
 	TRANSLATE = 0b0001,
 	ROTATE    = 0b0010,
+	SCALE     = 0b0100,
 }
 
 @customElement("app-root")
@@ -23,11 +24,8 @@ export class AppElement extends LitElement {
 
 	@state() showHelp = false;
 
-	@state() transformSpace: "local"|"world" = "local";
-
-	@state() translateGizmoEnabled = true;
-	@state() rotateGizmoEnabled = true;
-	@state() scaleGizmoEnabled = false;
+	@state() transformSpace = TransformSpace.Local;
+	@state() transformType = TransformType.ROTATE | TransformType.TRANSLATE;
 
 	#studioCanvas?: HTMLCanvasElement | null;
 
@@ -49,54 +47,36 @@ export class AppElement extends LitElement {
 
 	onSpaceChange(event: InputEvent): void {
 		const { value } = event.target as HTMLInputElement;
-		if (value === this.transformSpace)
-			return;
-
-		match (value, {
-			"local": () => studio.setTransformSpace(TransformSpace.Local),
-			"world": () => studio.setTransformSpace(TransformSpace.World),
+		const space = match (value, {
+			"local": () => TransformSpace.Local,
+			"world": () => TransformSpace.World,
 			_: () => {
-				console.warn(`Unknown transform space: "${value}"`);
-				return;
+				throw new Error(`Unknown transform space: "${value}"`);
 			}
 		});
 
-		this.transformSpace = value as "local"|"world";
+		this.transformSpace = space;
+		studio.setTransformSpace(space);
 	}
 
 	onGizmoToggled(event: InputEvent): void {
 		const { name, checked } = event.target as HTMLInputElement;
-		match (name, {
-			"translate": () => {
-				if (this.translateGizmoEnabled === checked)
-					return;
-
-				this.translateGizmoEnabled = checked;
-			},
-			"rotate": () => {
-				if (this.rotateGizmoEnabled === checked)
-					return;
-
-				this.rotateGizmoEnabled = checked;
-			},
-			"scale": () => {
-				if (this.scaleGizmoEnabled === checked)
-					return;
-
-				this.scaleGizmoEnabled = checked;
-			},
+		const flag = match (name, {
+			"translate": () => TransformType.TRANSLATE,
+			"rotate": () => TransformType.ROTATE,
+			"scale": () => TransformType.SCALE,
 			_: () => {
-				console.warn(`Unknown gizmo name: "${name}"`);
-				return;
+				throw new Error(`Unknown gizmo name: "${name}"`);
 			}
 		});
 
-		let transform = 0;
-		if (this.translateGizmoEnabled) transform |= TransformType.TRANSLATE;
-		if (this.rotateGizmoEnabled) transform |= TransformType.ROTATE;
-		// TODO: Scale?
+		if (checked) {
+			this.transformType |= flag;
+		} else {
+			this.transformType &= ~flag;
+		}
 
-		studio.setInteractionTransform(transform);
+		studio.setTransformType(this.transformType);
 	}
 
 	#initStudio(): HTMLCanvasElement | null {
@@ -121,7 +101,7 @@ export class AppElement extends LitElement {
 					<input type="radio"
 						name="transform-space"
 						value="local"
-						checked
+						?checked=${this.transformSpace === TransformSpace.Local}
 						@input=${this.onSpaceChange}
 					/>
 				</label>
@@ -130,6 +110,7 @@ export class AppElement extends LitElement {
 					<input type="radio"
 						name="transform-space"
 						value="world"
+						?checked=${this.transformSpace === TransformSpace.World}
 						@input=${this.onSpaceChange}
 					/>
 				</label>
@@ -139,7 +120,7 @@ export class AppElement extends LitElement {
 					<sts-icon icon="up-down-left-right">Translate</sts-icon>
 					<input type="checkbox"
 						name="translate"
-						checked
+						?checked=${this.transformType & TransformType.TRANSLATE}
 						@input=${this.onGizmoToggled}
 					/>
 				</label>
@@ -147,7 +128,7 @@ export class AppElement extends LitElement {
 					<sts-icon icon="rotate">Rotate</sts-icon>
 					<input type="checkbox"
 						name="rotate"
-						checked
+						?checked=${this.transformType & TransformType.ROTATE}
 						@input=${this.onGizmoToggled}
 					/>
 				</label>
@@ -155,6 +136,7 @@ export class AppElement extends LitElement {
 					<sts-icon icon="scale">Scale</sts-icon>
 					<input type="checkbox"
 						name="scale"
+						?checked=${this.transformType & TransformType.SCALE}
 						disabled
 					/>
 				</label>

@@ -96,22 +96,22 @@ pub mod wasm {
     use super::{InteractionMode, SelectionChannel, SelectionMode, TransformSpace, TransformType};
 
     static SELECT_MODE_BUF: WasmMessageBuffer<SelectionChannel> = WasmMessageBuffer::new();
-    static INTERACTION_TRANSFORM_BUF: WasmMessageBuffer<TransformType> = WasmMessageBuffer::new();
-    static INTERACTION_SPACE_BUF: WasmMessageBuffer<TransformSpace> = WasmMessageBuffer::new();
+    static TRANSFORM_TYPE_BUF: WasmMessageBuffer<TransformType> = WasmMessageBuffer::new();
+    static TRANSFORM_SPACE_BUF: WasmMessageBuffer<TransformSpace> = WasmMessageBuffer::new();
 
     #[wasm_bindgen(js_name = setSelectionMode)]
     pub fn set_selection_mode(mode: SelectionChannel) {
         wasm::write_message!(SELECT_MODE_BUF, mode);
     }
 
-    #[wasm_bindgen(js_name = setInteractionTransform)]
-    pub fn set_interaction_transform(flags: u8) {
-        wasm::write_message!(INTERACTION_TRANSFORM_BUF, TransformType(flags));
+    #[wasm_bindgen(js_name = setTransformType)]
+    pub fn set_transform_type(flags: u8) {
+        wasm::write_message!(TRANSFORM_TYPE_BUF, TransformType(flags));
     }
 
     #[wasm_bindgen(js_name = setTransformSpace)]
     pub fn set_transform_space(space: TransformSpace) {
-        wasm::write_message!(INTERACTION_SPACE_BUF, space);
+        wasm::write_message!(TRANSFORM_SPACE_BUF, space);
     }
 
     pub(super) fn update_selection_mode(mut selection_mode: ResMut<SelectionMode>) {
@@ -121,10 +121,10 @@ pub mod wasm {
     }
 
     pub(super) fn update_interaction_mode(mut interaction_mode: ResMut<InteractionMode>) {
-        wasm::read_buffer!(INTERACTION_TRANSFORM_BUF, transform => {
-            interaction_mode.transform = transform;
+        wasm::read_buffer!(TRANSFORM_TYPE_BUF, ttype => {
+            interaction_mode.transform = ttype;
         });
-        wasm::read_buffer!(INTERACTION_SPACE_BUF, space => {
+        wasm::read_buffer!(TRANSFORM_SPACE_BUF, space => {
             interaction_mode.space = space;
         });
     }
