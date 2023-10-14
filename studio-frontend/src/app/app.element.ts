@@ -41,6 +41,33 @@ export class AppElement extends LitElement {
 		studio.resize(new ViewportSize(width, height));
 	}
 
+	@on("keydown")
+	@on("keyup")
+	pipeKeyboardEvents(event: KeyboardEvent): void {
+		// When the user interacts with one of the web UI elements, the Bevy
+		// canvas will lose focus, preventing it from receiving keyboard events.
+		// As a workaround, we can listen for any events that have bubbled up to
+		// the app root and repeat them for the canvas.
+		//
+		// This does unfortunately burden the web front-end with some additional
+		// responsibility: when we handle a keyboard event and _don't_ want the
+		// Bevy app to receive it, we'll need to call `event.stopPropagation()` in
+		// the handler to prevent it from reaching this listener.
+		const {
+			type,
+			code, charCode, key, keyCode, location, repeat,
+			altKey, ctrlKey, metaKey, shiftKey,
+		} = event;
+
+		this.#studioCanvas?.dispatchEvent(new KeyboardEvent(type, {
+			code, charCode, key, keyCode, location, repeat,
+			altKey, ctrlKey, metaKey, shiftKey,
+			bubbles: true,
+			cancelable: true,
+			composed: true,
+		}));
+	}
+
 	toggleHelp(): void {
 		this.showHelp = !this.showHelp;
 	}

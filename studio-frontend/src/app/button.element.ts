@@ -14,9 +14,11 @@ export class ButtonElement extends LitElement {
 	override tabIndex = 0;
 
 	@on("keydown")
-	onKeyDown({ key }: KeyboardEvent) {
-		if (/^( |Enter)$/.test(key))
+	onKeyDown(event: KeyboardEvent) {
+		if (/^( |Enter)$/.test(event.key)) {
+			event.stopPropagation();
 			this.click();
+		}
 	}
 
 	protected override render = () => html`
