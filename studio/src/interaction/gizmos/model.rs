@@ -21,28 +21,36 @@ pub(super) fn update_spawns(
 }
 
 pub(super) fn update(
-    mut q_gizmo: Query<(&mut Gizmo, &GlobalTransform)>,
-    q_camera_xform: Query<&Transform, With<Camera>>,
+    mut q_gizmo: Query<(&mut Gizmo, &GlobalTransform, Ref<Transform>)>,
+    q_camera_xform: Query<Ref<Transform>, With<Camera>>,
     mode: Res<InteractionMode>,
     config: Res<StudioGizmoConfig>,
 ) {
-    let Ok((mut gizmo, world_xform)) = q_gizmo.get_single_mut() else {
+    let Ok((mut gizmo, world_xform, local_xform)) = q_gizmo.get_single_mut() else {
         return;
     };
     let Ok(cam_xform) = q_camera_xform.get_single() else {
         return;
     };
 
-    gizmo.update_composition(&mode);
+    if mode.is_changed() {
+        gizmo.update_composition(&mode);
+    }
 
-    let xform = world_xform.compute_transform();
-    let basis = match mode.space {
-        TransformSpace::Local => xform,
-        TransformSpace::World => Transform::IDENTITY,
-    };
+    if local_xform.is_changed()
+        || cam_xform.is_changed()
+        || mode.is_changed()
+        || config.is_changed()
+    {
+        let world_xform = world_xform.compute_transform();
+        let basis = match mode.space {
+            TransformSpace::Local => world_xform,
+            TransformSpace::World => Transform::IDENTITY,
+        };
 
-    for el in gizmo.0.iter_mut() {
-        el.update(mode.transform, &xform, &basis, cam_xform, &config);
+        for el in gizmo.0.iter_mut() {
+            el.update(mode.transform, &world_xform, &basis, &cam_xform, &config);
+        }
     }
 }
 
