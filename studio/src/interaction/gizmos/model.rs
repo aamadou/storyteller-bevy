@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bitflags::bitflags;
 
-use super::{InteractionMode, Selected, TransformSpace, TransformType};
+use super::{InteractionMode, Selected, StudioGizmoConfig, TransformSpace, TransformType};
 
 pub(super) fn update_spawns(
     mut cmd: Commands,
@@ -24,6 +24,7 @@ pub(super) fn update(
     mut q_gizmo: Query<(&mut Gizmo, &GlobalTransform)>,
     q_camera_xform: Query<&Transform, With<Camera>>,
     mode: Res<InteractionMode>,
+    config: Res<StudioGizmoConfig>,
 ) {
     let Ok((mut gizmo, world_xform)) = q_gizmo.get_single_mut() else {
         return;
@@ -41,7 +42,7 @@ pub(super) fn update(
     };
 
     for el in gizmo.0.iter_mut() {
-        el.update(mode.transform, &xform, &basis, cam_xform);
+        el.update(mode.transform, &xform, &basis, cam_xform, &config);
     }
 }
 
@@ -63,9 +64,9 @@ impl GizmoElement {
         xform: &Transform,
         basis: &Transform,
         cam_xform: &Transform,
+        config: &StudioGizmoConfig,
     ) {
-        let dist = Vec3::distance(cam_xform.translation, xform.translation);
-        let base_size = dist / 20.;
+        let base_size = config.base_size_world_units(xform.translation, cam_xform.translation);
 
         match self.control {
             Control::Translation(axes) => match axes {
