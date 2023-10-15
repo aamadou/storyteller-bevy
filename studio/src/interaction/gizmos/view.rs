@@ -10,13 +10,14 @@ use super::{
 };
 
 pub(super) fn configure(
-    q_window: Query<&Window, With<PrimaryWindow>>,
+    q_window: Query<&Window, (Changed<Window>, With<PrimaryWindow>)>,
     mut config: ResMut<GizmoConfig>,
 ) {
-    let scale_factor = q_window.single().scale_factor() as f32;
-    config.line_width = 4. * scale_factor;
-    config.line_perspective = false;
-    config.depth_bias = -0.1;
+    if let Ok(scale_factor) = q_window.get_single().map(|win| win.scale_factor() as f32) {
+        config.line_width = 4. * scale_factor;
+        config.line_perspective = false;
+        config.depth_bias = -0.1;
+    }
 }
 
 pub(super) fn draw(
