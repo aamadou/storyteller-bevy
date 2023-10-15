@@ -34,7 +34,7 @@ pub(super) fn draw(
 
     let mut cached_xform: Option<Transform> = None;
 
-    for el in gizmo.0.iter() {
+    for el in gizmo.iter() {
         match el.shape {
             Shape::Ring(ring) => {
                 let GizmoColor::Single(color) = el.color else {

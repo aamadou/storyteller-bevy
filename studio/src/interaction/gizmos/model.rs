@@ -48,13 +48,13 @@ pub(super) fn update(
             TransformSpace::World => Transform::IDENTITY,
         };
 
-        for el in gizmo.0.iter_mut() {
+        for el in gizmo.iter_mut() {
             el.update(mode.transform, &world_xform, &basis, &cam_xform, &config);
         }
     }
 }
 
-#[derive(Component, Clone, Default, Debug)]
+#[derive(Component, Deref, DerefMut, Clone, Default, Debug)]
 pub(super) struct Gizmo(pub Vec<GizmoElement>);
 
 #[derive(Clone, Copy, Debug)]

@@ -54,7 +54,7 @@ impl Gizmo {
                 ]);
             }
             _ => {
-                self.0.clear();
+                self.clear();
                 return;
             }
         }
@@ -68,35 +68,35 @@ impl Gizmo {
                 Some(idx as usize)
             }
         }) {
-            self.0.swap_remove(idx);
+            self.swap_remove(idx);
         }
     }
 
     fn add_missing(&mut self, ttype: TransformType, indices: &Indices) {
         if ttype.contains(TransformType::ROTATE) {
             if indices.rotate_screen == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Ring(default()),
                     color: Color::WHITE.into(),
                     control: Control::Rotation(Axes::SCREEN_Z),
                 });
             }
             if indices.rotate_x == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Ring(default()),
                     color: design_system::Color::RED.into(),
                     control: Control::Rotation(Axes::X),
                 });
             }
             if indices.rotate_y == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Ring(default()),
                     color: design_system::Color::GREEN.into(),
                     control: Control::Rotation(Axes::Y),
                 });
             }
             if indices.rotate_z == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Ring(default()),
                     color: design_system::Color::BLUE.into(),
                     control: Control::Rotation(Axes::Z),
@@ -106,28 +106,28 @@ impl Gizmo {
 
         if ttype.contains(TransformType::TRANSLATE) {
             if indices.xlate_screen == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Ring(default()),
                     color: Color::WHITE.into(),
                     control: Control::Translation(Axes::SCREEN_XY),
                 });
             }
             if indices.xlate_x_cone == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Cone(default()),
                     color: design_system::Color::RED.into(),
                     control: Control::Translation(Axes::X),
                 });
             }
             if indices.xlate_y_cone == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Cone(default()),
                     color: design_system::Color::GREEN.into(),
                     control: Control::Translation(Axes::Y),
                 });
             }
             if indices.xlate_z_cone == -1 {
-                self.0.push(GizmoElement {
+                self.push(GizmoElement {
                     shape: Shape::Cone(default()),
                     color: design_system::Color::BLUE.into(),
                     control: Control::Translation(Axes::Z),
@@ -136,28 +136,28 @@ impl Gizmo {
 
             if !ttype.contains(TransformType::ROTATE) {
                 if indices.xlate_x == -1 {
-                    self.0.push(GizmoElement {
+                    self.push(GizmoElement {
                         shape: Shape::Line(default()),
                         color: design_system::Color::RED.into(),
                         control: Control::Translation(Axes::X),
                     });
                 }
                 if indices.xlate_y == -1 {
-                    self.0.push(GizmoElement {
+                    self.push(GizmoElement {
                         shape: Shape::Line(default()),
                         color: design_system::Color::GREEN.into(),
                         control: Control::Translation(Axes::Y),
                     });
                 }
                 if indices.xlate_z == -1 {
-                    self.0.push(GizmoElement {
+                    self.push(GizmoElement {
                         shape: Shape::Line(default()),
                         color: design_system::Color::BLUE.into(),
                         control: Control::Translation(Axes::Z),
                     });
                 }
                 if indices.xlate_xy == -1 {
-                    self.0.push(GizmoElement {
+                    self.push(GizmoElement {
                         shape: Shape::Line(default()),
                         color: GizmoColor::Gradient(
                             design_system::Color::RED,
@@ -167,7 +167,7 @@ impl Gizmo {
                     });
                 }
                 if indices.xlate_xz == -1 {
-                    self.0.push(GizmoElement {
+                    self.push(GizmoElement {
                         shape: Shape::Line(default()),
                         color: GizmoColor::Gradient(
                             design_system::Color::RED,
@@ -177,7 +177,7 @@ impl Gizmo {
                     });
                 }
                 if indices.xlate_yz == -1 {
-                    self.0.push(GizmoElement {
+                    self.push(GizmoElement {
                         shape: Shape::Line(default()),
                         color: GizmoColor::Gradient(
                             design_system::Color::GREEN,
