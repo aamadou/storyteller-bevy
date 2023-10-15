@@ -35,31 +35,37 @@ pub(super) fn draw(
     let mut cached_xform: Option<Transform> = None;
 
     for el in gizmo.iter() {
-        match el.shape {
-            Shape::Ring(ring) => {
-                let GizmoColor::Single(color) = el.color else {
-                    warn!("Unexpected gradient color specified for gizmo ring!");
-                    continue;
-                };
+        match (el.shape, el.color, el.control) {
+            (
+                Shape::Ring(ring),
+                GizmoColor::Single(color),
+                Control::Rotation(Axes::X | Axes::Y | Axes::Z),
+            ) => {
+                let (front, back) = bisect_rotator_ring(&ring, cam_xform);
+                gizmos.arc(front.center, front.axis, front.start, front.length, color);
 
-                if let Control::Rotation(Axes::X | Axes::Y | Axes::Z) = el.control {
-                    let (front, back) = bisect_rotator_ring(&ring, cam_xform);
-                    gizmos.arc(front.center, front.axis, front.start, front.length, color);
-
-                    if !mode.transform.intersects(TransformType::TRANSLATE) {
-                        gizmos.arc(
-                            back.center,
-                            back.axis,
-                            back.start,
-                            back.length,
-                            color.with_a(0.2),
-                        );
-                    }
-                } else {
-                    gizmos.circle(ring.origin, ring.normal, ring.radius, color);
+                if !mode.transform.intersects(TransformType::TRANSLATE) {
+                    gizmos.arc(
+                        back.center,
+                        back.axis,
+                        back.start,
+                        back.length,
+                        color.with_a(0.2),
+                    );
                 }
             }
-            shape @ (Shape::Line(_) | Shape::Cone(_)) => {
+            #[rustfmt::skip] (
+                Shape::Ring(ring),
+                GizmoColor::Single(color),
+                _,
+            ) => {
+                gizmos.circle(ring.origin, ring.normal, ring.radius, color);
+            }
+            #[rustfmt::skip] (
+                shape @ (Shape::Line(_) | Shape::Cone(_)),
+                color,
+                Control::Translation(axes),
+            ) => {
                 let cam_pos = cam_xform.translation;
                 let xform = match cached_xform {
                     Some(xform) => xform,
@@ -75,35 +81,23 @@ pub(super) fn draw(
                     TransformSpace::World => Transform::from_translation(xform.translation),
                 };
 
-                let Control::Translation(axes) = el.control else {
-                    unreachable!();
-                };
-
                 let alpha = fade_aligned_control(axes, &basis, cam_pos);
 
-                match shape {
-                    Shape::Line(line) => {
+                match (shape, color) {
+                    (Shape::Line(line), GizmoColor::Single(color)) => {
                         let (start, end) = line.into();
-                        match el.color {
-                            GizmoColor::Single(color) => {
-                                gizmos.line(start, end, color.with_a(alpha));
-                            }
-                            GizmoColor::Gradient(start_color, end_color) => {
-                                gizmos.line_gradient(
-                                    start,
-                                    end,
-                                    start_color.with_a(alpha),
-                                    end_color.with_a(alpha),
-                                );
-                            }
-                        }
+                        gizmos.line(start, end, color.with_a(alpha));
                     }
-                    Shape::Cone(cone) => {
-                        let GizmoColor::Single(color) = el.color else {
-                            warn!("Unexpected gradient color specified for gizmo cone!");
-                            continue;
-                        };
-
+                    (Shape::Line(line), GizmoColor::Gradient(start_color, end_color)) => {
+                        let (start, end) = line.into();
+                        gizmos.line_gradient(
+                            start,
+                            end,
+                            start_color.with_a(alpha),
+                            end_color.with_a(alpha),
+                        );
+                    }
+                    (Shape::Cone(cone), GizmoColor::Single(color)) => {
                         gizmos.cone(
                             cone.base,
                             cone.direction,
@@ -112,8 +106,14 @@ pub(super) fn draw(
                             color.with_a(alpha),
                         );
                     }
+                    (shape, GizmoColor::Gradient(_, _)) => {
+                        warn!("Unexpected gradient color specified for {shape:?}");
+                    }
                     _ => unreachable!(),
                 }
+            }
+            (shape, color, control) => {
+                warn!("Invalid combination of gizmo properties: {shape:?}, {color:?}, {control:?}");
             }
         }
     }
