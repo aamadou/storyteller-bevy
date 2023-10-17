@@ -83,6 +83,9 @@ pub(super) fn draw(
                 };
 
                 let alpha = fade_aligned_control(axes, &basis, cam_pos);
+                if alpha.nearly_eq(0.) {
+                    continue;
+                }
 
                 match (shape, color) {
                     (Shape::Line(line), GizmoColor::Single(color)) => {
