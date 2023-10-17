@@ -42,13 +42,13 @@ pub(super) fn draw(
                 GizmoColor::Single(color),
                 Control::Rotation(axis @ (Axes::X | Axes::Y | Axes::Z)),
             ) => {
-                let front_color = match hovered {
+                let (front_color, back_color) = match hovered {
                     Some(Hovered(Control::Rotation(hovered_axes)))
                         if hovered_axes.intersects(axis) =>
                     {
-                        color * 2.
+                        (color * 2., (color * 1.5).with_a(0.2))
                     }
-                    _ => color,
+                    _ => (color, color.with_a(0.2)),
                 };
 
                 let (front, back) = bisect_rotator_ring(&ring, cam_xform);
@@ -61,13 +61,7 @@ pub(super) fn draw(
                 );
 
                 if !mode.transform.intersects(TransformType::TRANSLATE) {
-                    gizmos.arc(
-                        back.center,
-                        back.axis,
-                        back.start,
-                        back.length,
-                        color.with_a(0.2),
-                    );
+                    gizmos.arc(back.center, back.axis, back.start, back.length, back_color);
                 }
             }
             #[rustfmt::skip] (
