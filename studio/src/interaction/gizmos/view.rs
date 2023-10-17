@@ -6,17 +6,18 @@ use crate::math::Lerp;
 
 use super::{
     model::{Arc, Axes, Control, Gizmo, GizmoColor, Ring, Shape},
-    InteractionMode, TransformSpace, TransformType,
+    InteractionMode, StudioGizmoConfig, TransformSpace, TransformType,
 };
 
 pub(super) fn configure(
     q_window: Query<&Window, (Changed<Window>, With<PrimaryWindow>)>,
-    mut config: ResMut<GizmoConfig>,
+    mut render_config: ResMut<GizmoConfig>,
+    user_config: Res<StudioGizmoConfig>,
 ) {
     if let Ok(scale_factor) = q_window.get_single().map(|win| win.scale_factor() as f32) {
-        config.line_width = 4. * scale_factor;
-        config.line_perspective = false;
-        config.depth_bias = -0.1;
+        render_config.line_width = user_config.line_thickness * scale_factor;
+        render_config.line_perspective = false;
+        render_config.depth_bias = -0.1;
     }
 }
 
