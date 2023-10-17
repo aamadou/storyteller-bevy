@@ -117,7 +117,10 @@ pub(super) fn draw(
                 }
             }
             (shape, color, control) => {
-                warn!("Invalid combination of gizmo properties: {shape:?}, {color:?}, {control:?}");
+                warn!(
+                    "Invalid combination of GizmoElement properties: {:?}, {:?}, {:?}",
+                    shape, color, control,
+                );
             }
         }
     }
