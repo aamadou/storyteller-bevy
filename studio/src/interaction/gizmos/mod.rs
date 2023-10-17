@@ -1,8 +1,10 @@
 mod composition;
+mod controller;
 mod model;
 mod view;
 
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
 
 use super::{InteractionMode, Selected, TransformSpace, TransformType};
 
@@ -11,8 +13,19 @@ pub(super) struct StudioGizmosPlugin;
 impl Plugin for StudioGizmosPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(StudioGizmoConfig::default())
-            .add_systems(PreUpdate, (model::update_spawns, view::configure))
-            .add_systems(Update, model::update)
+            .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+            .add_systems(
+                PreUpdate,
+                (
+                    model::update_spawns,
+                    controller::update_spawns,
+                    view::configure,
+                ),
+            )
+            .add_systems(
+                Update,
+                (model::update, controller::update, controller::hit_test),
+            )
             .add_systems(PostUpdate, view::draw);
     }
 }

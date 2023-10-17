@@ -57,6 +57,9 @@ pub(super) fn update(
 #[derive(Component, Deref, DerefMut, Clone, Default, Debug)]
 pub(super) struct Gizmo(pub Vec<GizmoElement>);
 
+#[derive(Component, Deref, DerefMut, Clone, Debug)]
+pub(super) struct Hovered(pub Control);
+
 #[derive(Clone, Copy, Debug)]
 pub(super) struct GizmoElement {
     pub shape: Shape,

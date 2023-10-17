@@ -2,10 +2,10 @@ use std::f32::consts;
 
 use bevy::{prelude::*, window::PrimaryWindow};
 
-use crate::math::Lerp;
+use crate::math::{Lerp, NearlyEq};
 
 use super::{
-    model::{Arc, Axes, Control, Gizmo, GizmoColor, Ring, Shape},
+    model::{Arc, Axes, Control, Gizmo, GizmoColor, Hovered, Ring, Shape},
     InteractionMode, StudioGizmoConfig, TransformSpace, TransformType,
 };
 
@@ -22,14 +22,14 @@ pub(super) fn configure(
 }
 
 pub(super) fn draw(
-    q_gizmo: Query<(&Gizmo, &GlobalTransform)>,
+    q_gizmo: Query<(&Gizmo, &GlobalTransform, Option<&Hovered>)>,
     q_camera_xform: Query<&Transform, With<Camera>>,
     mut gizmos: Gizmos,
     mode: Res<InteractionMode>,
 ) {
     let cam_xform = q_camera_xform.single();
 
-    let Ok((gizmo, world_xform)) = q_gizmo.get_single() else {
+    let Ok((gizmo, world_xform, hovered)) = q_gizmo.get_single() else {
         return;
     };
 
@@ -40,10 +40,25 @@ pub(super) fn draw(
             (
                 Shape::Ring(ring),
                 GizmoColor::Single(color),
-                Control::Rotation(Axes::X | Axes::Y | Axes::Z),
+                Control::Rotation(axis @ (Axes::X | Axes::Y | Axes::Z)),
             ) => {
+                let front_color = match hovered {
+                    Some(Hovered(Control::Rotation(hovered_axes)))
+                        if hovered_axes.intersects(axis) =>
+                    {
+                        color * 2.
+                    }
+                    _ => color,
+                };
+
                 let (front, back) = bisect_rotator_ring(&ring, cam_xform);
-                gizmos.arc(front.center, front.axis, front.start, front.length, color);
+                gizmos.arc(
+                    front.center,
+                    front.axis,
+                    front.start,
+                    front.length,
+                    front_color,
+                );
 
                 if !mode.transform.intersects(TransformType::TRANSLATE) {
                     gizmos.arc(
