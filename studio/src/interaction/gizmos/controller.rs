@@ -100,16 +100,13 @@ pub(super) fn hit_test(
             let hit_pos = ray.get_point(t);
 
             if let Ok((_, world_xform, _gizmo_ctrl)) = q_gizmo.get(ent) {
-                let cam_xform = cam_xform.compute_transform();
-                let world_xform_mat = world_xform.compute_matrix();
-                let world_xform = Transform::from_matrix(world_xform_mat);
                 let basis = match mode.space {
-                    TransformSpace::Local => world_xform_mat,
-                    TransformSpace::World => Mat4::from_translation(world_xform.translation),
+                    TransformSpace::Local => world_xform.compute_matrix(),
+                    TransformSpace::World => Mat4::from_translation(world_xform.translation()),
                 };
 
-                let normal = (hit_pos - world_xform.translation).normalize();
-                let to_camera = (cam_xform.translation - world_xform.translation).normalize();
+                let normal = (hit_pos - world_xform.translation()).normalize();
+                let to_camera = (cam_xform.translation() - world_xform.translation()).normalize();
 
                 let perpendicularity = 1. - Vec3::dot(to_camera, normal).abs();
                 let threshold = (perpendicularity * (consts::PI / 5.)).max(2_f32.to_radians());
