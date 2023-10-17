@@ -6,6 +6,8 @@ mod view;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{NoUserData, RapierPhysicsPlugin};
 
+use crate::orbit_cam::CameraMotionSystem;
+
 use super::{InteractionMode, Selected, TransformSpace, TransformType};
 
 pub(super) struct StudioGizmosPlugin;
@@ -24,9 +26,14 @@ impl Plugin for StudioGizmosPlugin {
             )
             .add_systems(
                 Update,
-                (model::update, controller::update, controller::hit_test),
-            )
-            .add_systems(PostUpdate, view::draw);
+                (
+                    model::update,
+                    controller::update,
+                    controller::hit_test,
+                    view::draw,
+                )
+                    .after(CameraMotionSystem),
+            );
     }
 }
 
