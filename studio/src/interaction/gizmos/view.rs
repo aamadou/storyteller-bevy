@@ -163,7 +163,7 @@ fn fade_aligned_control(axes: Axes, xform: &Transform, cam_pos: Vec3) -> f32 {
 
     match axes {
         Axes::X | Axes::Y | Axes::Z => (1. - Vec3::dot(to_camera, direction).abs())
-            .remap((0.05, 0.15), (0., 1.))
+            .remap((0.025, 0.125), (0., 1.))
             .clamp(0., 1.),
         Axes::XY | Axes::XZ | Axes::YZ => Vec3::dot(to_camera, direction)
             .abs()
