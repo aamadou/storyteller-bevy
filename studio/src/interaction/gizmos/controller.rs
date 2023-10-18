@@ -161,7 +161,7 @@ impl From<Vec3> for SphericalCoords {
         }
 
         let pitch = f32::asin(-y / radius);
-        let heading = if (pitch - 90_f32.to_radians()).abs() < 1e-3_f32 {
+        let heading = if pitch.nearly_eq_within(90_f32.to_radians(), 1e-3) {
             0.
         } else {
             f32::atan2(x, z)
