@@ -1,4 +1,3 @@
-#[rustfmt::skip]
 use bevy::{
     pbr::NotShadowCaster,
     prelude::*,
@@ -28,9 +27,36 @@ fn spawn_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
 ) {
-    // Skeletal mesh
+    // Test scene
     cmd.spawn(SceneBundle {
-        scene: assets.load("gltf/base_human_male.gltf#Scene0"),
+        scene: assets.load("gltf/sample-room.gltf#Scene0"),
+        ..default()
+    });
+
+    // Main light
+    // TODO: get Blender to export enough metadata to automate light placements
+    cmd.spawn(PointLightBundle {
+        point_light: PointLight {
+            color: Color::hex("FFE5B4").unwrap(),
+            intensity: 200.,
+            radius: 0.1,
+            shadows_enabled: true,
+            ..default()
+        },
+        transform: Transform::from_xyz(0.35263, 2.4348, 0.19601),
+        ..default()
+    });
+
+    // Monitor glow
+    cmd.spawn(PointLightBundle {
+        point_light: PointLight {
+            color: Color::WHITE,
+            intensity: 6.,
+            radius: 0.25,
+            shadows_enabled: false,
+            ..default()
+        },
+        transform: Transform::from_xyz(0.42615, 1.0706, -2.0705),
         ..default()
     });
 

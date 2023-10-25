@@ -1,6 +1,11 @@
 use std::{f32::consts, mem};
 
 use bevy::{
+    core_pipeline::{
+        bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
+        fxaa::Fxaa,
+        tonemapping::Tonemapping,
+    },
     math::vec3,
     prelude::*,
     window::{CursorGrabMode, PrimaryWindow},
@@ -59,18 +64,32 @@ impl Default for OrbitCam {
 }
 
 fn spawn_camera(mut cmd: Commands) {
-    let focus = vec3(0., 1.5, 0.);
+    let focus = vec3(0.35011, 0.5, -0.99576);
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
 
     cmd.spawn((
+        // FIXME: Come up with a good way to separate the camera controller from
+        //        all the render settings here (all of these components need to
+        //        be paired with the camera)
         Camera3dBundle {
             transform: camera_xform,
+            tonemapping: Tonemapping::BlenderFilmic,
             camera: Camera {
                 hdr: true,
                 ..default()
             },
             ..default()
         },
+        BloomSettings {
+            composite_mode: BloomCompositeMode::EnergyConserving,
+            intensity: 0.25,
+            prefilter_settings: BloomPrefilterSettings {
+                threshold: 0.8,
+                threshold_softness: 0.5,
+            },
+            ..default()
+        },
+        Fxaa::default(),
         OrbitCam {
             focus,
             radius: Vec3::distance(camera_xform.translation, focus),
