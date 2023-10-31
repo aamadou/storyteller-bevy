@@ -1,15 +1,24 @@
 use bevy::{
+    core_pipeline::{
+        bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
+        fxaa::Fxaa,
+        tonemapping::Tonemapping,
+    },
+    math::vec3,
     pbr::NotShadowCaster,
     prelude::*,
     reflect::{TypePath, TypeUuid},
     render::render_resource::{AsBindGroup, ShaderRef},
 };
 
-use crate::orbit_cam::{CameraMotionSystem, OrbitCam};
+use crate::{
+    camera_controller::{CameraController, CameraControllerBundle, CameraMotionSystem},
+    skybox::SkyboxId,
+};
 
-pub struct TestScenePlugin;
+pub struct ScenePlugin;
 
-impl Plugin for TestScenePlugin {
+impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
             .add_plugins(MaterialPlugin::<ProceduralGridMaterial>::default())
@@ -27,11 +36,40 @@ fn spawn_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     mut mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
 ) {
-    // Test scene
+    // Skybox
+    cmd.insert_resource(SkyboxId("test_scene".into()));
+
+    // glTF scene
     cmd.spawn(SceneBundle {
         scene: assets.load("gltf/sample-room.gltf#Scene0"),
         ..default()
     });
+
+    // Camera, graphics settings
+    let focus = vec3(0.35011, 0.5, -0.99576);
+    let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
+    cmd.spawn((
+        Camera3dBundle {
+            transform: camera_xform,
+            tonemapping: Tonemapping::BlenderFilmic,
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            ..default()
+        },
+        CameraControllerBundle::new(focus, camera_xform.translation),
+        BloomSettings {
+            composite_mode: BloomCompositeMode::EnergyConserving,
+            intensity: 0.25,
+            prefilter_settings: BloomPrefilterSettings {
+                threshold: 0.8,
+                threshold_softness: 0.5,
+            },
+            ..default()
+        },
+        Fxaa::default(),
+    ));
 
     // Main light
     // TODO: get Blender to export enough metadata to automate light placements
@@ -95,9 +133,9 @@ fn spawn_scene(
 
 fn move_plane_with_camera(
     mut plane: Query<(&WorldGridPlane, &mut Transform)>,
-    camera: Query<&OrbitCam, Changed<OrbitCam>>,
+    camera: Query<&CameraController, Changed<CameraController>>,
 ) {
-    if let Ok(&OrbitCam { focus, .. }) = camera.get_single() {
+    if let Ok(&CameraController { focus, .. }) = camera.get_single() {
         let (_, mut xform) = plane.single_mut();
 
         xform.translation.x = focus.x;
