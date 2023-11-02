@@ -38,9 +38,9 @@ where
     f32: Lerp<T>,
     T: Copy,
 {
-    fn tick(&mut self, dt: f32) -> T {
+    fn tick(&mut self, dt: f32) -> &mut Self {
         self.t = (self.t + dt).clamp(0., 1.);
-        self.current()
+        self
     }
 
     pub fn current(&self) -> T {
@@ -52,6 +52,8 @@ where
             let t = match self.easing {
                 Easing::Linear => self.t,
                 Easing::Sine => self.t.curve_sin(),
+                Easing::SineIn => self.t.curve_sin_in(),
+                Easing::SineOut => self.t.curve_sin_out(),
             };
 
             t.lerp(self.initial, self.target)
@@ -97,7 +99,7 @@ fn interp_velocity(time: Res<Time>, mut q_interp: Query<(&mut Velocity, &mut Int
 
     for (mut velocity, mut interp) in q_interp.iter_mut() {
         let dt = delta_seconds / interp.accel_zero2max;
-        **velocity = interp.tick(dt);
+        **velocity = interp.tick(dt).current();
     }
 }
 

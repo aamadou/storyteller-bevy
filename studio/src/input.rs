@@ -4,14 +4,22 @@ use bevy::{
     utils::HashSet,
 };
 
-pub struct StudioInputPlugin;
+#[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone)]
+pub struct StudioInputSystem;
 
+pub struct StudioInputPlugin;
 impl Plugin for StudioInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<InputAction>();
         app.add_systems(
             PreUpdate,
-            translate_bevy_events.after(bevy::input::InputSystem),
+            (
+                translate_selection_events,
+                translate_dcc_camera_events,
+                translate_fps_camera_events,
+            )
+                .in_set(StudioInputSystem)
+                .after(bevy::input::InputSystem),
         );
     }
 }
@@ -29,6 +37,7 @@ pub enum Lifecycle {
 #[derive(Clone, Copy)]
 pub enum Action {
     Camera(CameraMotion),
+    Selection(Selection),
 }
 
 #[derive(Clone, Copy)]
@@ -39,17 +48,43 @@ pub enum CameraMotion {
     Orbit(Vec2),
     Rotate(Vec2),
 }
-
 impl From<CameraMotion> for Action {
     fn from(value: CameraMotion) -> Self {
         Action::Camera(value)
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum Selection {
+    /// Clear the current selection
+    Clear,
+    /// Focus the camera on the currently selected entity
+    Focus,
+}
+impl From<Selection> for Action {
+    fn from(value: Selection) -> Self {
+        Action::Selection(value)
+    }
+}
+
 // TODO: Make the bindings of raw device inputs to InputActions configurable
-fn translate_bevy_events(
+
+fn translate_selection_events(keyboard: Res<Input<KeyCode>>, mut input: EventWriter<InputAction>) {
+    if keyboard.just_pressed(KeyCode::Escape) {
+        input.send(InputAction(Lifecycle::Start, Selection::Clear.into()));
+    } else if keyboard.just_released(KeyCode::Escape) {
+        input.send(InputAction(Lifecycle::Stop, Selection::Clear.into()));
+    }
+
+    if keyboard.just_pressed(KeyCode::F) {
+        input.send(InputAction(Lifecycle::Start, Selection::Focus.into()));
+    } else if keyboard.just_released(KeyCode::F) {
+        input.send(InputAction(Lifecycle::Stop, Selection::Focus.into()));
+    }
+}
+
+fn translate_dcc_camera_events(
     mouse_motion: EventReader<MouseMotion>,
-    mut mouse_wheel: EventReader<MouseWheel>,
     mouse_buttons: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
     mut input: EventWriter<InputAction>,
@@ -148,7 +183,13 @@ fn translate_bevy_events(
             CameraMotion::Rotate(Vec2::ZERO).into(),
         ));
     }
+}
 
+fn translate_fps_camera_events(
+    mut mouse_wheel: EventReader<MouseWheel>,
+    keyboard: Res<Input<KeyCode>>,
+    mut input: EventWriter<InputAction>,
+) {
     // Camera Translation (FPS-like)
     use KeyCode::*;
     let wasd_keys = [W, A, S, D, E, Q];
