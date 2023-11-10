@@ -19,6 +19,7 @@ use crate::{
     camera_controller::{CameraController, CameraControllerBundle, CameraMotionSystem},
     interaction::Selectable,
     skybox::SkyboxId,
+    MainCamera,
 };
 
 pub struct ScenePlugin;
@@ -50,8 +51,8 @@ struct NewGltf(pub Handle<Gltf>);
 fn initialize(
     mut cmd: Commands,
     assets: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
+    mut ra_meshes: ResMut<Assets<Mesh>>,
+    mut ra_mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
 ) {
     // Skybox
     cmd.insert_resource(SkyboxId("test_scene".into()));
@@ -71,6 +72,7 @@ fn initialize(
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
     cmd.spawn((
         Name::new("Main Camera"),
+        MainCamera,
         Camera3dBundle {
             transform: camera_xform,
             tonemapping: Tonemapping::BlenderFilmic,
@@ -127,11 +129,11 @@ fn initialize(
     ));
 
     // Plane
-    let plane = meshes.add(Mesh::from(shape::Plane {
+    let plane = ra_meshes.add(Mesh::from(shape::Plane {
         size: 200.0,
         subdivisions: 0,
     }));
-    let proc_grid = mat_proc_grid.add(ProceduralGridMaterial {});
+    let proc_grid = ra_mat_proc_grid.add(ProceduralGridMaterial {});
 
     cmd.spawn((
         Name::new("World Grid"),

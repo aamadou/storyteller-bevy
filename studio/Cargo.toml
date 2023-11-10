@@ -13,14 +13,20 @@ name = "studio-standalone"
 path = "src/main.rs"
 
 [dependencies]
-bevy-inspector-egui = { version = "0.20.0" }
-# bevy_mod_outline = { version = "0.5.0" }
+bevy-inspector-egui = "0.20.0"
+bevy_mod_raycast = "0.15.0"
+bevy_rapier3d = "0.22.0"
+# bevy_mod_outline = "0.5.0"
+bitflags = "2.4.0"
 console_error_panic_hook = { version = "0.1.7", optional = true }
 parking_lot = "0.12.1"
-wasm-bindgen = { version = "0.2.84" }
+wasm-bindgen = "0.2.84"
 
 [features]
-wasm = ["dep:console_error_panic_hook"]
+wasm = [
+	"dep:console_error_panic_hook",
+	"bevy_rapier3d/wasm-bindgen",
+]
 
 [dependencies.bevy]
 workspace = true
@@ -32,8 +38,9 @@ path = "../bevy_mod_outline"
 version = "0.16.0"
 default-features = false
 features = [
-	"backend_raycast",
 	"backend_bevy_ui",
+	"backend_rapier",
+	"backend_raycast",
 	"backend_sprite",
 	"debug",
 	"selection",

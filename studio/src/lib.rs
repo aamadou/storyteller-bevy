@@ -15,6 +15,7 @@ use wasm_bindgen::prelude::*;
 
 mod camera_controller;
 mod debug;
+mod design_system;
 mod input;
 mod interaction;
 mod math;
@@ -22,6 +23,12 @@ mod scene;
 mod skybox;
 mod ui;
 mod viewport;
+
+#[cfg(target_arch = "wasm32")]
+mod wasm;
+
+#[derive(Component)]
+pub(crate) struct MainCamera;
 
 #[wasm_bindgen]
 pub fn init(viewport_size: ViewportSize) {
