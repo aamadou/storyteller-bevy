@@ -15,6 +15,14 @@ impl Plugin for SelectionPlugin {
                 PostUpdate,
                 draw_selection_outline.run_if(resource_changed_or_removed::<Selection>()),
             );
+
+        #[cfg(feature = "wasm")]
+        app.add_systems(
+            PostUpdate,
+            wasm::notify_entity_selection_change
+                .pipe(error)
+                .run_if(resource_changed_or_removed::<Selection>()),
+        );
     }
 }
 
@@ -24,7 +32,7 @@ pub struct Selectable;
 #[derive(Component, Clone, Copy)]
 pub struct Selected;
 
-#[derive(Resource, Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut, Debug)]
 pub struct Selection(Entity);
 
 fn update_selection(
@@ -103,5 +111,43 @@ fn draw_selection_outline(
                 });
             }
         }
+    }
+}
+
+#[cfg(feature = "wasm")]
+mod wasm {
+    use bevy::{
+        prelude::{Query, Res, With},
+        window::{PrimaryWindow, Window},
+    };
+    use wasm_bindgen::prelude::*;
+
+    use super::Selection;
+    use crate::wasm;
+
+    #[wasm_bindgen(typescript_custom_section)]
+    const EVENT_DECLARATION: &str = r#"
+/**
+ * An event indicating that an entity has been selected or that the selection
+ * has been cleared.
+ */
+export interface EntitySelectEvent extends CustomEvent {
+    /** The selected entity ID. If `null`, the selection has been cleared. */
+    detail: string | null;
+}
+
+declare global {
+    export interface HTMLElementEventMap {
+        "entity-select": EntitySelectEvent;
+    }
+}
+    "#;
+
+    pub(super) fn notify_entity_selection_change(
+        r_selection: Option<Res<Selection>>,
+        q_window: Query<&Window, With<PrimaryWindow>>,
+    ) -> Result<(), String> {
+        let entity = r_selection.map(|selection| **selection);
+        wasm::dispatch_to_js(q_window.single(), "entity-select", &entity)
     }
 }
