@@ -1,0 +1,12 @@
+[package]
+name = "studio_cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { workspace = true }
+studio = { path = "../studio" }
+
+[dependencies.clap]
+version = "4.4.8"
+features = ["derive"]

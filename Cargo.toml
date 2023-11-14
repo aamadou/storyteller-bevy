@@ -2,7 +2,8 @@
 resolver = "2"
 members = [
     "./bevy_mod_outline",
-    "./studio"
+    "./studio",
+    "./studio_cli",
 ]
 
 [workspace.dependencies.bevy]
