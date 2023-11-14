@@ -4,12 +4,13 @@ import { LitElement, TemplateResult, html, nothing, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 
-import fasCircleInfo from "@fortawesome/fontawesome-pro/svgs/regular/circle-info.svg?raw";
-import fasCube from "@fortawesome/fontawesome-pro/svgs/regular/cube.svg?raw";
-import fasGlobe from "@fortawesome/fontawesome-pro/svgs/regular/globe.svg?raw";
-import fasUpDownLeftRight from "@fortawesome/fontawesome-pro/svgs/regular/arrows-up-down-left-right.svg?raw";
-import fasRotate from "@fortawesome/fontawesome-pro/svgs/regular/arrows-rotate.svg?raw";
-import fasScale from "@fortawesome/fontawesome-pro/svgs/regular/arrow-up-right-and-arrow-down-left-from-center.svg?raw";
+import farCircleInfo from "@fortawesome/fontawesome-pro/svgs/regular/circle-info.svg?raw";
+import farCube from "@fortawesome/fontawesome-pro/svgs/regular/cube.svg?raw";
+import farFloppyDisk from "@fortawesome/fontawesome-pro/svgs/regular/floppy-disk.svg?raw";
+import farGlobe from "@fortawesome/fontawesome-pro/svgs/regular/globe.svg?raw";
+import farUpDownLeftRight from "@fortawesome/fontawesome-pro/svgs/regular/arrows-up-down-left-right.svg?raw";
+import farRotate from "@fortawesome/fontawesome-pro/svgs/regular/arrows-rotate.svg?raw";
+import farScale from "@fortawesome/fontawesome-pro/svgs/regular/arrow-up-right-and-arrow-down-left-from-center.svg?raw";
 import fasCaretRight from "@fortawesome/fontawesome-pro/svgs/solid/caret-right.svg?raw";
 
 import styles from "./icon.element.scss?inline";
@@ -37,13 +38,14 @@ function renderSvg(iconId: string) {
 		return RENDER_RESULTS.get(iconId)!;
 
 	const svgSrc = match (iconId, {
-		"circle-info": () => fasCircleInfo,
+		"circle-info": () => farCircleInfo,
 		"caret-right": () => fasCaretRight,
-		"cube": () => fasCube,
-		"globe": () => fasGlobe,
-		"up-down-left-right": () => fasUpDownLeftRight,
-		"rotate": () => fasRotate,
-		"scale": () => fasScale,
+		"cube": () => farCube,
+		"floppy-disk": () => farFloppyDisk,
+		"globe": () => farGlobe,
+		"up-down-left-right": () => farUpDownLeftRight,
+		"rotate": () => farRotate,
+		"scale": () => farScale,
 		_: () => null,
 	});
 

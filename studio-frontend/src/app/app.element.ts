@@ -111,6 +111,10 @@ export class AppElement extends LitElement {
 		this.showHelp = !this.showHelp;
 	}
 
+	saveScene(): void {
+		// TODO
+	}
+
 	onTransformSpaceChange(event: InputEvent): void {
 		const { value } = event.target as HTMLInputElement;
 		const space = match (value, {
@@ -187,13 +191,21 @@ export class AppElement extends LitElement {
 	}
 
 	protected override render = () => html`
-		<div class="toolbar v-start h-start">
-			<sts-button class="btn-help"
-				icon="circle-info"
-				@click=${this.toggleHelp}
-			>
-				Help
-			</sts-button>
+		<div class="toolbar v-start h-start" role="toolbar">
+			<div class="toolbar-group" role="group">
+				<sts-button
+					icon="floppy-disk"
+					@click=${this.saveScene}
+				>
+					Save Scene
+				</sts-button>
+				<sts-button
+					icon="circle-info"
+					@click=${this.toggleHelp}
+				>
+					Help
+				</sts-button>
+			</div>
 		</div>
 
 		<!-- TODO: What's a "component"? -->
