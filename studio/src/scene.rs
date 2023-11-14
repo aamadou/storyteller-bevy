@@ -1,35 +1,43 @@
+#[cfg(not(feature = "headless"))]
 use bevy::{
     asset::LoadState,
+    gltf,
+    pbr::NotShadowCaster,
+    reflect::{TypePath, TypeUuid},
+    render::render_resource::{AsBindGroup, ShaderRef},
+    utils::HashSet,
+};
+use bevy::{
     core_pipeline::{
         bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
         fxaa::Fxaa,
         tonemapping::Tonemapping,
     },
-    gltf::{self, Gltf},
+    gltf::Gltf,
     math::vec3,
-    pbr::NotShadowCaster,
     prelude::*,
-    reflect::{TypePath, TypeUuid},
-    render::render_resource::{AsBindGroup, ShaderRef},
-    utils::HashSet,
 };
+
+#[cfg(not(feature = "headless"))]
 use bevy_mod_picking::PickableBundle;
 
+#[cfg(not(feature = "headless"))]
 use crate::{
     camera_controller::{CameraController, CameraControllerBundle, CameraMotionSystem},
     interaction::Selectable,
-    skybox::SkyboxId,
-    MainCamera,
 };
+use crate::{skybox::SkyboxId, MainCamera};
 
 pub struct ScenePlugin;
 
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
-            .insert_resource(Msaa::Off)
+            .add_systems(Startup, initialize);
+
+        #[cfg(not(feature = "headless"))]
+        app.insert_resource(Msaa::Off)
             .add_plugins(MaterialPlugin::<ProceduralGridMaterial>::default())
-            .add_systems(Startup, initialize)
             .add_systems(
                 Update,
                 mark_scene_objects.run_if(
@@ -45,6 +53,7 @@ impl Plugin for ScenePlugin {
     }
 }
 
+#[cfg(not(feature = "headless"))]
 #[derive(Component)]
 struct WorldGridPlane;
 
@@ -57,8 +66,8 @@ struct Inspectable;
 fn initialize(
     mut cmd: Commands,
     assets: Res<AssetServer>,
-    mut ra_meshes: ResMut<Assets<Mesh>>,
-    mut ra_mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
+    #[cfg(not(feature = "headless"))] mut ra_meshes: ResMut<Assets<Mesh>>,
+    #[cfg(not(feature = "headless"))] mut ra_mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
 ) {
     // Skybox
     cmd.insert_resource(SkyboxId("test_scene".into()));
@@ -89,6 +98,7 @@ fn initialize(
             },
             ..default()
         },
+        #[cfg(not(feature = "headless"))]
         CameraControllerBundle::new(focus, camera_xform.translation),
         BloomSettings {
             composite_mode: BloomCompositeMode::EnergyConserving,
@@ -106,6 +116,7 @@ fn initialize(
     // TODO: get Blender to export enough metadata to automate light placements
     cmd.spawn((
         Name::new("Ceiling Light"),
+        #[cfg(not(feature = "headless"))]
         Selectable,
         Inspectable,
         PointLightBundle {
@@ -124,6 +135,7 @@ fn initialize(
     // Monitor glow
     cmd.spawn((
         Name::new("Monitor Glow"),
+        #[cfg(not(feature = "headless"))]
         Selectable,
         Inspectable,
         PointLightBundle {
@@ -140,43 +152,48 @@ fn initialize(
     ));
 
     // Plane
-    let plane = ra_meshes.add(Mesh::from(shape::Plane {
-        size: 200.0,
-        subdivisions: 0,
-    }));
-    let proc_grid = ra_mat_proc_grid.add(ProceduralGridMaterial {});
+    #[cfg(not(feature = "headless"))]
+    {
+        let plane = ra_meshes.add(Mesh::from(shape::Plane {
+            size: 200.0,
+            subdivisions: 0,
+        }));
+        let proc_grid = ra_mat_proc_grid.add(ProceduralGridMaterial {});
 
-    cmd.spawn((
-        Name::new("World Grid"),
-        SpatialBundle::from_transform(Transform::IDENTITY),
-        WorldGridPlane,
-    ))
-    .with_children(|parent| {
-        parent.spawn((
-            MaterialMeshBundle {
-                mesh: plane.clone(),
-                material: proc_grid.clone(),
-                transform: Transform::IDENTITY,
-                ..default()
-            },
-            NotShadowCaster,
-        ));
-        parent.spawn((
-            MaterialMeshBundle {
-                mesh: plane,
-                material: proc_grid,
-                transform: Transform::IDENTITY.looking_to(Vec3::Z, Vec3::NEG_Y),
-                ..default()
-            },
-            NotShadowCaster,
-        ));
-    });
+        cmd.spawn((
+            Name::new("World Grid"),
+            SpatialBundle::from_transform(Transform::IDENTITY),
+            WorldGridPlane,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                MaterialMeshBundle {
+                    mesh: plane.clone(),
+                    material: proc_grid.clone(),
+                    transform: Transform::IDENTITY,
+                    ..default()
+                },
+                NotShadowCaster,
+            ));
+            parent.spawn((
+                MaterialMeshBundle {
+                    mesh: plane,
+                    material: proc_grid,
+                    transform: Transform::IDENTITY.looking_to(Vec3::Z, Vec3::NEG_Y),
+                    ..default()
+                },
+                NotShadowCaster,
+            ));
+        });
+    }
 }
 
+#[cfg(not(feature = "headless"))]
 fn gltf_loaded(assets: Res<AssetServer>, gltf: Res<NewGltf>) -> bool {
     assets.get_load_state(&**gltf) == LoadState::Loaded
 }
 
+#[cfg(not(feature = "headless"))]
 fn gltf_scene_spawned(
     r_assets: Res<AssetServer>,
     r_gltf: Res<NewGltf>,
@@ -200,6 +217,7 @@ fn gltf_scene_spawned(
     })
 }
 
+#[cfg(not(feature = "headless"))]
 fn mark_scene_objects(
     mut cmd: Commands,
     r_gltf: Res<NewGltf>,
@@ -255,7 +273,6 @@ fn mark_scene_objects(
             })
             .collect::<HashSet<_>>();
 
-
         // If the sets match, this is the entity that represents the glTF mesh
         if prims_from_gltf == prims_from_ecs {
             cmd.entity(ent_parent).insert(Selectable);
@@ -271,6 +288,7 @@ fn mark_scene_objects(
     cmd.remove_resource::<NewGltf>();
 }
 
+#[cfg(not(feature = "headless"))]
 fn move_plane_with_camera(
     mut plane: Query<(&WorldGridPlane, &mut Transform)>,
     camera: Query<&CameraController, Changed<CameraController>>,
@@ -283,10 +301,12 @@ fn move_plane_with_camera(
     }
 }
 
+#[cfg(not(feature = "headless"))]
 #[derive(AsBindGroup, Clone, TypePath, TypeUuid)]
 #[uuid = "CE331A13-F247-4F5B-A75E-670B2BD5776A"]
 struct ProceduralGridMaterial {}
 
+#[cfg(not(feature = "headless"))]
 impl Material for ProceduralGridMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/procedural_grid.wgsl".into()

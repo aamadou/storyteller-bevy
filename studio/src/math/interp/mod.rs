@@ -6,12 +6,12 @@ pub use traits::*;
 mod ecs;
 mod traits;
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub enum Easing {
     Linear,
     Sine,
     SineOut,
-    #[allow(dead_code)]
     SineIn,
 }
 

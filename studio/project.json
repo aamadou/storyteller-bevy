@@ -9,13 +9,15 @@
   "targets": {
     "build": {
       "executor": "@nxrs/cargo:build",
-      "inputs": ["assets"],
-      "options": {
-        "release": false
-      },
+      "options": {},
       "configurations": {
         "production": {
           "release": true
+        },
+        "headless": {
+          "bin": "studio-standalone",
+          "release": true,
+          "features": "headless"
         }
       }
     },
