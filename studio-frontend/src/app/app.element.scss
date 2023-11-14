@@ -4,19 +4,26 @@
 	pointer-events: none;
 }
 
-.btn-help {
+// Layout utilities
+.v-start {
 	position: absolute;
 	top: 16px;
-	right: 16px;
+}
+.v-after-toolbar {
+	position: absolute;
+	top: 60px;
+}
+.h-start { left: 16px }
+.h-end  { right: 16px }
+.h-center {
+	left: 50%;
+	transform: translateX(-50%);
 }
 
+// Toolbar stuff (TODO: Move this)
 .toolbar {
 	display: flex;
 	gap: 16px;
-	position: absolute;
-	top: 16px;
-	left: 50%;
-	transform: translateX(-50%);
 }
 
 .toolbar-group {
@@ -91,16 +98,8 @@
 	}
 }
 
-.help {
-	position: absolute;
-	top: 60px;
-	right: 16px;
-}
-
+// Hierarchy (TODO: Probably move this)
 .hierarchy {
-	position: absolute;
-	top: 16px;
-	left: 16px;
 	overflow: auto;
 
 	box-sizing: border-box;

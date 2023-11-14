@@ -12,7 +12,6 @@ import {
 import { match } from "@storyteller/utility";
 import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, state } from "lit/decorators.js";
-import { classMap } from "lit/directives/class-map.js";
 
 import "./button.element";
 import "./help.element";
@@ -188,8 +187,17 @@ export class AppElement extends LitElement {
 	}
 
 	protected override render = () => html`
+		<div class="toolbar v-start h-start">
+			<sts-button class="btn-help"
+				icon="circle-info"
+				@click=${this.toggleHelp}
+			>
+				Help
+			</sts-button>
+		</div>
+
 		<!-- TODO: What's a "component"? -->
-		<div class="toolbar" role="toolbar">
+		<div class="toolbar v-start h-center" role="toolbar">
 			<div class="toolbar-group" role="group">
 				<label class="btn-toggle">
 					<sts-icon icon="cube">Local</sts-icon>
@@ -240,7 +248,7 @@ export class AppElement extends LitElement {
 			</div>
 		</div>
 
-		<div class="hierarchy">
+		<div class="hierarchy v-start h-end">
 			${this.sceneObjects.map(obj => html`
 				<sts-tree class="scene-object"
 					id=${obj.id}
@@ -250,15 +258,8 @@ export class AppElement extends LitElement {
 			`)}
 		</div>
 
-		<sts-button class="btn-help"
-			icon="circle-info"
-			@click=${this.toggleHelp}
-		>
-			Help
-		</sts-button>
-
 		${this.showHelp ? html`
-			<sts-help class="help"></sts-help>
+			<sts-help class="help v-after-toolbar h-start"></sts-help>
 		` : null}
 	`;
 }
