@@ -17,7 +17,7 @@ pub fn save_scene() {
     wasm::write_message!(SCENE_REQUEST, ());
 }
 
-pub(super) fn save_scene_system(world: &mut World) {
+pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
     wasm::read_buffer!(SCENE_REQUEST, |_| {
         let mut scene = DynamicScene::from_world(world);
         let type_registry = world.resource::<AppTypeRegistry>();
@@ -48,29 +48,25 @@ pub(super) fn save_scene_system(world: &mut World) {
             })
             .collect();
 
-        match scene.serialize_ron(type_registry) {
-            Ok(serialized) => {
-                let Some(window) = world.iter_entities().find_map(|ent| {
-                    if ent.contains::<PrimaryWindow>() {
-                        ent.get::<Window>()
-                    } else {
-                        None
-                    }
-                }) else {
-                    warn!("Failed to get window from &mut World");
-                    return;
-                };
+        let serialized = scene
+            .serialize_ron(type_registry)
+            .map_err(|err| format!("{err}"))?;
 
-                if let Err(err) = wasm::dispatch_to_js(window, "scene-download-ready", &serialized)
-                {
-                    error!("{err}");
+        let window = world
+            .iter_entities()
+            .find_map(|ent| {
+                if ent.contains::<PrimaryWindow>() {
+                    ent.get::<Window>()
+                } else {
+                    None
                 }
-            }
-            Err(err) => {
-                error!("{err}");
-            }
-        }
+            })
+            .ok_or_else(|| "Failed to get Window from &mut World".to_string())?;
+
+        wasm::dispatch_to_js(window, "scene-download-ready", &serialized)?;
     });
+
+    Ok(())
 }
 
 #[wasm_bindgen(typescript_custom_section)]

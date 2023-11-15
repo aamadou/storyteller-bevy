@@ -44,8 +44,13 @@ impl Plugin for ScenePlugin {
             .add_systems(PostUpdate, move_plane_with_camera.after(CameraMotionSystem));
 
         #[cfg(feature = "wasm")]
-        app.add_systems(PostUpdate, wasm::notify_entity_spawn_changes.pipe(error))
-            .add_systems(Update, wasm::save_scene_system);
+        app.add_systems(
+            PostUpdate,
+            (
+                wasm::notify_entity_spawn_changes.pipe(error),
+                wasm::save_scene_system.pipe(error),
+            ),
+        );
     }
 }
 
