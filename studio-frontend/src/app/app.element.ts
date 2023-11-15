@@ -5,6 +5,7 @@ import {
 	type EntityMultiSpawnEvent,
 	type EntitySelectEvent,
 	type EntitySpawnEvent,
+	type SceneDownloadReadyEvent,
 	TransformSpace,
 	TransformType,
 	ViewportSize,
@@ -107,12 +108,28 @@ export class AppElement extends LitElement {
 		this.#updateHierarchy();
 	}
 
+	@on("window:scene-download-ready")
+	onSceneDownloadReady({ detail: content }: SceneDownloadReadyEvent): void {
+		const fileBlob = new Blob([content], { type: "text/ron" });
+		const url = URL.createObjectURL(fileBlob);
+
+		const anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download = "scene.ron";
+		anchor.click();
+
+		setTimeout(() => {
+			URL.revokeObjectURL(url);
+			anchor.remove();
+		});
+	}
+
 	toggleHelp(): void {
 		this.showHelp = !this.showHelp;
 	}
 
 	saveScene(): void {
-		// TODO
+		studio.saveScene();
 	}
 
 	onTransformSpaceChange(event: InputEvent): void {
