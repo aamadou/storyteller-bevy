@@ -122,7 +122,7 @@ export interface EntityMultiSpawnEvent extends CustomEvent {
 
 declare global {
     export interface HTMLElementEventMap {
-        "scene-download-ready":
+        "scene-download-ready": SceneDownloadReadyEvent;
         "entity-spawn": EntitySpawnEvent;
         "entity-despawn": EntityDespawnEvent;
         "entity-multi-spawn": EntityMultiSpawnEvent;
