@@ -91,6 +91,10 @@ macro_rules! read_buffer {
             }
         }
     }};
+    ($buffer:ident) => {{
+        let buffer = crate::wasm::get_buffer!($buffer);
+        buffer.try_lock().and_then(|lock| lock.borrow_mut().take())
+    }};
 }
 
 pub(crate) use get_buffer;

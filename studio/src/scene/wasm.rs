@@ -18,59 +18,59 @@ pub fn save_scene() {
 }
 
 pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
-    wasm::read_buffer!(SCENE_REQUEST, |_| {
-        let mut scene = DynamicScene::from_world(world);
-        let type_registry = world.resource::<AppTypeRegistry>();
+    if wasm::read_buffer!(SCENE_REQUEST).is_none() {
+        return Ok(());
+    }
 
-        #[allow(clippy::borrowed_box)]
-        let is_serializable = |reflect: &Box<dyn Reflect>| -> bool {
-            TypedReflectSerializer::new(&**reflect, &type_registry.read())
-                .serialize(&wasm::SERIALIZER)
-                .is_ok()
-        };
+    let mut scene = DynamicScene::from_world(world);
+    let type_registry = world.resource::<AppTypeRegistry>();
 
-        // FIXME: This includes some stuff we don't want, including (most
-        //        importantly) the _window_. We probably want to grab just the
-        //        main camera, the skybox, the glTF scene instance and its
-        //        children.
-        scene.resources = scene
-            .resources
-            .into_iter()
-            .filter(is_serializable)
-            .collect();
+    #[allow(clippy::borrowed_box)]
+    let is_serializable = |reflect: &Box<dyn Reflect>| -> bool {
+        TypedReflectSerializer::new(&**reflect, &type_registry.read())
+            .serialize(&wasm::SERIALIZER)
+            .is_ok()
+    };
 
-        scene.entities = scene
-            .entities
-            .into_iter()
-            .filter_map(|mut ent| {
-                ent.components = ent.components.into_iter().filter(is_serializable).collect();
-                if ent.components.is_empty() {
-                    None
-                } else {
-                    Some(ent)
-                }
-            })
-            .collect();
+    // FIXME: This includes some stuff we don't want, including (most
+    //        importantly) the _window_. We probably want to grab just the
+    //        main camera, the skybox, the glTF scene instance and its
+    //        children.
+    scene.resources = scene
+        .resources
+        .into_iter()
+        .filter(is_serializable)
+        .collect();
 
-        let serialized = scene
-            .serialize_ron(type_registry)
-            .map_err(|err| format!("{err}"))?;
+    scene.entities = scene
+        .entities
+        .into_iter()
+        .filter_map(|mut ent| {
+            ent.components = ent.components.into_iter().filter(is_serializable).collect();
+            if ent.components.is_empty() {
+                None
+            } else {
+                Some(ent)
+            }
+        })
+        .collect();
 
-        let window = world
-            .iter_entities()
-            .find_map(|ent| {
-                if ent.contains::<PrimaryWindow>() {
-                    ent.get::<Window>()
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| "Failed to get Window from &mut World".to_string())?;
+    let serialized = scene
+        .serialize_ron(type_registry)
+        .map_err(|err| format!("{err}"))?;
 
-        wasm::dispatch_to_js(window, "scene-download-ready", &serialized)?;
-    });
+    let window = world
+        .iter_entities()
+        .find_map(|ent| {
+            if ent.contains::<PrimaryWindow>() {
+                ent.get::<Window>()
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| "Failed to get Window from &mut World".to_string())?;
 
-    Ok(())
+    wasm::dispatch_to_js(window, "scene-download-ready", &serialized)
 }
 
 #[wasm_bindgen(typescript_custom_section)]
