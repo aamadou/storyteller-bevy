@@ -42,9 +42,13 @@ pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
         scene.entities = scene
             .entities
             .into_iter()
-            .map(|mut ent| {
+            .filter_map(|mut ent| {
                 ent.components = ent.components.into_iter().filter(is_serializable).collect();
-                ent
+                if ent.components.is_empty() {
+                    None
+                } else {
+                    Some(ent)
+                }
             })
             .collect();
 
