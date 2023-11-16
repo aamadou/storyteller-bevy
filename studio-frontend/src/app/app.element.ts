@@ -115,7 +115,7 @@ export class AppElement extends LitElement {
 
 		const anchor = document.createElement("a");
 		anchor.href = url;
-		anchor.download = "scene.ron";
+		anchor.download = "scene.scn.ron";
 		anchor.click();
 
 		setTimeout(() => {
