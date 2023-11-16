@@ -1,10 +1,13 @@
 use std::collections::VecDeque;
 
-use bevy::{prelude::*, scene::SceneInstance, utils::HashSet, window::PrimaryWindow};
+use bevy::{prelude::*, utils::hashbrown::HashSet, window::PrimaryWindow};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
-use crate::wasm::{self, AsJson, WasmMessageBuffer};
+use crate::{
+    wasm::{self, AsJson, WasmMessageBuffer},
+    MainCamera,
+};
 
 use super::Inspectable;
 
@@ -20,25 +23,42 @@ pub(super) fn scene_download_requested() -> bool {
 }
 
 pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
-    let scene_inst = world
-        .query::<&SceneInstance>()
-        .get_single(world)
-        .map_err(|err| format!("{err}"))?;
+    // Extract all entities with the `Inspectable` marker...
+    let mut scene_entities = world
+        .query_filtered::<Entity, With<Inspectable>>()
+        .iter(world)
+        .collect::<HashSet<_>>();
 
-    let scene_mgr = world.resource::<SceneSpawner>();
+    // ...and their parents...
+    scene_entities.extend(
+        world
+            .query_filtered::<&Parent, With<Inspectable>>()
+            .iter(world)
+            .map(|parent| **parent),
+    );
 
+    // ...and their children.
+    scene_entities.extend(
+        world
+            // TODO: This is a bit of a hack to exclude the GizmoCamera entity,
+            //       which is a child of the MainCamera.
+            .query_filtered::<&Children, (With<Inspectable>, Without<MainCamera>)>()
+            .iter(world)
+            .flat_map(|children| children.iter().copied()),
+    );
+
+    // Build and serialize the scene
     let mut builder = DynamicSceneBuilder::from_world(world);
     builder
         .allow_all()
         .allow_all_resources()
         .deny::<ComputedVisibility>()
         .deny_resource::<Time>()
-        .extract_entities(scene_mgr.iter_instance_entities(**scene_inst))
+        .extract_entities(scene_entities.into_iter())
         .remove_empty_entities()
         .extract_resources();
 
     let scene = builder.build();
-
     let type_registry = world.resource::<AppTypeRegistry>();
     let serialized = scene
         .serialize_ron(type_registry)
