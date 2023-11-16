@@ -44,9 +44,9 @@ impl Plugin for ScenePlugin {
             PostUpdate,
             (
                 wasm::notify_entity_spawn_changes.pipe(error),
-                wasm::save_scene_system
-                    .pipe(error)
-                    .run_if(wasm::scene_download_requested),
+                wasm::save_scene_system.pipe(error).run_if(
+                    resource_exists::<ActiveScene>().and_then(wasm::scene_download_requested),
+                ),
             ),
         );
     }
@@ -61,6 +61,9 @@ struct NewScene {
     pub scene: Handle<Scene>,
     pub gltf: Option<Handle<Gltf>>,
 }
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct ActiveScene(pub Handle<Scene>);
 
 #[derive(Component)]
 struct Inspectable;
@@ -161,7 +164,8 @@ fn scene_inst_ready(r_scene_mgr: Res<SceneSpawner>, q_scene_inst: Query<&SceneIn
 
 fn mark_scene_objects(
     mut cmd: Commands,
-    r_scene: Res<NewScene>,
+    r_new_scene: Res<NewScene>,
+    mut r_active_scene: Option<ResMut<ActiveScene>>,
     r_assets: Res<AssetServer>,
     ra_gltfs: Res<Assets<Gltf>>,
     ra_gltf_nodes: Res<Assets<GltfNode>>,
@@ -212,7 +216,7 @@ fn mark_scene_objects(
         ));
     });
 
-    if let Some(gltf) = r_scene
+    if let Some(gltf) = r_new_scene
         .gltf
         .as_ref()
         .and_then(|handle| ra_gltfs.get(handle))
@@ -273,6 +277,11 @@ fn mark_scene_objects(
         }
     }
 
+    // Set the new scene as the active scene
+    match r_active_scene.as_mut() {
+        Some(active_scene) => ***active_scene = r_new_scene.clone(),
+        None => cmd.insert_resource(ActiveScene(r_new_scene.clone())),
+    };
     cmd.remove_resource::<NewScene>();
 }
 

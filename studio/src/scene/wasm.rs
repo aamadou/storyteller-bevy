@@ -1,8 +1,6 @@
 use std::collections::VecDeque;
 
-use bevy::{
-    prelude::*, reflect::serde::TypedReflectSerializer, utils::HashSet, window::PrimaryWindow,
-};
+use bevy::{prelude::*, scene::SceneInstance, utils::HashSet, window::PrimaryWindow};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
@@ -22,53 +20,34 @@ pub(super) fn scene_download_requested() -> bool {
 }
 
 pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
-    let mut scene = DynamicScene::from_world(world);
+    let scene_inst = world
+        .query::<&SceneInstance>()
+        .get_single(world)
+        .map_err(|err| format!("{err}"))?;
+
+    let scene_mgr = world.resource::<SceneSpawner>();
+
+    let mut builder = DynamicSceneBuilder::from_world(world);
+    builder
+        .allow_all()
+        .allow_all_resources()
+        .deny::<ComputedVisibility>()
+        .deny_resource::<Time>()
+        .extract_entities(scene_mgr.iter_instance_entities(**scene_inst))
+        .remove_empty_entities()
+        .extract_resources();
+
+    let scene = builder.build();
+
     let type_registry = world.resource::<AppTypeRegistry>();
-
-    #[allow(clippy::borrowed_box)]
-    let is_serializable = |reflect: &Box<dyn Reflect>| -> bool {
-        TypedReflectSerializer::new(&**reflect, &type_registry.read())
-            .serialize(&wasm::SERIALIZER)
-            .is_ok()
-    };
-
-    // FIXME: This includes some stuff we don't want, including (most
-    //        importantly) the _window_. We probably want to grab just the
-    //        main camera, the skybox, the glTF scene instance and its
-    //        children.
-    scene.resources = scene
-        .resources
-        .into_iter()
-        .filter(is_serializable)
-        .collect();
-
-    scene.entities = scene
-        .entities
-        .into_iter()
-        .filter_map(|mut ent| {
-            ent.components = ent.components.into_iter().filter(is_serializable).collect();
-            if ent.components.is_empty() {
-                None
-            } else {
-                Some(ent)
-            }
-        })
-        .collect();
-
     let serialized = scene
         .serialize_ron(type_registry)
         .map_err(|err| format!("{err}"))?;
 
     let window = world
-        .iter_entities()
-        .find_map(|ent| {
-            if ent.contains::<PrimaryWindow>() {
-                ent.get::<Window>()
-            } else {
-                None
-            }
-        })
-        .ok_or_else(|| "Failed to get Window from &mut World".to_string())?;
+        .query_filtered::<&Window, With<PrimaryWindow>>()
+        .get_single(world)
+        .map_err(|err| format!("{err}"))?;
 
     wasm::dispatch_to_js(window, "scene-download-ready", &serialized)
 }
