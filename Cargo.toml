@@ -6,6 +6,9 @@ members = [
     "./studio_cli",
 ]
 
+[workspace.dependencies]
+anyhow = "1.0.75"
+
 [workspace.dependencies.bevy]
 version = "0.11.3"
 features = ["tonemapping_luts"]

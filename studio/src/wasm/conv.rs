@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use bevy::prelude::{Entity, GlobalTransform, Quat, Transform, Vec3};
 use serde::ser::Serialize;
 use serde_wasm_bindgen::Serializer;
@@ -30,7 +31,7 @@ pub(crate) const SERIALIZER: Serializer = Serializer::new()
     .serialize_large_number_types_as_bigints(true);
 
 pub trait AsJsValue {
-    fn as_js(&self) -> Result<JsValue, String>;
+    fn as_js(&self) -> anyhow::Result<JsValue>;
 }
 
 pub trait AsJson {
@@ -87,10 +88,10 @@ impl<T> AsJsValue for T
 where
     T: AsJson,
 {
-    fn as_js(&self) -> Result<JsValue, String> {
+    fn as_js(&self) -> anyhow::Result<JsValue> {
         self.as_json()
             .serialize(&SERIALIZER)
-            .map_err(|err| format!("{err}"))
+            .map_err(|err| anyhow!("{err}"))
     }
 }
 
@@ -98,25 +99,25 @@ impl<T> AsJsValue for Vec<T>
 where
     T: Serialize,
 {
-    fn as_js(&self) -> Result<JsValue, String> {
-        self.serialize(&SERIALIZER).map_err(|err| format!("{err}"))
+    fn as_js(&self) -> anyhow::Result<JsValue> {
+        self.serialize(&SERIALIZER).map_err(|err| anyhow!("{err}"))
     }
 }
 
 impl AsJsValue for JsonValue {
-    fn as_js(&self) -> Result<JsValue, String> {
-        self.serialize(&SERIALIZER).map_err(|err| format!("{err}"))
+    fn as_js(&self) -> anyhow::Result<JsValue> {
+        self.serialize(&SERIALIZER).map_err(|err| anyhow!("{err}"))
     }
 }
 
 impl AsJsValue for Entity {
-    fn as_js(&self) -> Result<JsValue, String> {
+    fn as_js(&self) -> anyhow::Result<JsValue> {
         Ok(JsValue::from_str(&format!("{self:?}")))
     }
 }
 
 impl AsJsValue for String {
-    fn as_js(&self) -> Result<JsValue, String> {
+    fn as_js(&self) -> anyhow::Result<JsValue> {
         Ok(JsValue::from_str(self))
     }
 }
@@ -125,7 +126,7 @@ impl<T> AsJsValue for Option<T>
 where
     T: AsJsValue,
 {
-    fn as_js(&self) -> Result<JsValue, String> {
+    fn as_js(&self) -> anyhow::Result<JsValue> {
         match self.as_ref() {
             Some(value) => Ok(value.as_js()?),
             None => Ok(JsValue::NULL),

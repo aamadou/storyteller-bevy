@@ -13,6 +13,7 @@ name = "studio-standalone"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = { workspace = true }
 bevy-inspector-egui = "0.20.0"
 bevy_mod_raycast = "0.15.0"
 bevy_rapier3d = "0.22.0"

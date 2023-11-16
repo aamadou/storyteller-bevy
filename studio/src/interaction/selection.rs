@@ -146,7 +146,7 @@ declare global {
     pub(super) fn notify_entity_selection_change(
         r_selection: Option<Res<Selection>>,
         q_window: Query<&Window, With<PrimaryWindow>>,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         let entity = r_selection.map(|selection| **selection);
         wasm::dispatch_to_js(q_window.single(), "entity-select", &entity)
     }

@@ -1,5 +1,6 @@
 use std::{cell::RefCell, sync::OnceLock};
 
+use anyhow::anyhow;
 use bevy::window::Window;
 use parking_lot::ReentrantMutex;
 use web_sys::{CustomEvent, CustomEventInit, Element};
@@ -15,7 +16,7 @@ pub(crate) fn dispatch_to_js(
     event_type: &str,
     // NOTE: We use dynamic dispatch here to keep the wasm binary small(-ish)
     value: &dyn AsJsValue,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let canvas = try_get_canvas(window)?;
 
     let detail = value.as_js()?;
@@ -26,32 +27,32 @@ pub(crate) fn dispatch_to_js(
             .cancelable(true)
             .detail(&detail),
     )
-    .map_err(|err| format!("{err:?}"))?;
+    .map_err(|err| anyhow!("{err:?}"))?;
 
     canvas
         .dispatch_event(&event)
-        .map_err(|err| format!("{err:?}"))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
 
     Ok(())
 }
 
-fn try_get_canvas(window: &Window) -> Result<Element, String> {
+fn try_get_canvas(window: &Window) -> anyhow::Result<Element> {
     let canvas_selector = window
         .canvas
         .as_ref()
-        .ok_or("Canvas selector not set on Bevy Window".to_string())?;
+        .ok_or(anyhow!("Canvas selector not set on Bevy Window"))?;
 
-    let window = web_sys::window().ok_or("web_sys::window() returned None".to_string())?;
+    let window = web_sys::window().ok_or(anyhow!("web_sys::window() returned None"))?;
     let document = window
         .document()
-        .ok_or("window.document() returned None".to_string())?;
+        .ok_or(anyhow!("window.document() returned None"))?;
 
     match document.query_selector(canvas_selector) {
         Ok(Some(canvas)) => Ok(canvas),
-        Ok(None) => Err(format!(
+        Ok(None) => Err(anyhow!(
             "Failed to find element with selector '{canvas_selector}'"
         )),
-        Err(err) => Err(format!("JavaScript threw an Error: {err:?}")),
+        Err(err) => Err(anyhow!("JavaScript threw an Error: {err:?}")),
     }
 }
 

@@ -22,7 +22,7 @@ pub(super) fn scene_download_requested() -> bool {
     wasm::read_buffer!(SCENE_REQUEST).is_some()
 }
 
-pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
+pub(super) fn save_scene_system(world: &mut World) -> anyhow::Result<()> {
     // Extract all entities with the `Inspectable` marker...
     let mut scene_entities = world
         .query_filtered::<Entity, With<Inspectable>>()
@@ -60,16 +60,15 @@ pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
 
     let scene = builder.build();
     let type_registry = world.resource::<AppTypeRegistry>();
-    let serialized = scene
-        .serialize_ron(type_registry)
-        .map_err(|err| format!("{err}"))?;
+    let serialized = scene.serialize_ron(type_registry)?;
 
     let window = world
         .query_filtered::<&Window, With<PrimaryWindow>>()
-        .get_single(world)
-        .map_err(|err| format!("{err}"))?;
+        .get_single(world)?;
 
-    wasm::dispatch_to_js(window, "scene-download-ready", &serialized)
+    wasm::dispatch_to_js(window, "scene-download-ready", &serialized)?;
+
+    Ok(())
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -214,7 +213,7 @@ pub(super) fn notify_entity_spawn_changes(
     q_names: Query<&Name>,
     q_parents: Query<&Children>,
     q_children: Query<&Parent>,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     l_missing_parents.clear();
 
     l_new_objects.clear();
