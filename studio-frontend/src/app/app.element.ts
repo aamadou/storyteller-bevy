@@ -13,6 +13,7 @@ import {
 import { match } from "@storyteller/utility";
 import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
 
 import "./button.element";
 import "./help.element";
@@ -217,6 +218,7 @@ export class AppElement extends LitElement {
 					Save Scene
 				</sts-button>
 				<sts-button
+					class=${classMap({ active: this.showHelp })}
 					icon="circle-info"
 					@click=${this.toggleHelp}
 				>
