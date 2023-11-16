@@ -1,6 +1,8 @@
 use bevy::{
+    asset::LoadState,
     core_pipeline::{
         bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
+        core_3d::Camera3dDepthTextureUsage,
         fxaa::Fxaa,
         tonemapping::Tonemapping,
     },
@@ -31,11 +33,20 @@ impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
             .insert_resource(Msaa::Off)
+            .register_type::<Camera3dDepthTextureUsage>()
+            .register_type::<Inspectable>()
             .add_plugins(MaterialPlugin::<ProceduralGridMaterial>::default())
             .add_systems(Startup, initialize)
             .add_systems(
                 Update,
-                mark_scene_objects.run_if(resource_exists::<NewScene>().and_then(scene_inst_ready)),
+                (
+                    mark_scene_objects.run_if(
+                        resource_exists::<NewScene>()
+                            .and_then(scene_loaded)
+                            .and_then(scene_inst_ready),
+                    ),
+                    log_asset_paths,
+                ),
             )
             .add_systems(PostUpdate, move_plane_with_camera.after(CameraMotionSystem));
 
@@ -52,6 +63,42 @@ impl Plugin for ScenePlugin {
     }
 }
 
+fn log_asset_paths(
+    mut l_logged: Local<HashSet<Entity>>,
+    r_assets: Res<AssetServer>,
+    mut q_meshes: Query<(Entity, &Name, &Handle<Mesh>, &Handle<StandardMaterial>)>,
+) {
+    for (ent, name, mesh, mat) in q_meshes.iter_mut() {
+        if l_logged.contains(&ent) {
+            continue;
+        }
+
+        let mesh_path = if mesh.is_strong() {
+            r_assets.get_handle_path(mesh.id())
+        } else {
+            None
+        };
+        let mat_path = if mat.is_strong() {
+            r_assets.get_handle_path(mat.id())
+        } else {
+            None
+        };
+
+        if [&mesh_path, &mat_path]
+            .iter()
+            .any(|option| option.is_some())
+        {
+            info!("[{ent:?} {name}");
+            info!("    mesh: {mesh_path:?}");
+            info!("    material: {mat_path:?}");
+            l_logged.insert(ent);
+        } else if mesh.is_strong() && mat.is_strong() {
+            info!("[{ent:?}] {name} | failed to determine asset paths");
+            l_logged.insert(ent);
+        }
+    }
+}
+
 #[derive(Component)]
 struct WorldGridPlane;
 
@@ -65,8 +112,9 @@ struct NewScene {
 #[derive(Resource, Deref, DerefMut)]
 pub struct ActiveScene(pub Handle<Scene>);
 
-#[derive(Component)]
-struct Inspectable;
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct Inspectable;
 
 fn initialize(
     mut cmd: Commands,
@@ -154,12 +202,30 @@ fn initialize(
     });
 }
 
+fn scene_loaded(r_assets: Res<AssetServer>, r_new_scene: Res<NewScene>) -> bool {
+    let Some(gltf) = &r_new_scene.gltf else {
+        return false;
+    };
+
+    if r_assets.get_load_state(gltf) == LoadState::Loaded {
+        info!("SCENE LOADED");
+        return true;
+    }
+
+    false
+}
+
 fn scene_inst_ready(r_scene_mgr: Res<SceneSpawner>, q_scene_inst: Query<&SceneInstance>) -> bool {
     let Ok(scene_inst) = q_scene_inst.get_single() else {
         return false;
     };
 
-    r_scene_mgr.instance_is_ready(**scene_inst)
+    if r_scene_mgr.instance_is_ready(**scene_inst) {
+        info!("SCENE SPAWNED");
+        return true;
+    }
+
+    false
 }
 
 fn mark_scene_objects(

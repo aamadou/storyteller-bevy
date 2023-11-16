@@ -23,7 +23,7 @@ pub(super) struct TransformGizmoBundle {
     scale: NaturalScale,
 }
 
-#[derive(Component, Deref, Reflect)]
+#[derive(Component, Deref)]
 pub(super) struct NaturalScale(pub Vec3);
 
 #[derive(Component, Deref)]

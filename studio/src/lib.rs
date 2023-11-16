@@ -3,22 +3,22 @@
 use bevy::prelude::*;
 use bevy_mod_picking::DefaultPickingPlugins;
 use camera_controller::CameraControllerPlugin;
-use debug::DebugPlugin;
+pub use debug::{DebugMode, DebugPlugin};
 use input::StudioInputPlugin;
 use interaction::InteractionPlugin;
-use math::InterpolationPlugin;
-use scene::ScenePlugin;
-use skybox::SkyboxPlugin;
+pub use math::InterpolationPlugin;
+pub use scene::{ActiveScene, Inspectable, ScenePlugin};
+pub use skybox::{SkyboxId, SkyboxPlugin};
 use ui::UiLayerPlugin;
 use viewport::ViewportSize;
 use wasm_bindgen::prelude::*;
 
 mod camera_controller;
 mod debug;
-mod design_system;
+pub mod design_system;
 mod input;
 mod interaction;
-mod math;
+pub mod math;
 mod scene;
 mod skybox;
 mod ui;
@@ -27,8 +27,9 @@ mod viewport;
 #[cfg(feature = "wasm")]
 mod wasm;
 
-#[derive(Component)]
-pub(crate) struct MainCamera;
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct MainCamera;
 
 #[wasm_bindgen]
 pub fn init(viewport_size: ViewportSize) {
@@ -36,6 +37,7 @@ pub fn init(viewport_size: ViewportSize) {
     console_error_panic_hook::set_once();
 
     let mut app = App::new();
+    app.register_type::<MainCamera>();
 
     #[cfg(feature = "wasm")]
     app.add_plugins(viewport::wasm::ViewportPlugin);

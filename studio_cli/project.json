@@ -17,7 +17,9 @@
     },
     "start": {
       "executor": "@nxrs/cargo:run",
-      "options": {}
+      "options": {
+        "profile": "dev-custom"
+      }
     },
     "test": {
       "executor": "@nxrs/cargo:test",

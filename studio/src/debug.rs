@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Resource, Deref, DerefMut)]
-pub struct DebugMode(bool);
+pub struct DebugMode(pub bool);
 
 pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
@@ -28,8 +28,11 @@ impl Plugin for DebugPlugin {
             .add_systems(
                 Update,
                 (
-                    toggle_debug_mode,
-                    update_debug_picking_mode.run_if(resource_changed::<DebugMode>()),
+                    toggle_debug_mode.run_if(resource_exists::<Events<InputAction>>()),
+                    update_debug_picking_mode.run_if(
+                        resource_exists::<NextState<DebugPickingMode>>()
+                            .and_then(resource_changed::<DebugMode>()),
+                    ),
                     update_gizmo_line_thickness,
                     draw_world_axes
                         .after(CameraMotionSystem)
@@ -72,7 +75,9 @@ fn update_gizmo_line_thickness(
 }
 
 fn draw_world_axes(mut gizmos: Gizmos, q: Query<&CameraController>) {
-    let &CameraController { focus, radius, .. } = q.single();
+    let Ok(&CameraController { focus, radius, .. }) = q.get_single() else {
+        return;
+    };
 
     let mut draw_axis = |direction: Vec3, color: Color| {
         let end = focus + direction * radius / 15.;

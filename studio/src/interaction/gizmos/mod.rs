@@ -35,7 +35,6 @@ pub struct GizmoPlugin;
 
 impl Plugin for GizmoPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<NaturalScale>();
         app.add_event::<RebuildGizmo>();
         app.add_systems(Startup, init_resources);
         app.add_systems(

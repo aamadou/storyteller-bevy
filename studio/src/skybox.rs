@@ -13,22 +13,26 @@ pub struct SkyboxPlugin;
 
 impl Plugin for SkyboxPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                load_skybox.run_if(resource_exists_and_changed::<SkyboxId>()),
-                spawn_skybox
-                    .run_if(resource_exists::<SkyboxAssets>())
-                    .run_if(skybox_assets_loaded),
-            ),
-        );
+        app.register_type::<SkyboxId>()
+            .register_type::<SkyboxAssets>()
+            .add_systems(
+                Update,
+                (
+                    load_skybox.run_if(resource_exists_and_changed::<SkyboxId>()),
+                    spawn_skybox
+                        .run_if(resource_exists::<SkyboxAssets>())
+                        .run_if(skybox_assets_loaded),
+                ),
+            );
     }
 }
 
-#[derive(Resource, Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut, Reflect, Default)]
+#[reflect(Resource)]
 pub struct SkyboxId(pub String);
 
-#[derive(Resource)]
+#[derive(Resource, Reflect, Default)]
+#[reflect(Resource)]
 struct SkyboxAssets {
     cubemap: Handle<Image>,
     env_diffuse: Handle<Image>,
