@@ -17,11 +17,11 @@ pub fn save_scene() {
     wasm::write_message!(SCENE_REQUEST, ());
 }
 
-pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
-    if wasm::read_buffer!(SCENE_REQUEST).is_none() {
-        return Ok(());
-    }
+pub(super) fn scene_download_requested() -> bool {
+    wasm::read_buffer!(SCENE_REQUEST).is_some()
+}
 
+pub(super) fn save_scene_system(world: &mut World) -> Result<(), String> {
     let mut scene = DynamicScene::from_world(world);
     let type_registry = world.resource::<AppTypeRegistry>();
 

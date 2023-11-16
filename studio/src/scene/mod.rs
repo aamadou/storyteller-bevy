@@ -44,7 +44,9 @@ impl Plugin for ScenePlugin {
             PostUpdate,
             (
                 wasm::notify_entity_spawn_changes.pipe(error),
-                wasm::save_scene_system.pipe(error),
+                wasm::save_scene_system
+                    .pipe(error)
+                    .run_if(wasm::scene_download_requested),
             ),
         );
     }
