@@ -1,5 +1,4 @@
 use bevy::{
-    asset::LoadState,
     core_pipeline::{
         bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
         fxaa::Fxaa,
@@ -7,9 +6,9 @@ use bevy::{
     },
     gltf::{self, Gltf},
     math::vec3,
-    pbr::NotShadowCaster,
+    pbr::{NotShadowCaster, ShadowFilteringMethod},
     prelude::*,
-    reflect::{TypePath, TypeUuid},
+    reflect::TypePath,
     render::render_resource::{AsBindGroup, ShaderRef},
     utils::HashSet,
 };
@@ -31,17 +30,28 @@ impl Plugin for ScenePlugin {
             .add_plugins(MaterialPlugin::<ProceduralGridMaterial>::default())
             .add_systems(Startup, initialize)
             .add_systems(
+                PreUpdate,
+                spawn_new_gltf_scene.run_if(
+                    resource_exists::<NewGltf>()
+                        .and_then(new_gltf_loaded)
+                        .and_then(run_once()),
+                ),
+            )
+            .add_systems(
                 Update,
                 mark_scene_objects.run_if(
                     resource_exists::<NewGltf>()
-                        .and_then(gltf_loaded)
+                        .and_then(new_gltf_loaded)
                         .and_then(gltf_scene_spawned),
                 ),
             )
             .add_systems(PostUpdate, move_plane_with_camera.after(CameraMotionSystem));
 
         #[cfg(feature = "wasm")]
-        app.add_systems(PostUpdate, wasm::notify_entity_spawn_changes.pipe(error));
+        app.add_systems(
+            PostUpdate,
+            wasm::notify_entity_spawn_changes.map(bevy::utils::error),
+        );
     }
 }
 
@@ -65,14 +75,6 @@ fn initialize(
 
     // glTF scene
     cmd.insert_resource(NewGltf(assets.load("gltf/sample-room.gltf")));
-    cmd.spawn((
-        Name::new("Scene"),
-        Inspectable,
-        SceneBundle {
-            scene: assets.load("gltf/sample-room.gltf#Scene0"),
-            ..default()
-        },
-    ));
 
     // Camera, graphics settings
     let focus = vec3(0.35011, 0.5, -0.99576);
@@ -90,6 +92,7 @@ fn initialize(
             ..default()
         },
         CameraControllerBundle::new(focus, camera_xform.translation),
+        ShadowFilteringMethod::Hardware2x2,
         BloomSettings {
             composite_mode: BloomCompositeMode::EnergyConserving,
             intensity: 0.25,
@@ -173,27 +176,66 @@ fn initialize(
     });
 }
 
-fn gltf_loaded(assets: Res<AssetServer>, gltf: Res<NewGltf>) -> bool {
-    assets.get_load_state(&**gltf) == LoadState::Loaded
+#[derive(Default)]
+struct LoadState(Handle<Gltf>, bool);
+
+fn new_gltf_loaded(
+    r_gltf: Res<NewGltf>,
+    ra_gltfs: Res<Assets<Gltf>>,
+    mut er_scene_events: EventReader<AssetEvent<Scene>>,
+    mut l_loaded: Local<LoadState>,
+) -> bool {
+    if l_loaded.0.path() != r_gltf.path() {
+        *l_loaded = LoadState(r_gltf.clone(), false);
+    } else if l_loaded.1 {
+        return true;
+    }
+
+    l_loaded.1 = er_scene_events.read().any(|event| match event {
+        AssetEvent::LoadedWithDependencies { id } => {
+            let gltf = ra_gltfs.get(&**r_gltf).unwrap();
+            let Some(default_scene) = &gltf.default_scene else {
+                return false;
+            };
+
+            *id == default_scene.id()
+        }
+        _ => false,
+    });
+
+    l_loaded.1
+}
+
+fn spawn_new_gltf_scene(mut cmd: Commands, ra_gltfs: Res<Assets<Gltf>>, r_gltf: Res<NewGltf>) {
+    let gltf = ra_gltfs.get(&**r_gltf).unwrap();
+    let Some(scene) = &gltf.default_scene else {
+        return;
+    };
+
+    cmd.spawn((
+        Name::new("Scene"),
+        Inspectable,
+        SceneBundle {
+            scene: scene.clone(),
+            ..default()
+        },
+    ));
 }
 
 fn gltf_scene_spawned(
-    r_assets: Res<AssetServer>,
     r_gltf: Res<NewGltf>,
     ra_gltfs: Res<Assets<Gltf>>,
     q_scenes: Query<&Handle<Scene>, (With<Name>, With<Children>)>,
 ) -> bool {
-    let gltf = ra_gltfs.get(&r_gltf).unwrap();
-    let Some(gltf_scene_path) = gltf
-        .default_scene
-        .as_ref()
-        .and_then(|handle| r_assets.get_handle_path(handle))
-    else {
+    let gltf = ra_gltfs.get(&**r_gltf).unwrap();
+
+    let Some(gltf_scene_path) = gltf.default_scene.as_ref().and_then(|handle| handle.path()) else {
+        warn!("No default scene found for glTF: {:#?}", gltf);
         return false;
     };
 
     q_scenes.iter().any(|handle| {
-        let Some(path) = r_assets.get_handle_path(handle) else {
+        let Some(path) = handle.path() else {
             return false;
         };
         path == gltf_scene_path
@@ -203,14 +245,15 @@ fn gltf_scene_spawned(
 fn mark_scene_objects(
     mut cmd: Commands,
     r_gltf: Res<NewGltf>,
-    r_assets: Res<AssetServer>,
     ra_gltfs: Res<Assets<Gltf>>,
     ra_gltf_nodes: Res<Assets<gltf::GltfNode>>,
     ra_gltf_meshes: Res<Assets<gltf::GltfMesh>>,
     q_parents: Query<(Entity, &Name, &Children), Without<Selectable>>,
     q_primitives: Query<&Handle<Mesh>>,
 ) {
-    let gltf = ra_gltfs.get(&r_gltf).unwrap();
+    info!("mark_scene_objects");
+
+    let gltf = ra_gltfs.get(&**r_gltf).unwrap();
 
     for (ent_parent, name, children) in q_parents.iter() {
         if gltf.named_nodes.contains_key(&**name) {
@@ -241,7 +284,7 @@ fn mark_scene_objects(
         let prims_from_gltf = gltf_mesh
             .primitives
             .iter()
-            .filter_map(|prim| r_assets.get_handle_path(&prim.mesh))
+            .filter_map(|prim| prim.mesh.path())
             .collect::<HashSet<_>>();
 
         // Collect all of the mesh handles in this entity's children
@@ -251,10 +294,9 @@ fn mark_scene_objects(
                 q_primitives
                     .get(*ent_child)
                     .ok()
-                    .and_then(|handle| r_assets.get_handle_path(handle))
+                    .and_then(|handle| handle.path())
             })
             .collect::<HashSet<_>>();
-
 
         // If the sets match, this is the entity that represents the glTF mesh
         if prims_from_gltf == prims_from_ecs {
@@ -283,8 +325,7 @@ fn move_plane_with_camera(
     }
 }
 
-#[derive(AsBindGroup, Clone, TypePath, TypeUuid)]
-#[uuid = "CE331A13-F247-4F5B-A75E-670B2BD5776A"]
+#[derive(Asset, AsBindGroup, TypePath, Clone)]
 struct ProceduralGridMaterial {}
 
 impl Material for ProceduralGridMaterial {

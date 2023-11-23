@@ -20,7 +20,7 @@ impl Plugin for SelectionPlugin {
         app.add_systems(
             PostUpdate,
             wasm::notify_entity_selection_change
-                .pipe(error)
+                .map(bevy::utils::error)
                 .run_if(resource_changed_or_removed::<Selection>()),
         );
     }
@@ -47,7 +47,7 @@ fn update_selection(
     q_selectable: Query<&Selectable>,
     q_selected: Query<Entity, With<Selected>>,
 ) {
-    if let Some(event) = ev_select.iter().last() {
+    if let Some(event) = ev_select.read().last() {
         // Clear any existing `Selected` components
         for ent in q_selected.iter() {
             cmd.entity(ent).remove::<Selected>();
@@ -73,7 +73,7 @@ fn update_selection(
         } else {
             cmd.remove_resource::<Selection>();
         }
-    } else if ev_input.iter().any(|action| {
+    } else if ev_input.read().any(|action| {
         matches!(
             action,
             InputAction(Lifecycle::Stop, Action::Selection(input::Selection::Clear))
