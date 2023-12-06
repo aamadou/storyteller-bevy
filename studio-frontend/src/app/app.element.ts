@@ -191,8 +191,8 @@ export class AppElement extends LitElement {
 		const height = window.innerHeight;
 		try {
 			studio.startViewer(
-				"couch",
-				"test_scene",
+				"base-human-female",
+				"meadow_4k",
 				"#studio_canvas",
 				"Storyteller Studio",
 				new ViewportSize(width, height),
