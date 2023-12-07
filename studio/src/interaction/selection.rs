@@ -2,9 +2,12 @@ use bevy::prelude::*;
 use bevy_mod_outline::{
     AutoGenerateOutlineNormalsPlugin, OutlineBundle, OutlinePlugin, OutlineVolume,
 };
-use bevy_mod_picking::{prelude::Pointer, selection::Select};
+use bevy_mod_picking::{prelude::Pointer, selection::Select, PickableBundle};
 
-use crate::input::{self, Action, InputAction, Lifecycle};
+use crate::{
+    input::{self, Action, InputAction, Lifecycle},
+    scene::{SceneElement, SceneSpawnerSystem, SceneState},
+};
 
 pub struct SelectionPlugin;
 impl Plugin for SelectionPlugin {
@@ -14,6 +17,12 @@ impl Plugin for SelectionPlugin {
             .add_systems(
                 PostUpdate,
                 draw_selection_outline.run_if(resource_changed_or_removed::<Selection>()),
+            )
+            .add_systems(
+                OnEnter(SceneState::Active),
+                (apply_deferred, tag_scene_elements)
+                    .chain()
+                    .after(SceneSpawnerSystem),
             );
 
         #[cfg(feature = "wasm")]
@@ -34,6 +43,23 @@ pub struct Selected;
 
 #[derive(Resource, Deref, DerefMut, Debug)]
 pub struct Selection(Entity);
+
+fn tag_scene_elements(
+    mut cmd: Commands,
+    q_scene_elements: Query<(Entity, &Children), (With<SceneElement>, Without<Selectable>)>,
+    q_primitives: Query<&Handle<Mesh>>,
+) {
+    for (ent, children) in q_scene_elements.iter() {
+        cmd.entity(ent).insert(Selectable);
+
+        for &ent_child in children
+            .iter()
+            .filter(|child| q_primitives.contains(**child))
+        {
+            cmd.entity(ent_child).insert(PickableBundle::default());
+        }
+    }
+}
 
 fn update_selection(
     mut cmd: Commands,

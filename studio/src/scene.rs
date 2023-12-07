@@ -4,80 +4,114 @@ use bevy::{
         fxaa::Fxaa,
         tonemapping::Tonemapping,
     },
-    gltf::{self, Gltf},
-    math::vec3,
-    pbr::{NotShadowCaster, ShadowFilteringMethod},
+    gltf::Gltf,
+    math::{vec2, vec3},
+    pbr::ShadowFilteringMethod,
     prelude::*,
-    reflect::TypePath,
-    render::render_resource::{AsBindGroup, ShaderRef},
-    utils::HashSet,
+    render::primitives::Aabb,
+    scene::InstanceId,
 };
-use bevy_mod_picking::PickableBundle;
+
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
-    camera_controller::{CameraController, CameraControllerBundle, CameraMotionSystem},
-    interaction::Selectable,
-    skybox::SkyboxId,
+    camera_controller::{CameraController, CameraControllerBundle},
+    debug::DebugPoint,
+    math::{Combinable, Extrema},
     MainCamera,
 };
 
 pub struct ScenePlugin;
 
+#[derive(SystemSet, Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct SceneSpawnerSystem;
+
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
             .insert_resource(Msaa::Off)
-            .add_plugins(MaterialPlugin::<ProceduralGridMaterial>::default())
+            .add_state::<SceneState>()
+            .add_event::<LoadSceneEvent>()
             .add_systems(Startup, initialize)
             .add_systems(
-                PreUpdate,
-                spawn_new_gltf_scene.run_if(
-                    resource_exists::<NewGltf>()
-                        .and_then(new_gltf_loaded)
-                        .and_then(run_once()),
-                ),
+                Update,
+                (
+                    init_scene_loading,
+                    tick_scene_loading.run_if(in_state(SceneState::Loading)),
+                    tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
+                )
+                    .in_set(SceneSpawnerSystem),
             )
             .add_systems(
-                Update,
-                mark_scene_objects.run_if(
-                    resource_exists::<NewGltf>()
-                        .and_then(new_gltf_loaded)
-                        .and_then(gltf_scene_spawned),
-                ),
+                OnEnter(SceneState::Loading),
+                despawn_previous_scene.in_set(SceneSpawnerSystem),
             )
-            .add_systems(PostUpdate, move_plane_with_camera.after(CameraMotionSystem));
+            .add_systems(
+                OnEnter(SceneState::Spawning),
+                spawn_next_scene.in_set(SceneSpawnerSystem),
+            )
+            .add_systems(
+                OnEnter(SceneState::Active),
+                (
+                    tag_scene_elements,
+                    spawn_main_scene_light,
+                    frame_scene_in_view,
+                )
+                    .in_set(SceneSpawnerSystem),
+            );
 
         #[cfg(feature = "wasm")]
         app.add_systems(
-            PostUpdate,
-            wasm::notify_entity_spawn_changes.map(bevy::utils::error),
+            Update,
+            (
+                wasm::dispatch_scene_request,
+                wasm::notify_state_changes
+                    .map(bevy::utils::error)
+                    .run_if(resource_changed::<State<SceneState>>()),
+            ),
         );
     }
 }
 
-#[derive(Component)]
-struct WorldGridPlane;
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(States, Clone, Copy, Default, Debug, PartialEq, Eq, Hash)]
+pub enum SceneState {
+    #[default]
+    None,
+    Loading,
+    Spawning,
+    Active,
+}
 
 #[derive(Resource, Deref, DerefMut)]
-struct NewGltf(pub Handle<Gltf>);
+struct PendingScene(pub Handle<Gltf>);
+
+#[derive(Resource, Deref)]
+pub struct ActiveScene {
+    #[deref]
+    pub instance: InstanceId,
+    pub source: Handle<Gltf>,
+}
+
+#[derive(Event, Deref)]
+pub struct LoadSceneEvent(pub String);
+
+// TODOL This could be converted into an enum that indicates what "kind" of
+//       element this is (e.g. StaticMesh, SkinnedMesh, Bone, Light, Camera).
+//       We don't have an immediate need for that just yet, but likely will
+//       soon.
+/// A tag that identifies its entity as a user-facing scene element like a prop,
+/// a light, or a camera.
+#[derive(Component)]
+pub struct SceneElement;
 
 #[derive(Component)]
-struct Inspectable;
+pub struct SceneRoot;
 
-fn initialize(
-    mut cmd: Commands,
-    assets: Res<AssetServer>,
-    mut ra_meshes: ResMut<Assets<Mesh>>,
-    mut ra_mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
-) {
-    // Skybox
-    cmd.insert_resource(SkyboxId("test_scene".into()));
-
-    // glTF scene
-    cmd.insert_resource(NewGltf(assets.load("gltf/sample-room.gltf")));
-
+fn initialize(mut cmd: Commands) {
     // Camera, graphics settings
-    let focus = vec3(0.35011, 0.5, -0.99576);
+    let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
     cmd.spawn((
         Name::new("Main Camera"),
@@ -104,495 +138,320 @@ fn initialize(
         },
         Fxaa::default(),
     ));
-
-    // Main light
-    // TODO: get Blender to export enough metadata to automate light placements
-    cmd.spawn((
-        Name::new("Ceiling Light"),
-        Selectable,
-        Inspectable,
-        PointLightBundle {
-            point_light: PointLight {
-                color: Color::hex("FFE5B4").unwrap(),
-                intensity: 200.,
-                radius: 0.1,
-                shadows_enabled: true,
-                ..default()
-            },
-            transform: Transform::from_xyz(0.35263, 2.4348, 0.19601),
-            ..default()
-        },
-    ));
-
-    // Monitor glow
-    cmd.spawn((
-        Name::new("Monitor Glow"),
-        Selectable,
-        Inspectable,
-        PointLightBundle {
-            point_light: PointLight {
-                color: Color::WHITE,
-                intensity: 6.,
-                radius: 0.25,
-                shadows_enabled: false,
-                ..default()
-            },
-            transform: Transform::from_xyz(0.42615, 1.0706, -2.0705),
-            ..default()
-        },
-    ));
-
-    // Plane
-    let plane = ra_meshes.add(Mesh::from(shape::Plane {
-        size: 200.0,
-        subdivisions: 0,
-    }));
-    let proc_grid = ra_mat_proc_grid.add(ProceduralGridMaterial {});
-
-    cmd.spawn((
-        Name::new("World Grid"),
-        SpatialBundle::from_transform(Transform::IDENTITY),
-        WorldGridPlane,
-    ))
-    .with_children(|parent| {
-        parent.spawn((
-            MaterialMeshBundle {
-                mesh: plane.clone(),
-                material: proc_grid.clone(),
-                transform: Transform::IDENTITY,
-                ..default()
-            },
-            NotShadowCaster,
-        ));
-        parent.spawn((
-            MaterialMeshBundle {
-                mesh: plane,
-                material: proc_grid,
-                transform: Transform::IDENTITY.looking_to(Vec3::Z, Vec3::NEG_Y),
-                ..default()
-            },
-            NotShadowCaster,
-        ));
-    });
 }
 
-#[derive(Default)]
-struct LoadState(Handle<Gltf>, bool);
+fn init_scene_loading(
+    mut cmd: Commands,
+    assets: Res<AssetServer>,
+    mut er: EventReader<LoadSceneEvent>,
+    mut st_next: ResMut<NextState<SceneState>>,
+) {
+    if let Some(id) = er.read().last() {
+        let name = &**id;
+        cmd.insert_resource(PendingScene(assets.load(format!("gltf/{name}.gltf"))));
+        st_next.set(SceneState::Loading);
+    }
+}
 
-fn new_gltf_loaded(
-    r_gltf: Res<NewGltf>,
+fn despawn_previous_scene(mut cmd: Commands, q_scene_root: Query<Entity, With<SceneRoot>>) {
+    if let Ok(scene_root) = q_scene_root.get_single() {
+        cmd.entity(scene_root).despawn_recursive();
+    }
+}
+
+fn tick_scene_loading(
+    r_pending_scene: Res<PendingScene>,
     ra_gltfs: Res<Assets<Gltf>>,
     mut er_scene_events: EventReader<AssetEvent<Scene>>,
-    mut l_loaded: Local<LoadState>,
-) -> bool {
-    if l_loaded.0.path() != r_gltf.path() {
-        *l_loaded = LoadState(r_gltf.clone(), false);
-    } else if l_loaded.1 {
-        return true;
-    }
-
-    l_loaded.1 = er_scene_events.read().any(|event| match event {
-        AssetEvent::LoadedWithDependencies { id } => {
-            let gltf = ra_gltfs.get(&**r_gltf).unwrap();
-            let Some(default_scene) = &gltf.default_scene else {
-                return false;
-            };
-
-            *id == default_scene.id()
-        }
-        _ => false,
-    });
-
-    l_loaded.1
-}
-
-fn spawn_new_gltf_scene(mut cmd: Commands, ra_gltfs: Res<Assets<Gltf>>, r_gltf: Res<NewGltf>) {
-    let gltf = ra_gltfs.get(&**r_gltf).unwrap();
-    let Some(scene) = &gltf.default_scene else {
-        return;
-    };
-
-    cmd.spawn((
-        Name::new("Scene"),
-        Inspectable,
-        SceneBundle {
-            scene: scene.clone(),
-            ..default()
-        },
-    ));
-}
-
-fn gltf_scene_spawned(
-    r_gltf: Res<NewGltf>,
-    ra_gltfs: Res<Assets<Gltf>>,
-    q_scenes: Query<&Handle<Scene>, (With<Name>, With<Children>)>,
-) -> bool {
-    let gltf = ra_gltfs.get(&**r_gltf).unwrap();
-
-    let Some(gltf_scene_path) = gltf.default_scene.as_ref().and_then(|handle| handle.path()) else {
-        warn!("No default scene found for glTF: {:#?}", gltf);
-        return false;
-    };
-
-    q_scenes.iter().any(|handle| {
-        let Some(path) = handle.path() else {
-            return false;
-        };
-        path == gltf_scene_path
-    })
-}
-
-fn mark_scene_objects(
-    mut cmd: Commands,
-    r_gltf: Res<NewGltf>,
-    ra_gltfs: Res<Assets<Gltf>>,
-    ra_gltf_nodes: Res<Assets<gltf::GltfNode>>,
-    ra_gltf_meshes: Res<Assets<gltf::GltfMesh>>,
-    q_parents: Query<(Entity, &Name, &Children), Without<Selectable>>,
-    q_primitives: Query<&Handle<Mesh>>,
+    mut st_next: ResMut<NextState<SceneState>>,
 ) {
-    info!("mark_scene_objects");
-
-    let gltf = ra_gltfs.get(&**r_gltf).unwrap();
-
-    for (ent_parent, name, children) in q_parents.iter() {
-        if gltf.named_nodes.contains_key(&**name) {
-            cmd.entity(ent_parent).insert(Inspectable);
-        }
-
-        // See if this name matches any of the meshes or nodes in our glTF scene
-        let Some(gltf_mesh) = gltf
-            .named_meshes
-            .get(&**name)
-            .cloned()
-            .or_else(|| {
-                gltf.named_nodes.get(&**name).and_then(|node_handle| {
-                    ra_gltf_nodes
-                        .get(node_handle)
-                        .and_then(|node| node.mesh.clone())
-                })
-            })
-            .and_then(|handle| ra_gltf_meshes.get(&handle))
-        else {
-            continue;
-        };
-
-        // FIXME: These hashsets don't actually contain anything. Ever. -_-
-        //        This has "worked" this whole time because {} == {}
-
-        // Collect all of the mesh handles in the glTF mesh
-        let prims_from_gltf = gltf_mesh
-            .primitives
-            .iter()
-            .filter_map(|prim| prim.mesh.path())
-            .collect::<HashSet<_>>();
-
-        // Collect all of the mesh handles in this entity's children
-        let prims_from_ecs = children
-            .iter()
-            .filter_map(|ent_child| {
-                q_primitives
-                    .get(*ent_child)
-                    .ok()
-                    .and_then(|handle| handle.path())
-            })
-            .collect::<HashSet<_>>();
-
-        // If the sets match, this is the entity that represents the glTF mesh
-        if prims_from_gltf == prims_from_ecs {
-            cmd.entity(ent_parent).insert(Selectable);
-
-            for &ent_child in children.iter() {
-                if q_primitives.contains(ent_child) {
-                    cmd.entity(ent_child).insert(PickableBundle::default());
-                }
+    for event in er_scene_events.read() {
+        if let AssetEvent::LoadedWithDependencies { id } = event {
+            let gltf = ra_gltfs.get(&**r_pending_scene).unwrap();
+            if gltf.default_scene.is_some() && gltf.default_scene.as_ref().unwrap().id() == *id {
+                st_next.set(SceneState::Spawning);
+                break;
             }
         }
     }
-
-    cmd.remove_resource::<NewGltf>();
 }
 
-fn move_plane_with_camera(
-    mut plane: Query<(&WorldGridPlane, &mut Transform)>,
-    camera: Query<&CameraController, Changed<CameraController>>,
+fn spawn_next_scene(
+    mut cmd: Commands,
+    ra_gltfs: Res<Assets<Gltf>>,
+    r_pending_scene: Res<PendingScene>,
+    mut r_scene_spawner: ResMut<SceneSpawner>,
 ) {
-    if let Ok(&CameraController { focus, .. }) = camera.get_single() {
-        let (_, mut xform) = plane.single_mut();
+    let gltf = ra_gltfs.get(&**r_pending_scene).unwrap();
+    let scene = gltf
+        .default_scene
+        .as_ref()
+        .expect("Expected glTF to include a default scene");
 
-        xform.translation.x = focus.x;
-        xform.translation.z = focus.z;
+    let parent = cmd
+        .spawn((
+            Name::new("Scene"),
+            SceneRoot,
+            SceneElement,
+            SpatialBundle::default(),
+        ))
+        .id();
+
+    let instance = r_scene_spawner.spawn_as_child(scene.clone(), parent);
+
+    cmd.remove_resource::<PendingScene>();
+    cmd.insert_resource(ActiveScene {
+        instance,
+        source: r_pending_scene.clone(),
+    });
+}
+
+fn tick_scene_spawning(
+    r_scene_spawner: Res<SceneSpawner>,
+    r_active_scene: Res<ActiveScene>,
+    mut st_next: ResMut<NextState<SceneState>>,
+) {
+    // TODO: The instance is considered "ready" even if shaders still need to be
+    //       compiled, so this event isn't really sufficient for controlling a
+    //       loading screen.
+    if r_scene_spawner.instance_is_ready(**r_active_scene) {
+        st_next.set(SceneState::Active);
     }
 }
 
-#[derive(Asset, AsBindGroup, TypePath, Clone)]
-struct ProceduralGridMaterial {}
+fn tag_scene_elements(
+    mut cmd: Commands,
+    r_scene_spawner: Res<SceneSpawner>,
+    r_active_scene: Res<ActiveScene>,
+    ra_gltfs: Res<Assets<Gltf>>,
+    // A "glTF mesh" is actually a container for one or more "glTF primitives",
+    // which is basically a bundle of vertices paired with the material used to
+    // shade them. It's those "sub-meshes" that carry the actual mesh handles,
+    // but we don't necessarily want to expose those to users a la carte,
+    // because they often consist of stuff like a single eyeball, or just the
+    // leafy parts of a plant. Here we only want to tag the elements that a user
+    // might want to individually address when arranging or animating a scene.
+    q_named_non_primitives: Query<&Name, Without<Handle<Mesh>>>,
+) {
+    let gltf = ra_gltfs.get(&r_active_scene.source).unwrap();
 
-impl Material for ProceduralGridMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/procedural_grid.wgsl".into()
-    }
+    for ent in r_scene_spawner.iter_instance_entities(**r_active_scene) {
+        let Ok(name) = q_named_non_primitives.get(ent) else {
+            continue;
+        };
 
-    fn alpha_mode(&self) -> AlphaMode {
-        AlphaMode::Blend
+        if gltf.named_nodes.contains_key(&**name) {
+            cmd.entity(ent).insert(SceneElement);
+        }
     }
+}
+
+fn spawn_main_scene_light(
+    mut cmd: Commands,
+    r_scene_spawner: Res<SceneSpawner>,
+    r_active_scene: Res<ActiveScene>,
+    q_aabbs: Query<(&Aabb, &GlobalTransform)>,
+    q_scene_root: Query<Entity, With<SceneRoot>>,
+) {
+    let Ok(scene_root) = q_scene_root.get_single() else {
+        return;
+    };
+
+    let Some(aabb) = Aabb::combine(
+        r_scene_spawner
+            .iter_instance_entities(**r_active_scene)
+            .filter_map(|ent| q_aabbs.get(ent).ok()),
+    ) else {
+        return;
+    };
+
+    let light_offset_base = vec3(0.5, 1., 1.).normalize();
+    let size = f32::max(
+        f32::max(aabb.half_extents.x, aabb.half_extents.y),
+        aabb.half_extents.z,
+    ) * 2.;
+    let light_pos = Vec3::from(aabb.center) + light_offset_base * size * 2.;
+
+    cmd.spawn(DebugPoint {
+        point: light_pos,
+        color: Color::WHITE,
+    });
+    cmd.entity(scene_root).with_children(|cmd| {
+        cmd.spawn((
+            Name::new("Light"),
+            SceneElement,
+            SpotLightBundle {
+                spot_light: SpotLight {
+                    color: Color::WHITE,
+                    // TODO: This doesn't scale super well to very large objects
+                    intensity: 200. * size,
+                    radius: 0.1,
+                    shadows_enabled: true,
+                    shadow_normal_bias: 0.2 * size,
+                    outer_angle: f32::to_radians(150.),
+                    inner_angle: f32::to_radians(45.),
+                    ..default()
+                },
+                transform: Transform::from_translation(light_pos)
+                    .looking_at(aabb.center.into(), Vec3::Y),
+                ..default()
+            },
+        ));
+    });
+}
+
+fn frame_scene_in_view(
+    mut cmd: Commands,
+    r_scene_spawner: Res<SceneSpawner>,
+    r_active_scene: Res<ActiveScene>,
+    q_aabbs: Query<(&Aabb, &GlobalTransform)>,
+    mut q_camera: Query<(&mut CameraController, &mut Transform, &Projection)>,
+) {
+    let Ok((mut cam, mut cam_xform, cam_proj)) = q_camera.get_single_mut() else {
+        return;
+    };
+
+    let Some(aabb) = Aabb::combine(
+        r_scene_spawner
+            .iter_instance_entities(**r_active_scene)
+            .filter_map(|ent| q_aabbs.get(ent).ok()),
+    ) else {
+        return;
+    };
+
+    let world2cam = cam_xform.compute_matrix().inverse();
+    let plane_origin = Vec3::from(aabb.center);
+    let plane_normal = cam_xform.forward();
+
+    let Some((_depth, bounding_rect)) = aabb
+        .extrema()
+        .iter()
+        .copied()
+        .map(|mut p| {
+            cmd.spawn(DebugPoint {
+                point: p,
+                color: Color::CYAN,
+            });
+
+            // Inflate the combined AABB to give the model some breathing room
+            p *= 1.5;
+
+            // Project each corner onto the camera plane
+            let v = p - plane_origin;
+            let proj = p - v.project_onto_normalized(plane_normal);
+
+            cmd.spawn(DebugPoint {
+                point: proj,
+                color: Color::FUCHSIA,
+            });
+
+            // Transform into the camera's local space
+            world2cam.transform_point(proj)
+        })
+        // Fold the camera-space plane-projected points into a bounding rect and view depth
+        .fold(None, |accum: Option<(f32, Rect)>, p: Vec3| match accum {
+            Some((depth, rect)) => Some((depth, rect.union_point(vec2(p.x, p.y)))),
+            None => {
+                let depth = p.z.abs();
+                let p = vec2(p.x, p.y);
+                Some((depth, Rect::from_corners(p, p)))
+            }
+        })
+    else {
+        return;
+    };
+
+    let pproj = match cam_proj {
+        Projection::Perspective(p) => p,
+        _ => panic!("Expected a perspective projection"),
+    };
+
+    // Formula for the target camera distance
+    // (c/o https://stackoverflow.com/questions/2866350/move-camera-to-fit-3d-scene):
+    //
+    // d = (s/2) / tan(a/2)
+    // where:
+    //   d = distance
+    //   s = size of the largest camera-aligned axis in world coords
+    //   a = field-of-view angle for the same axis
+    let Vec2 {
+        x: width,
+        y: height,
+    } = bounding_rect.size();
+
+    let s = f32::max(width, height);
+    let a = if s == height {
+        pproj.fov
+    } else {
+        f32::atan(pproj.aspect_ratio * f32::tan(pproj.fov / 2.))
+    };
+
+    // TODO:
+    // According to "I eat babies" at the Ars Technica forums
+    // (https://arstechnica.com/civis/threads/if-you-have-aspect-ratio-and-vertical-fov-can-you-calc-horizontal-fov.37447/):
+    //
+    // tan(fov_v / 2) = y / z
+    // tan(fov_h / 2) = x / z
+    //
+    // Theoretically, this would let us skip some costly tan/atan
+    // computations, but I must be missing something, because just
+    // substituting (s / depth) for the divisor below would make the
+    // whole equation independent of the FOV, which is obviously
+    // wrong.
+    //
+    // Unfortunately I'm embarrassingly bad at algebra, but there
+    // must be some room for simplification here.
+    let radius = (s / 2.) / f32::tan(a / 2.);
+
+    cam.focus = aabb.center.into();
+    cam.radius = radius;
+    cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
 #[cfg(feature = "wasm")]
 mod wasm {
-    use std::collections::VecDeque;
-
-    use bevy::{prelude::*, utils::HashSet, window::PrimaryWindow};
-    use serde::Serialize;
+    use bevy::{prelude::*, window::PrimaryWindow};
     use wasm_bindgen::prelude::*;
 
-    use crate::wasm::{self, AsJson};
+    use super::{LoadSceneEvent, SceneState};
+    use crate::wasm::{self, StaticBuffer, WasmMessageBuffer};
 
-    use super::Inspectable;
+    static OBJECT_LOAD_REQUEST: WasmMessageBuffer<String> = WasmMessageBuffer::new();
+
+    #[wasm_bindgen(js_name = loadObject)]
+    pub fn load_object(id: &str) {
+        OBJECT_LOAD_REQUEST.write_message(id.into());
+    }
+
+    // FIXME: Is it an object or a scene? Inconsistent terminology is
+    //        unnecessarily confusing
+    pub(super) fn dispatch_scene_request(mut ew_load_scene: EventWriter<LoadSceneEvent>) {
+        if let Some(id) = OBJECT_LOAD_REQUEST.take_message() {
+            ew_load_scene.send(LoadSceneEvent(id));
+        }
+    }
 
     #[wasm_bindgen(typescript_custom_section)]
-    const TYPE_DECLARATIONS: &str = r#"
-export interface SceneObject {
-    /** The entity ID. */
-    id: string;
-    /** A user-friendly name for displaying in the UI */
-    name: string;
-    /** The IDs of this object's children in the hierarchy */
-    children: string[];
-    /** The ID of this object's parent in the hierarchy, if it has one */
-    parent: string | null;
-    /** The local-space transform */
-    transform: Transform;
-    /** The world-space transform */
-    globalTransform: GlobalTransform;
-}
-
-/**
- * An event indicating that a new entity has spawned.
- */
-export interface EntitySpawnEvent extends CustomEvent {
-    type: "entity-spawn";
-    detail: SceneObject;
-}
-
-/**
- * An event indicating that an entity has been de-spawned.
- */
-export interface EntityDespawnEvent extends CustomEvent {
-    type: "entity-despawn";
-    /** The entity ID */
-    detail: string;
-}
-
-/**
- * An event indicating that multiple entities have spawned.
- */
-export interface EntityMultiSpawnEvent extends CustomEvent {
-    type: "entity-multi-spawn";
-    detail: SceneObject[];
+    const SCENE_STATE_EVENT: &str = r#"
+export interface SceneStateEvent extends CustomEvent {
+    type: "scene-state";
+    detail: SceneState;
 }
 
 declare global {
     export interface HTMLElementEventMap {
-        "entity-spawn": EntitySpawnEvent;
-        "entity-despawn": EntityDespawnEvent;
-        "entity-multi-spawn": EntityMultiSpawnEvent;
+        "scene-state": SceneStateEvent;
     }
 }
     "#;
 
-    #[derive(Serialize)]
-    pub(super) struct SceneObject {
-        id: String,
-        name: String,
-        children: Vec<String>,
-        parent: Option<String>,
-        transform: serde_json::Value,
-        #[serde(rename(serialize = "globalTransform"))]
-        global_transform: serde_json::Value,
-    }
-
-    struct SceneObjectBuilder<'a> {
-        id: Entity,
-        name: Option<String>,
-        children: Option<Vec<Entity>>,
-        parent: Option<Entity>,
-        transform: Option<&'a Transform>,
-        global_transform: Option<&'a GlobalTransform>,
-    }
-
-    impl<'a> SceneObjectBuilder<'a> {
-        fn new(id: Entity) -> Self {
-            Self {
-                id,
-                name: None,
-                children: None,
-                parent: None,
-                transform: None,
-                global_transform: None,
-            }
-        }
-        fn finish(self) -> SceneObject {
-            SceneObject {
-                id: format!("{:?}", self.id),
-                name: self.name.unwrap(),
-                children: self
-                    .children
-                    .map(|children| children.iter().map(|ent| format!("{ent:?}")).collect())
-                    .unwrap_or_default(),
-                parent: self.parent.map(|ent| format!("{ent:?}")),
-                transform: self.transform.unwrap().as_json(),
-                global_transform: self.global_transform.unwrap().as_json(),
-            }
-        }
-        fn with_name(mut self, name: String) -> Self {
-            self.name = Some(name);
-            self
-        }
-        fn with_children(mut self, children: Vec<Entity>) -> Self {
-            self.children = Some(children);
-            self
-        }
-        fn with_parent(mut self, parent: Entity) -> Self {
-            self.parent = Some(parent);
-            self
-        }
-        fn with_transform(mut self, transform: &'a Transform) -> Self {
-            self.transform = Some(transform);
-            self
-        }
-        fn with_global_transform(mut self, global_transform: &'a GlobalTransform) -> Self {
-            self.global_transform = Some(global_transform);
-            self
-        }
-    }
-
-    impl<'a> SceneObject {
-        fn build(id: Entity) -> SceneObjectBuilder<'a> {
-            SceneObjectBuilder::new(id)
-        }
-    }
-
-    pub(super) fn notify_entity_spawn_changes(
-        mut l_notified: Local<HashSet<Entity>>,
-        // Note: We use locals for these data structures purely to reuse
-        // existing allocations across multiple invocations of this system
-        mut l_new_objects: Local<Vec<SceneObject>>,
-        mut l_despawned_entities: Local<Vec<Entity>>,
-        mut l_missing_parents: Local<VecDeque<Entity>>,
+    pub(super) fn notify_state_changes(
+        r_state: Res<State<SceneState>>,
         q_window: Query<&Window, With<PrimaryWindow>>,
-        q_inspectables: Query<(Entity, &Transform, &GlobalTransform), With<Inspectable>>,
-        q_others: Query<(Entity, &Transform, &GlobalTransform), Without<Inspectable>>,
-        q_names: Query<&Name>,
-        q_parents: Query<&Children>,
-        q_children: Query<&Parent>,
     ) -> Result<(), String> {
-        l_missing_parents.clear();
-
-        l_new_objects.clear();
-        l_new_objects.extend(
-            q_inspectables
-                .iter()
-                .filter_map(|(ent, xform, world_xform)| {
-                    build_scene_object(
-                        &mut l_notified,
-                        &mut l_missing_parents,
-                        ent,
-                        xform,
-                        world_xform,
-                        &q_inspectables,
-                        &q_names,
-                        &q_parents,
-                        &q_children,
-                    )
-                }),
-        );
-
-        while let Some(parent) = l_missing_parents.pop_front() {
-            let Ok((ent, xform, world_xform)) = q_others.get(parent) else {
-                error!("Failed to find missing parent: {parent:?}");
-                l_notified.insert(parent);
-
-                continue;
-            };
-
-            if let Some(object) = build_scene_object(
-                &mut l_notified,
-                &mut l_missing_parents,
-                ent,
-                xform,
-                world_xform,
-                &q_inspectables,
-                &q_names,
-                &q_parents,
-                &q_children,
-            ) {
-                l_new_objects.push(object);
-            }
+        if let Ok(window) = q_window.get_single() {
+            wasm::dispatch_to_js(window, "scene-state", &(**r_state as u32))?;
         }
-
-        l_despawned_entities.clear();
-        l_despawned_entities.extend(
-            l_notified
-                .iter()
-                .filter(|ent| !q_inspectables.contains(**ent) && !q_others.contains(**ent))
-                .cloned(),
-        );
-
-        let win = q_window.single();
-
-        for ent in l_despawned_entities.iter() {
-            // TODO: Make this take an array like the multi-spawn event
-            wasm::dispatch_to_js(win, "entity-despawn", ent)?;
-            l_notified.remove(ent);
-        }
-
-        if !l_new_objects.is_empty() {
-            // TODO: Remove the single-spawn event
-            wasm::dispatch_to_js(win, "entity-multi-spawn", &*l_new_objects)?;
-        }
-
         Ok(())
-    }
-
-    fn build_scene_object(
-        notified: &mut HashSet<Entity>,
-        missing_parents: &mut VecDeque<Entity>,
-        ent: Entity,
-        xform: &Transform,
-        world_xform: &GlobalTransform,
-        q_inspectables: &Query<(Entity, &Transform, &GlobalTransform), With<Inspectable>>,
-        q_names: &Query<&Name>,
-        q_parents: &Query<&Children>,
-        q_children: &Query<&Parent>,
-    ) -> Option<SceneObject> {
-        if notified.contains(&ent) {
-            return None;
-        }
-
-        notified.insert(ent);
-
-        let mut result = SceneObject::build(ent)
-            .with_transform(xform)
-            .with_global_transform(world_xform);
-
-        if let Ok(children) = q_parents.get(ent) {
-            result = result.with_children(children.iter().cloned().collect());
-        }
-        if let Ok(parent) = q_children.get(ent) {
-            let parent_ent = **parent;
-            result = result.with_parent(parent_ent);
-
-            if !notified.contains(&parent_ent) && !q_inspectables.contains(parent_ent) {
-                missing_parents.push_back(parent_ent);
-            }
-        }
-
-        result = result.with_name(match q_names.get(ent) {
-            Ok(name) => name.into(),
-            Err(_) => format!("{ent:?}"),
-        });
-
-        Some(result.finish())
     }
 }
