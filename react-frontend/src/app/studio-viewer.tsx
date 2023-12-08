@@ -38,11 +38,7 @@ export default forwardRef<ViewerElement, Props>(({
 	}
 
 	return (
-		<sts-viewer
-			{...props}
-			ref={refCallback}
-			objectId={objectId}
-			skyboxId={skyboxId}
-		/>
+		// @ts-ignore
+		<sts-viewer {...props} ref={refCallback} objectId={objectId} skyboxId={skyboxId} />
 	);
 });
