@@ -6,7 +6,7 @@ use bevy_mod_picking::{prelude::Pointer, selection::Select, PickableBundle};
 
 use crate::{
     input::{self, Action, InputAction, Lifecycle},
-    scene::{SceneElement, SceneSpawnerSystem, SceneState},
+    scene::{SceneElement, SceneSpawnerSystem, SceneState}, StudioMode,
 };
 
 pub struct SelectionPlugin;
@@ -48,6 +48,7 @@ fn tag_scene_elements(
     mut cmd: Commands,
     q_scene_elements: Query<(Entity, &Children), (With<SceneElement>, Without<Selectable>)>,
     q_primitives: Query<&Handle<Mesh>>,
+    r_studio_mode : Res<StudioMode>
 ) {
     for (ent, children) in q_scene_elements.iter() {
         cmd.entity(ent).insert(Selectable);
@@ -56,7 +57,9 @@ fn tag_scene_elements(
             .iter()
             .filter(|child| q_primitives.contains(**child))
         {
-            cmd.entity(ent_child).insert(PickableBundle::default());
+            if let StudioMode::Editor = *r_studio_mode {
+                cmd.entity(ent_child).insert(PickableBundle::default());
+            }
         }
     }
 }

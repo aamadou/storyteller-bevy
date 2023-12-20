@@ -14,6 +14,7 @@ export class ViewerElement extends LitElement {
 
 	@property() objectId?: string;
 	@property() skyboxId?: string;
+	@property() viewmode?: string = "viewer"
 
 	@inject(CANVAS_PROVIDER)
 	_canvasProvider?: CanvasProvider;
@@ -77,6 +78,7 @@ export class ViewerElement extends LitElement {
 				`#${this._canvasProvider!.canvasId}`,
 				"Storyteller Studio",
 				new ViewportSize(width, height),
+				this.viewmode
 			);
 		} catch (err) {
 			if (!(err as Error).message?.startsWith("Using exceptions for control flow"))

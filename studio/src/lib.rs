@@ -103,12 +103,19 @@ pub fn start_viewer(
     canvas_selector: &str,
     canvas_alt: &str,
     viewport_size: ViewportSize,
+    viewer_mode: &str,
 ) {
     #[cfg(feature = "wasm")]
     console_error_panic_hook::set_once();
 
     let object_id = object_id.to_string();
     let skybox_id = skybox_id.to_string();
+    let studio_mode = match viewer_mode {
+        "editor" => StudioMode::Editor,
+        "viewer" => StudioMode::Viewer,
+        //Fixme: Unclear how we should hadle errors like this: Should we choose a default value?
+        _ => panic!("Invalid viewer mode: {}", viewer_mode),
+    };
 
     let mut app = App::new();
     app.add_plugins((
@@ -139,6 +146,7 @@ pub fn start_viewer(
         Startup,
         move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
             cmd.insert_resource(SkyboxId(skybox_id.clone()));
+            cmd.insert_resource(studio_mode);
             ew.send(LoadSceneEvent(object_id.clone()));
         },
     );
@@ -147,4 +155,10 @@ pub fn start_viewer(
     wasm::initialize();
 
     app.run();
+}
+
+#[derive(Resource, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum StudioMode {
+    Editor,
+    Viewer
 }
