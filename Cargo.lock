@@ -3706,6 +3706,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "studio-bvh",
  "wasm-bindgen",
  "web-sys",
 ]

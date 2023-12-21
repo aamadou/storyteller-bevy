@@ -6,6 +6,7 @@ use bevy_mod_picking::DefaultPickingPlugins;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+mod bvh;
 mod camera_controller;
 mod debug;
 mod design_system;
@@ -20,6 +21,7 @@ mod viewport;
 mod world_grid;
 
 use crate::{
+    bvh::BvhPlugin,
     camera_controller::CameraControllerPlugin,
     debug::DebugPlugin,
     input::StudioInputPlugin,
@@ -134,6 +136,7 @@ pub fn start_viewer(
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
+        BvhPlugin, // TODO: Alphabetize these plugins
     ))
     .add_systems(
         Startup,
