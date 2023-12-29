@@ -2,13 +2,14 @@ use std::fmt;
 
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_mod_picking::debug::DebugPickingMode;
+use bevy_mod_picking::debug::{DebugPickingMode, self};
+use bevy_rapier3d::na::Quaternion;
 
 use crate::{
     camera_controller::{CameraController, CameraMotionSystem},
     input::{Action, InputAction, Lifecycle},
     scene::SkeletalJoint,
-    MainCamera,
+    MainCamera, bvh::BvhJoint,
 };
 
 #[derive(Resource, Deref, DerefMut)]
@@ -36,6 +37,7 @@ impl Plugin for DebugPlugin {
             .add_systems(
                 Update,
                 (
+                    debug_bvh_model,
                     toggle_debug_mode,
                     update_debug_picking_mode.run_if(resource_changed::<DebugMode>()),
                     update_gizmo_line_thickness,
@@ -44,6 +46,26 @@ impl Plugin for DebugPlugin {
                         .run_if(is_debug_mode),
                 ),
             );
+    }
+}
+
+fn debug_bvh_model(
+    mut gizmos: Gizmos,
+    bvh_joints : Query<(&GlobalTransform, Option<&Children>), With<BvhJoint>>,
+    debug_mode : Res<DebugMode>,
+) {
+    if debug_mode.0 {
+        for (transform, children) in bvh_joints.iter() {
+            gizmos.sphere(transform.translation(), Quat::IDENTITY, 0.01, Color::TEAL);
+
+            if let Some(children) = children {
+                for child in children.iter() {
+                    if let Ok((child_transform, _))  = bvh_joints.get(child.clone()) {
+                        gizmos.line(transform.translation(), child_transform.translation(), Color::RED);
+                    }
+                }
+            }
+        }
     }
 }
 
