@@ -32,6 +32,7 @@ web-sys = { version = "0.3.65", optional = true, features = [
 	"HtmlElement",
 	"Window",
 ] }
+space_editor = {git = "https://github.com/rewin123/space_editor", rev = "f039601b6d286a5f9e3b09521623000d5bf3eb84"}
 
 [features]
 wasm = [

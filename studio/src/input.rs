@@ -3,6 +3,7 @@ use bevy::{
     prelude::*,
     utils::HashSet,
 };
+use space_editor::prelude::space_undo::UndoRedo;
 
 #[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone)]
 pub struct StudioInputSystem;
@@ -18,6 +19,7 @@ impl Plugin for StudioInputPlugin {
                 translate_debug_toggle,
                 translate_dcc_camera_events,
                 translate_fps_camera_events,
+                send_undo_event
             )
                 .in_set(StudioInputSystem)
                 .after(bevy::input::InputSystem),
@@ -290,4 +292,16 @@ fn read_mouse_delta(mut mouse_motion: EventReader<MouseMotion>) -> Vec2 {
     mouse_motion
         .read()
         .fold(Vec2::ZERO, |accum, current| accum + current.delta)
+}
+
+
+// TODO: Make it configurable
+fn send_undo_event(
+    mut events : EventWriter<UndoRedo>,
+    keyboard: Res<Input<KeyCode>>,
+) {
+    if keyboard.pressed(KeyCode::ControlLeft) && keyboard.just_pressed(KeyCode::Z) {
+        events.send(UndoRedo::Undo);
+        info!("Undo event sent");
+    }
 }
