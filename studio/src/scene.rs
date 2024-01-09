@@ -17,7 +17,7 @@ use bevy::{
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
-    bvh::{Bvh, BvhJoint, CommandsSpawnBvhExt},
+    bvh::{Bvh, BvhJoint, CommandsSpawnBvhExt, RetargetMap},
     camera_controller::{CameraController, CameraControllerBundle},
     debug::DebugPoint,
     math::{Combinable, Extrema},
@@ -43,8 +43,8 @@ impl Plugin for ScenePlugin {
                     init_scene_loading,
                     tick_scene_loading.run_if(in_state(SceneState::Loading)),
                     tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
-                )
-                    .in_set(SceneSpawnerSystem),
+                ).in_set(SceneSpawnerSystem)
+                    
             )
             .add_systems(
                 OnEnter(SceneState::Loading),
@@ -158,49 +158,14 @@ fn spawn_test_bvh(
     mut commands: Commands,
     mut er_bvh_events: EventReader<AssetEvent<Bvh>>,
     r_bvh: Res<TestBvh>,
+    mut asset_server : ResMut<AssetServer>
 ) {
     for event in er_bvh_events.read() {
         if matches!(event, AssetEvent::LoadedWithDependencies { .. }) {
-            commands.spawn_bvh_with_transform(&r_bvh.0, Transform::from_scale(Vec3::splat(0.06)).with_translation(Vec3::new(0., 1.0, -0.024)));
-            // let bvh = ra_bvh.get(&**r_bvh).unwrap();
-            // for joint in bvh.joints.iter() {
-            //     let scale = Vec3::splat(0.01);
-            //     let offset = vec3(0., 0.849, -0.024);
-
-            //     let mut parent = cmd.spawn((
-            //         Name::new("BVH Skeleton"),
-            //         SpatialBundle::from_transform(Transform {
-            //             rotation: default(),
-            //             translation: offset,
-            //             scale,
-            //         }),
-            //     ));
-            //     let parent_ent = parent.id();
-
-            //     spawn_joint(parent.commands(), joint, Some(parent_ent));
-            // }
+            commands.spawn_skined_bvh_with_transform(&r_bvh.0, asset_server.load("gltf/base-human-female.gltf#Scene0"), RetargetMap::mocap_to_rigify(), Transform::from_scale(Vec3::splat(1.0)).with_translation(Vec3::new(0., 1.0, -0.024)));
         }
     }
 }
-
-// // TODO
-// fn spawn_joint(cmd: &mut Commands, joint: &BvhJoint, parent: Option<Entity>) {
-//     let mut spawned = cmd.spawn((
-//         Name::new(joint.name.clone()),
-//         SpatialBundle::from_transform(joint.transform),
-//         SceneElement,
-//         SkeletalJoint(Color::CYAN),
-//     ));
-//     let spawned_ent = spawned.id();
-
-//     if let Some(parent) = parent {
-//         spawned.set_parent(parent);
-//     }
-
-//     for child in joint.children.iter() {
-//         spawn_joint(spawned.commands(), child, Some(spawned_ent));
-//     }
-// }
 
 fn init_scene_loading(
     mut cmd: Commands,

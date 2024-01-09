@@ -81,7 +81,22 @@ pub fn init(viewport_size: ViewportSize) {
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
-    ));
+        BvhPlugin,
+    ))
+    .add_systems(
+        Startup,
+        (move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
+            cmd.insert_resource(SkyboxId("gum_trees_4k".to_string()));
+            ew.send(LoadSceneEvent("base-human-female".to_string()));
+        })
+    )
+    // .add_systems(
+    //     Update,
+    //     bevy::window::close_on_esc
+    // )
+    ;
+
+    
 
     #[cfg(feature = "wasm")]
     wasm::initialize();
