@@ -40,18 +40,18 @@ pub(super) struct LastRotation {
 #[inline]
 pub(super) fn spawn_rotation_gizmo(
     cmd: &mut Commands,
-    ent: Entity,
-    xform: &GlobalTransform,
+    target: Entity,
+    target_global_transform: &GlobalTransform,
     space: TransformSpace,
     normalizing_scale: f32,
     meshes: &GizmoMeshes,
     mats: &GizmoMats,
 ) {
-    cmd.entity(ent)
+    cmd.spawn_empty()
         .insert(TransformGizmoRoot)
         .with_children(|cmd| {
             cmd.spawn((
-                TransformGizmoBundle::new(xform, space, normalizing_scale),
+                TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale),
                 On::<Pointer<DragStart>>::run(on_rotation_start),
                 On::<Pointer<Drag>>::run(on_rotate),
                 On::<Pointer<DragEnd>>::run(on_rotation_end),

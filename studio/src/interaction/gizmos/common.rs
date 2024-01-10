@@ -9,8 +9,11 @@ use crate::{
 #[derive(Component)]
 pub(super) struct TransformGizmoRoot;
 
-#[derive(Component)]
-pub(super) struct TransformGizmo;
+#[derive(Component, Reflect)]
+pub(super) struct TransformGizmo {
+    pub(super) target : Entity,
+    pub(super) transform_space: TransformSpace,
+}
 
 #[derive(Event)]
 pub(super) struct RebuildGizmo;
@@ -20,86 +23,53 @@ pub(super) struct TransformGizmoBundle {
     name: Name,
     marker: TransformGizmo,
     spatial: SpatialBundle,
-    scale: NaturalScale,
 }
-
-#[derive(Component, Deref, Reflect)]
-pub(super) struct NaturalScale(pub Vec3);
 
 #[derive(Component, Deref)]
 pub(super) struct InitialTransform(pub GlobalTransform);
 
 impl TransformGizmoBundle {
     pub fn new(
-        parent_xform: &GlobalTransform,
+        target : Entity,
+        target_global_transform : &GlobalTransform,
         space: TransformSpace,
         normalizing_scale: f32,
     ) -> Self {
         let name = Name::new("TransformGizmo");
-        let marker = TransformGizmo;
-
-        let Affine3A {
-            matrix3,
-            translation,
-        } = parent_xform.affine();
-
-        let (scale, rotation) = matrix3.decompose_scale_rotation();
-        let inv_scale = scale.inverse();
-        let nat_scale = NaturalScale(Vec3::from_scale_mat(inv_scale));
+        let marker = TransformGizmo {
+            target,
+            transform_space: space.clone()
+        };
 
         match space {
             TransformSpace::Local => {
-                let global_transform = GlobalTransform::from(Affine3A {
-                    matrix3: rotation,
-                    translation,
-                });
-
-                let transform = Transform::from_scale(*nat_scale * normalizing_scale);
+                
+                let mut transform = target_global_transform.compute_transform();
+                transform.scale = Vec3::splat(normalizing_scale);
 
                 Self {
                     name,
                     marker,
                     spatial: SpatialBundle {
-                        global_transform,
+                        global_transform : GlobalTransform::from(transform.clone()),
                         transform,
                         ..default()
                     },
-                    scale: nat_scale,
                 }
             }
             TransformSpace::World => {
-                // FIXME: I'm struggling to figure out how to eliminate the
-                //        "shear" from a fully inverted local transform when the
-                //        object is non-uniformly scaled. As a workaround, we'll
-                //        force these objects to operate in local-space mode.
-                // TODO: If this turns into a long-term solution, update the UI
-                //       to reflect that world-space transformation is not
-                //       possible for this object (e.g., by disabling the
-                //       world-space toggle button, maybe with an explanatory
-                //       tooltip).
-                let local_matrix = if nat_scale.is_non_uniform() {
-                    inv_scale
-                } else {
-                    matrix3.inverse()
-                };
-
-                let global_transform = GlobalTransform::from(Affine3A {
-                    matrix3,
-                    translation,
-                });
-
-                let mat4 = Mat4::from_mat3a(local_matrix * normalizing_scale);
-                let transform = Transform::from_matrix(mat4);
+                
+                let transform = Transform::from_translation(target_global_transform.translation())
+                    .with_scale(Vec3::splat(normalizing_scale));
 
                 Self {
                     name,
                     marker,
                     spatial: SpatialBundle {
-                        global_transform,
+                        global_transform : GlobalTransform::from(transform.clone()),
                         transform,
                         ..default()
                     },
-                    scale: nat_scale,
                 }
             }
         }

@@ -33,9 +33,12 @@ const ROT_Z: Quat = Quat::from_xyzw(CIRC_45, 0., 0., CIRC_45);
 
 pub struct GizmoPlugin;
 
+
 impl Plugin for GizmoPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<NaturalScale>();
+
+        app.register_type::<TransformGizmo>();
+
         app.add_event::<RebuildGizmo>();
         app.add_systems(Startup, init_resources);
         app.add_systems(
@@ -55,9 +58,9 @@ impl Plugin for GizmoPlugin {
                 ),
                 spawn_gizmo.after(despawn_existing_gizmo).run_if(
                     resource_exists::<Selection>()
-                        .and_then(not(any_with_component::<TransformGizmoRoot>())),
+                        .and_then(not(any_with_component::<TransformGizmo>())),
                 ),
-                normalize_gizmo_scale.after(CameraMotionSystem),
+                (update_target_global_trasform, sync_gizmo_transform).chain()
             ),
         );
         app.add_systems(
@@ -69,15 +72,10 @@ impl Plugin for GizmoPlugin {
 
 fn despawn_existing_gizmo(
     mut cmd: Commands,
-    q_gizmo_root: Query<(Entity, &Children), With<TransformGizmoRoot>>,
     q_gizmos: Query<Entity, With<TransformGizmo>>,
 ) {
-    if let Ok((ent, children)) = q_gizmo_root.get_single() {
-        if let Some(child) = children.iter().find_map(|ent| q_gizmos.get(*ent).ok()) {
-            cmd.entity(child).despawn_recursive();
-        }
-
-        cmd.entity(ent).remove::<TransformGizmoRoot>();
+    for ent in q_gizmos.iter() {
+        cmd.entity(ent).despawn_recursive();
     }
 }
 
@@ -90,8 +88,8 @@ fn spawn_gizmo(
     r_meshes: Res<GizmoMeshes>,
     r_mats: Res<GizmoMats>,
 ) {
-    let ent = **r_selection;
-    let Ok(xform) = q_xform.get(ent) else {
+    let target = **r_selection;
+    let Ok(xform) = q_xform.get(target) else {
         return;
     };
 
@@ -107,7 +105,7 @@ fn spawn_gizmo(
         TransformType::TRANSLATE => {
             spawn_translation_gizmo(
                 &mut cmd,
-                ent,
+                target,
                 xform,
                 r_xform_mode.space,
                 normalizing_scale,
@@ -118,7 +116,7 @@ fn spawn_gizmo(
         TransformType::ROTATE => {
             spawn_rotation_gizmo(
                 &mut cmd,
-                ent,
+                target,
                 xform,
                 r_xform_mode.space,
                 normalizing_scale,
@@ -129,7 +127,7 @@ fn spawn_gizmo(
         ttype if ttype.contains(TransformType::TRANSLATE | TransformType::ROTATE) => {
             spawn_combo_translation_rotation_gizmo(
                 &mut cmd,
-                ent,
+                target,
                 xform,
                 r_xform_mode.space,
                 normalizing_scale,
@@ -143,20 +141,40 @@ fn spawn_gizmo(
     }
 }
 
-fn normalize_gizmo_scale(
-    q_cam_xform: Query<&Transform, With<MainCamera>>,
-    mut q_gizmo: Query<
-        (&mut Transform, &GlobalTransform, &NaturalScale),
-        (With<TransformGizmo>, Without<MainCamera>),
-    >,
-) {
-    let Ok(cam_xform) = q_cam_xform.get_single() else {
-        return;
-    };
-    let Ok((mut xform, world_xform, nat_scale)) = q_gizmo.get_single_mut() else {
-        return;
-    };
 
-    let dist = Vec3::distance(cam_xform.translation, world_xform.translation());
-    xform.scale = **nat_scale * (dist / 15.);
+fn sync_gizmo_transform(
+    mut cmd : Commands,
+    mut q_gizmo : Query<(&mut Transform, &TransformGizmo)>,
+    mut q_targets : Query<&GlobalTransform>
+) {
+    for (mut transform, gizmo) in q_gizmo.iter_mut() {
+        if let Ok(target) = q_targets.get(gizmo.target) {
+            match gizmo.transform_space {
+                super::TransformSpace::Local => {
+                    let target_transform = target.compute_transform();
+                    transform.translation = target_transform.translation;
+                    transform.rotation = target_transform.rotation;
+                },
+                super::TransformSpace::World => {
+                    transform.translation = target.translation();
+                },
+            }
+        } else {
+            cmd.entity(gizmo.target).despawn_recursive();
+        }
+    }
+}
+
+fn update_target_global_trasform(
+    mut q_gizmo : Query<&TransformGizmo>,
+    mut q_targets : ParamSet<(TransformHelper,)>,
+    mut q_targets_global : Query<&mut GlobalTransform>
+) {
+    for gizmo in q_gizmo.iter_mut() {
+        if let Ok(global_transform) = q_targets.p0().compute_global_transform(gizmo.target) {
+            if let Ok(mut global) = q_targets_global.get_mut(gizmo.target) {
+                *global = global_transform;
+            }
+        }
+    }
 }

@@ -32,7 +32,7 @@ impl Default for TransformMode {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Reflect)]
 #[wasm_bindgen]
 pub enum TransformSpace {
     #[default]

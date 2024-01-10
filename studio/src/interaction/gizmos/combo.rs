@@ -13,17 +13,17 @@ use super::{
 #[inline]
 pub(super) fn spawn_combo_translation_rotation_gizmo(
     cmd: &mut Commands,
-    ent: Entity,
-    xform: &GlobalTransform,
+    target: Entity,
+    target_global_transform: &GlobalTransform,
     space: TransformSpace,
     normalizing_scale: f32,
     meshes: &GizmoMeshes,
     mats: &GizmoMats,
 ) {
-    cmd.entity(ent)
+    cmd.spawn_empty()
         .insert(TransformGizmoRoot)
         .with_children(|cmd| {
-            cmd.spawn(TransformGizmoBundle::new(xform, space, normalizing_scale))
+            cmd.spawn(TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale))
                 .with_children(|cmd| {
                     use super::{ROT_X, ROT_Y, ROT_Z};
 
