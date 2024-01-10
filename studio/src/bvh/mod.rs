@@ -13,13 +13,14 @@ use bevy::{
     utils::hashbrown::HashMap,
 };
 use bevy_inspector_egui::egui::TextBuffer;
+use bevy_mod_picking::prelude::EntityEvent;
 use bevy_rapier3d::parry::transformation;
 use studio_bvh::{frames::Frame, joint};
 
 mod error;
 mod loader;
 
-use crate::scene::SceneState;
+use crate::{debug::print_mat3, scene::SceneState};
 
 use self::loader::BvhLoader;
 
@@ -31,7 +32,10 @@ impl Plugin for BvhPlugin {
             .register_asset_loader(BvhLoader)
             .add_systems(Update, animate_bvh.run_if(in_state(SceneState::Active)))
             .register_type::<BvhJoint>()
-            .register_type::<BvhAnim>();
+            .register_type::<BvhAnim>()
+            //Events
+            .add_event::<UpdateBVHAnim>()
+            .add_systems(PreUpdate, update_bvh_anim);
     }
 }
 
@@ -48,6 +52,8 @@ pub struct BvhAnim {
     bvh: Handle<Bvh>,
     should_play: bool,
     frame: usize,
+    #[reflect(ignore)]
+    retarget: Option<RetargetMap>,
     #[reflect(ignore)]
     timer: Timer,
     #[reflect(ignore)]
@@ -99,49 +105,51 @@ fn apply_frame<T: ReadOnlyWorldQuery>(
         return;
     };
 
-    let joint_data = bvh_file
-        .get_joint(joint_entity.joint.0)
-        .expect("Invalid BVH format: the joint index is out of bounds");
+    if let Some(joint) = joint_entity.joint {
+        let joint_data = bvh_file
+            .get_joint(joint.0)
+            .expect("Invalid BVH format: the joint index is out of bounds");
 
-    //new Positions and rotations
-    let mut new_pos = joint_entity.transform.translation;
-    let mut new_rot: Vec3 = joint_entity
-        .transform
-        .rotation
-        .to_euler(EulerRot::ZXY)
-        .into();
+        //new Positions and rotations
+        let mut new_pos = joint_entity.transform.translation;
+        let mut new_rot: Vec3 = joint_entity
+            .transform
+            .rotation
+            .to_euler(EulerRot::ZXY)
+            .into();
 
-    for channel in joint_data.channels() {
-        // info!("Channel {}: {:?} : {}", channel.motion_index(), channel.channel_type(), frame.as_slice()[channel.motion_index()]);
-        match channel.channel_type() {
-            studio_bvh::ChannelType::PositionX => {
-                new_pos.x = frame.as_slice()[channel.motion_index()]
-            }
-            studio_bvh::ChannelType::PositionY => {
-                new_pos.y = frame.as_slice()[channel.motion_index()]
-            }
-            studio_bvh::ChannelType::PositionZ => {
-                new_pos.z = frame.as_slice()[channel.motion_index()]
-            }
-            studio_bvh::ChannelType::RotationX => {
-                new_rot.x = frame.as_slice()[channel.motion_index()]
-            }
-            studio_bvh::ChannelType::RotationY => {
-                new_rot.y = frame.as_slice()[channel.motion_index()]
-            }
-            studio_bvh::ChannelType::RotationZ => {
-                new_rot.z = frame.as_slice()[channel.motion_index()]
+        for channel in joint_data.channels() {
+            // info!("Channel {}: {:?} : {}", channel.motion_index(), channel.channel_type(), frame.as_slice()[channel.motion_index()]);
+            match channel.channel_type() {
+                studio_bvh::ChannelType::PositionX => {
+                    new_pos.x = frame.as_slice()[channel.motion_index()]
+                }
+                studio_bvh::ChannelType::PositionY => {
+                    new_pos.y = frame.as_slice()[channel.motion_index()]
+                }
+                studio_bvh::ChannelType::PositionZ => {
+                    new_pos.z = frame.as_slice()[channel.motion_index()]
+                }
+                studio_bvh::ChannelType::RotationX => {
+                    new_rot.x = frame.as_slice()[channel.motion_index()]
+                }
+                studio_bvh::ChannelType::RotationY => {
+                    new_rot.y = frame.as_slice()[channel.motion_index()]
+                }
+                studio_bvh::ChannelType::RotationZ => {
+                    new_rot.z = frame.as_slice()[channel.motion_index()]
+                }
             }
         }
-    }
 
-    joint_entity.transform.translation = new_pos;
-    joint_entity.transform.rotation = Quat::from_euler(
-        EulerRot::ZXY,
-        new_rot.z.to_radians(),
-        new_rot.x.to_radians(),
-        new_rot.y.to_radians(),
-    );
+        joint_entity.transform.translation = new_pos;
+        joint_entity.transform.rotation = Quat::from_euler(
+            EulerRot::ZXY,
+            new_rot.z.to_radians(),
+            new_rot.x.to_radians(),
+            new_rot.y.to_radians(),
+        );
+    }
 
     if joint_entity.children.is_some() {
         let children = joint_entity
@@ -171,10 +179,9 @@ pub struct BvhJoint(usize);
 #[derive(Debug, WorldQuery)]
 #[world_query(mutable)]
 pub struct JointQuery {
-    pub name: &'static Name,
-    pub joint: &'static BvhJoint,
-    pub transform: &'static mut Transform,
+    pub joint: Option<&'static BvhJoint>,
     pub children: Option<&'static mut Children>,
+    pub transform: &'static mut Transform,
 }
 
 //==============================================================================
@@ -261,13 +268,25 @@ impl Command for SpawnBvhCommand {
             panic!("Could not create the BVH entity because the bvh file has no root joint")
         };
 
-        if let Some((skinned_model, RetargetMap)) = self.3 {
-            let entity = world
-                .query::<&Children>()
-                .get(world, skinned_model)
-                .unwrap();
+        if let Some((skinned_model, retarget_map)) = self.3 {
+            world.entity_mut(skinned_model).insert((
+                BvhAnim {
+                    bvh: self.1,
+                    frame: 0,
+                    last_frame: 0,
+                    retarget: Some(retarget_map),
+                    should_play: true,
+                    timer: Timer::from_seconds(
+                        bvh.0.frame_time().as_secs_f32(),
+                        TimerMode::Repeating,
+                    ),
+                },
+                Name::new("BVH Anim"),
+            ));
 
-            println!("Entity: {:?}", entity);
+            world.send_event(UpdateBVHAnim {
+                entity: skinned_model,
+            });
         } else {
             let entity = world.spawn_empty().id();
             spawn_bvh_recursive(world, &entity, root);
@@ -279,13 +298,14 @@ impl Command for SpawnBvhCommand {
                         frame: 0,
                         last_frame: 0,
                         should_play: true,
+                        retarget: None,
                         timer: Timer::from_seconds(
                             bvh.0.frame_time().as_secs_f32(),
                             TimerMode::Repeating,
                         ),
                     },
                     SpatialBundle::from_transform(self.2),
-                    Name::new("BVH Skeliton"),
+                    Name::new("BVH Anim"),
                 ))
                 .add_child(entity);
         }
@@ -293,9 +313,97 @@ impl Command for SpawnBvhCommand {
 }
 
 //==============================================================================
+//                        Update BVH anim Event Functions
+//==============================================================================
+
+#[derive(Event)]
+pub struct UpdateBVHAnim {
+    pub entity: Entity,
+}
+
+fn update_bvh_anim(
+    mut commands: Commands,
+    mut bvh_anims: Query<(Entity, &BvhAnim, Option<&Children>)>,
+    mut update_events: EventReader<UpdateBVHAnim>,
+    bvh_assets: Res<Assets<Bvh>>,
+) {
+    for event in update_events.read() {
+        // println!("Updating BVHs");
+        // println!("{:?} | {:?}", event.entity, bvh_anims.single().0);
+        // for anim in bvh_anims.iter() {
+        //     println!("Children {:?}", anim);
+        // };
+
+        if let Ok(bvh_anim) = bvh_anims.get(event.entity) {
+            let Some(bvh) = bvh_assets.get(bvh_anim.1.bvh.id()) else {
+                continue;
+            };
+        };
+    }
+}
+
+fn update_bvh_recursive(current_node: Entity, commands: &mut Commands, bvh_anim: &Bvh) {}
+
+//==============================================================================
+//                        Utility Functions
+//==============================================================================
+
+fn spawn_bvh_recursive(world: &mut World, entity: &Entity, joint: studio_bvh::Joint) {
+    let offset = joint.data().offset();
+    let transform = Transform::from_xyz(offset[0], offset[1], offset[2]);
+
+    // Save the name of the joint
+    let name = String::from_utf8_lossy(joint.data().name()).to_string();
+
+    world.entity_mut(*entity).insert((
+        SpatialBundle::from_transform(transform),
+        BvhJoint(joint.data().index()),
+        Name::new(name),
+    ));
+
+    for child in joint.children() {
+        let mut child_entity = world.spawn_empty().id();
+        spawn_bvh_recursive(world, &child_entity, child);
+        world.entity_mut(*entity).push_children(&[child_entity]);
+    }
+}
+
+// fn locate_rig(world: &mut World, current_entity: Entity) -> Option<Entity> {
+//     let Ok(query) = world
+//         .query::<(Option<&Children>, Option<&Name>)>()
+//         .get(world, current_entity)
+//     else {
+//         return None;
+//     };
+
+//     if let Some(name) = query.1 {
+//         println!("Name: {}", name.as_str());
+//         if name.as_str() == "Rig" {
+//             return Some(current_entity);
+//         }
+//     }
+
+//     let children = if let Some(children) = query.0 {
+//         children.iter().map(|x| x.clone()).collect::<Vec<_>>()
+//     } else {
+//         return None;
+//     };
+
+//     for child in children.iter() {
+//         println!("Child: {:?}", child);
+//         if let Some(entity) = locate_rig(world, *child) {
+//             return Some(entity);
+//         }
+//     }
+
+//     None
+// }
+
+//==============================================================================
 //                        RetargetMap
 //==============================================================================
 
+#[derive(Debug)]
 pub struct RetargetMap {
     pub map: HashMap<String, String>,
 }
@@ -374,59 +482,4 @@ impl RetargetMap {
 
         false
     }
-}
-
-//==============================================================================
-//                        Utility Functions
-//==============================================================================
-
-fn spawn_bvh_recursive(world: &mut World, entity: &Entity, joint: studio_bvh::Joint) {
-    let offset = joint.data().offset();
-    let transform = Transform::from_xyz(offset[0], offset[1], offset[2]);
-
-    // Save the name of the joint
-    let name = String::from_utf8_lossy(joint.data().name()).to_string();
-
-    world.entity_mut(*entity).insert((
-        SpatialBundle::from_transform(transform),
-        BvhJoint(joint.data().index()),
-        Name::new(name),
-    ));
-
-    for child in joint.children() {
-        let mut child_entity = world.spawn_empty().id();
-        spawn_bvh_recursive(world, &child_entity, child);
-        world.entity_mut(*entity).push_children(&[child_entity]);
-    }
-}
-
-fn locate_rig(world: &mut World, current_entity: Entity) -> Option<Entity> {
-    let Ok(query) = world
-        .query::<(Option<&Children>, Option<&Name>)>()
-        .get(world, current_entity)
-    else {
-        return None;
-    };
-
-    if let Some(name) = query.1 {
-        println!("Name: {}", name.as_str());
-        if name.as_str() == "Rig" {
-            return Some(current_entity);
-        }
-    }
-
-    let children = if let Some(children) = query.0 {
-        children.iter().map(|x| x.clone()).collect::<Vec<_>>()
-    } else {
-        return None;
-    };
-
-    for child in children.iter() {
-        println!("Child: {:?}", child);
-        if let Some(entity) = locate_rig(world, *child) {
-            return Some(entity);
-        }
-    }
-
-    None
 }

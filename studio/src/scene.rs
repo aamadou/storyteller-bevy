@@ -43,8 +43,8 @@ impl Plugin for ScenePlugin {
                     init_scene_loading,
                     tick_scene_loading.run_if(in_state(SceneState::Loading)),
                     tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
-                ).in_set(SceneSpawnerSystem)
-                    
+                )
+                    .in_set(SceneSpawnerSystem),
             )
             .add_systems(
                 OnEnter(SceneState::Loading),
@@ -158,11 +158,19 @@ fn spawn_test_bvh(
     mut commands: Commands,
     mut er_bvh_events: EventReader<AssetEvent<Bvh>>,
     r_bvh: Res<TestBvh>,
-    mut asset_server : ResMut<AssetServer>
+    mut asset_server: ResMut<AssetServer>,
 ) {
     for event in er_bvh_events.read() {
         if matches!(event, AssetEvent::LoadedWithDependencies { .. }) {
-            commands.spawn_skined_bvh_with_transform(&r_bvh.0, asset_server.load("gltf/base-human-female.gltf#Scene0"), RetargetMap::mocap_to_rigify(), Transform::from_scale(Vec3::splat(1.0)).with_translation(Vec3::new(0., 1.0, -0.024)));
+            commands.spawn_skined_bvh_with_transform(
+                &r_bvh.0,
+                asset_server.load("gltf/base-human-female.gltf#Scene0"),
+                RetargetMap::mocap_to_rigify(),
+                Transform::from_scale(Vec3::splat(1.0))
+                    .with_translation(Vec3::new(0., 1.0, -0.024)),
+            );
+
+            commands.spawn_bvh_with_transform(&r_bvh.0, Transform::from_xyz(0.0, 1.0, -0.024));
         }
     }
 }
@@ -176,7 +184,7 @@ fn init_scene_loading(
 ) {
     if let Some(id) = er.read().last() {
         let name = &**id;
-        let path = format!("gltf/{name}.gltf");
+        let path = format!("gltf/{name}.glb");
 
         // Avoid trying to re-load this scene if it's already active
         if let Some(active_scene_path) =
