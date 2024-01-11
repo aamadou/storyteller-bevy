@@ -10,7 +10,7 @@ use crate::{interaction::TransformSpace, MainCamera};
 
 use super::{
     on_gizmo_element_hover, on_gizmo_element_unhover, GizmoMats, GizmoMeshes, InitialTransform,
-    TransformGizmo, TransformGizmoBundle, TransformGizmoRoot, GIZMO_RENDER_LAYER,
+    TransformGizmo, TransformGizmoBundle, GIZMO_RENDER_LAYER,
 };
 
 #[derive(Component)]

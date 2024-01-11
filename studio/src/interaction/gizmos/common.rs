@@ -6,9 +6,6 @@ use crate::{
     math::{IsNonUniform, MatrixExtras, VecExtras},
 };
 
-#[derive(Component)]
-pub(super) struct TransformGizmoRoot;
-
 #[derive(Component, Reflect)]
 pub(super) struct TransformGizmo {
     pub(super) target : Entity,

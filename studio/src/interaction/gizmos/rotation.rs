@@ -15,7 +15,7 @@ use crate::{
 
 use super::{
     on_gizmo_element_hover, on_gizmo_element_unhover, GizmoMats, GizmoMeshes, InitialTransform,
-    RebuildGizmo, TransformGizmo, TransformGizmoBundle, TransformGizmoRoot, GIZMO_RENDER_LAYER,
+    RebuildGizmo, TransformGizmo, TransformGizmoBundle, GIZMO_RENDER_LAYER,
 };
 
 #[derive(Component)]
@@ -47,10 +47,7 @@ pub(super) fn spawn_rotation_gizmo(
     meshes: &GizmoMeshes,
     mats: &GizmoMats,
 ) {
-    cmd.spawn_empty()
-        .insert(TransformGizmoRoot)
-        .with_children(|cmd| {
-            cmd.spawn((
+    cmd.spawn((
                 TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale),
                 On::<Pointer<DragStart>>::run(on_rotation_start),
                 On::<Pointer<Drag>>::run(on_rotate),
@@ -130,7 +127,6 @@ pub(super) fn spawn_rotation_gizmo(
                     On::<Pointer<Out>>::run(on_gizmo_element_unhover),
                 ));
             });
-        });
 }
 
 pub(super) fn update_ss_ring_rotation(
@@ -182,38 +178,51 @@ fn on_trackball_unhover(
 pub(super) fn on_rotation_start(
     event: Listener<Pointer<DragStart>>,
     mut cmd: Commands,
-    q_xform: Query<(Entity, &GlobalTransform), With<TransformGizmoRoot>>,
+    q_xform: Query<(Entity, &GlobalTransform)>,
+    q_gizmos: Query<&TransformGizmo>
 ) {
     info!("Rotation start");
 
-    if let Ok((ent, &world_xform)) = q_xform.get_single() {
-        let hit_point = event.hit.position.unwrap();
+    let Ok(gizmo) = q_gizmos.get_single() else {
+        error!("Rotation gizmo not found");
+        return;
+    };
 
-        cmd.entity(ent).insert((
-            InitialTransform(world_xform),
-            InitialHitPoint(hit_point),
-            LastHitPoint(hit_point),
-            LastRotation {
-                axis: Vec3::ZERO,
-                theta: 0.,
-            },
-        ));
-    }
+    let Ok((ent, world_xform)) = q_xform.get(gizmo.target) else {
+        error!("Rotation gizmo target not found");
+        return;
+    };
+
+    let hit_point = event.hit.position.unwrap();
+
+    cmd.entity(ent).insert((
+        InitialTransform(world_xform.clone()),
+        InitialHitPoint(hit_point),
+        LastHitPoint(hit_point),
+        LastRotation {
+            axis: Vec3::ZERO,
+            theta: 0.,
+        },
+    ));
 }
 
 pub(super) fn on_rotation_end(
-    event: Listener<Pointer<DragEnd>>,
+    _: Listener<Pointer<DragEnd>>,
     mut cmd: Commands,
     r_xform_mode: Res<TransformMode>,
     mut ev_rebuild_gizmo: EventWriter<RebuildGizmo>,
+    q_inited_components: Query<Entity, With<LastRotation>>
 ) {
     info!("Rotation end");
 
-    cmd.entity(event.target)
-        .remove::<InitialTransform>()
-        .remove::<InitialHitPoint>()
-        .remove::<LastHitPoint>()
-        .remove::<LastRotation>();
+    for ent in q_inited_components.iter() {
+        cmd.entity(ent)
+            .remove::<InitialTransform>()
+            .remove::<InitialHitPoint>()
+            .remove::<LastHitPoint>()
+            .remove::<LastRotation>();
+    }
+    
 
     if matches!(r_xform_mode.space, TransformSpace::World) {
         ev_rebuild_gizmo.send(RebuildGizmo);
@@ -232,7 +241,6 @@ pub(super) fn on_rotate(
             &mut LastHitPoint,
             &mut LastRotation,
         ),
-        With<TransformGizmoRoot>,
     >,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     q_gizmo: Query<&GlobalTransform, (With<TransformGizmo>, Without<MainCamera>)>,

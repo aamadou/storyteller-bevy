@@ -7,7 +7,7 @@ use super::{
     on_gizmo_element_hover, on_gizmo_element_unhover,
     rotation::{on_rotate, on_rotation_end, on_rotation_start, RotationWidget},
     translation::{on_translate, on_translation_end, on_translation_start, TranslationWidget},
-    GizmoMats, GizmoMeshes, TransformGizmoBundle, TransformGizmoRoot, GIZMO_RENDER_LAYER,
+    GizmoMats, GizmoMeshes, TransformGizmoBundle, GIZMO_RENDER_LAYER,
 };
 
 #[inline]
@@ -20,10 +20,7 @@ pub(super) fn spawn_combo_translation_rotation_gizmo(
     meshes: &GizmoMeshes,
     mats: &GizmoMats,
 ) {
-    cmd.spawn_empty()
-        .insert(TransformGizmoRoot)
-        .with_children(|cmd| {
-            cmd.spawn(TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale))
+    cmd.spawn(TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale))
                 .with_children(|cmd| {
                     use super::{ROT_X, ROT_Y, ROT_Z};
 
@@ -162,5 +159,4 @@ pub(super) fn spawn_combo_translation_rotation_gizmo(
                         On::<Pointer<DragEnd>>::target_commands_mut(on_translation_end),
                     ));
                 });
-        });
 }
