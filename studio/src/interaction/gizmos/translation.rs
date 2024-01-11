@@ -36,7 +36,7 @@ pub(super) fn spawn_translation_gizmo(
                 On::<Pointer<Out>>::run(on_gizmo_element_unhover),
                 On::<Pointer<DragStart>>::run(on_translation_start),
                 On::<Pointer<Drag>>::run(on_translate),
-                On::<Pointer<DragEnd>>::target_commands_mut(on_translation_end),
+                On::<Pointer<DragEnd>>::run(on_translation_end),
             ))
             .with_children(|cmd| {
                 use super::{CIRC_45, ROT_X, ROT_Y, ROT_Z};
@@ -215,10 +215,13 @@ pub(super) fn on_translation_start(
 }
 
 pub(super) fn on_translation_end(
-    _: &ListenerInput<Pointer<DragEnd>>,
-    cmd: &mut EntityCommands<'_, '_, '_>,
+    _: Listener<Pointer<DragEnd>>,
+    mut cmd: Commands,
+    q_initial_transforms: Query<Entity, With<InitialTransform>>,
 ) {
-    cmd.remove::<InitialTransform>();
+    for ent in q_initial_transforms.iter() {
+        cmd.entity(ent).remove::<InitialTransform>();
+    }
 }
 
 pub(super) fn on_translate(

@@ -13,7 +13,7 @@ use bevy::{
     scene::InstanceId,
 };
 
-use space_editor::prelude::PrefabMarker;
+use space_editor::prelude::{PrefabMarker, space_undo::OneFrameUndoIgnore};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -208,7 +208,8 @@ fn spawn_next_scene(
             SceneRoot,
             SceneElement,
             SpatialBundle::default(),
-            PrefabMarker
+            PrefabMarker,
+            OneFrameUndoIgnore::default() //To prevert undo try to register add event
         ))
         .id();
 

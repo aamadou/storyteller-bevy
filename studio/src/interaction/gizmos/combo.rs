@@ -39,7 +39,7 @@ pub(super) fn spawn_combo_translation_rotation_gizmo(
                         On::<Pointer<Out>>::run(on_gizmo_element_unhover),
                         On::<Pointer<DragStart>>::run(on_translation_start),
                         On::<Pointer<Drag>>::run(on_translate),
-                        On::<Pointer<DragEnd>>::target_commands_mut(on_translation_end),
+                        On::<Pointer<DragEnd>>::run(on_translation_end),
                     ));
 
                     // Rotate X
@@ -78,7 +78,7 @@ pub(super) fn spawn_combo_translation_rotation_gizmo(
                         On::<Pointer<Out>>::run(on_gizmo_element_unhover),
                         On::<Pointer<DragStart>>::run(on_translation_start),
                         On::<Pointer<Drag>>::run(on_translate),
-                        On::<Pointer<DragEnd>>::target_commands_mut(on_translation_end),
+                        On::<Pointer<DragEnd>>::run(on_translation_end),
                     ));
 
                     // Rotate Y
@@ -117,7 +117,7 @@ pub(super) fn spawn_combo_translation_rotation_gizmo(
                         On::<Pointer<Out>>::run(on_gizmo_element_unhover),
                         On::<Pointer<DragStart>>::run(on_translation_start),
                         On::<Pointer<Drag>>::run(on_translate),
-                        On::<Pointer<DragEnd>>::target_commands_mut(on_translation_end),
+                        On::<Pointer<DragEnd>>::run(on_translation_end),
                     ));
 
                     // Rotate Z
@@ -156,7 +156,7 @@ pub(super) fn spawn_combo_translation_rotation_gizmo(
                         On::<Pointer<Out>>::run(on_gizmo_element_unhover),
                         On::<Pointer<DragStart>>::run(on_translation_start),
                         On::<Pointer<Drag>>::run(on_translate),
-                        On::<Pointer<DragEnd>>::target_commands_mut(on_translation_end),
+                        On::<Pointer<DragEnd>>::run(on_translation_end),
                     ));
                 });
 }
