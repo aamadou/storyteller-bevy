@@ -157,6 +157,11 @@ pub fn start_viewer(
         },
     );
 
+    
+    // Only for registering components for undo
+    use space_editor::prelude::space_undo::AppAutoUndo;
+    app.auto_reflected_undo::<Transform>();
+
     #[cfg(feature = "wasm")]
     wasm::initialize();
 

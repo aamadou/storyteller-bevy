@@ -41,7 +41,7 @@ pub enum Lifecycle {
 pub enum Action {
     Camera(CameraMotion),
     Selection(Selection),
-    ToggleDebug,
+    ToggleDebug
 }
 
 #[derive(Clone, Copy)]
