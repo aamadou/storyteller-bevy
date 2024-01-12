@@ -12,6 +12,19 @@ pub struct StudioInputPlugin;
 impl Plugin for StudioInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<InputAction>();
+
+
+        // Reading each frame of the mouse delta allows
+        // to get rid of the bug that delta is counted from the last reading, 
+        // which leads to camera jumps if you move the mouse between clicks
+        app.add_systems(
+            PreUpdate,
+            read_mouse_delta
+                .in_set(StudioInputSystem)
+                .after(bevy::input::InputSystem),
+        );
+        app.init_resource::<LastFrameMouseDelta>();
+
         app.add_systems(
             PreUpdate,
             (
@@ -22,7 +35,8 @@ impl Plugin for StudioInputPlugin {
                 send_undo_event
             )
                 .in_set(StudioInputSystem)
-                .after(bevy::input::InputSystem),
+                .after(bevy::input::InputSystem)
+                .after(read_mouse_delta),
         );
     }
 }
@@ -71,6 +85,7 @@ impl From<Selection> for Action {
     }
 }
 
+
 // TODO: Make the bindings of raw device inputs to InputActions configurable
 
 fn translate_selection_events(keyboard: Res<Input<KeyCode>>, mut input: EventWriter<InputAction>) {
@@ -98,14 +113,14 @@ fn translate_debug_toggle(keyboard: Res<Input<KeyCode>>, mut input: EventWriter<
 }
 
 fn translate_dcc_camera_events(
-    mouse_motion: EventReader<MouseMotion>,
+    mouse_motion: Res<LastFrameMouseDelta>,
     mouse_buttons: Res<Input<MouseButton>>,
     keyboard: Res<Input<KeyCode>>,
     mut input: EventWriter<InputAction>,
 ) {
+    let delta = mouse_motion.get();
     // Camera Pan
     if mouse_buttons.pressed(MouseButton::Middle) {
-        let delta = read_mouse_delta(mouse_motion);
         let lifecycle = if mouse_buttons.just_pressed(MouseButton::Middle) {
             Lifecycle::Start
         } else {
@@ -123,7 +138,6 @@ fn translate_dcc_camera_events(
     // Camera Orbit/Zoom
     else if keyboard.any_pressed([KeyCode::AltLeft, KeyCode::AltRight]) {
         if mouse_buttons.any_pressed([MouseButton::Left, MouseButton::Right]) {
-            let delta = read_mouse_delta(mouse_motion);
             let lifecycle =
                 if mouse_buttons.any_just_pressed([MouseButton::Left, MouseButton::Right]) {
                     Lifecycle::Start
@@ -169,7 +183,6 @@ fn translate_dcc_camera_events(
             Lifecycle::Ongoing
         };
 
-        let delta = read_mouse_delta(mouse_motion);
         input.send(InputAction(lifecycle, CameraMotion::Rotate(delta).into()));
     }
     // Stop Camera Rotation
@@ -187,7 +200,6 @@ fn translate_dcc_camera_events(
             Lifecycle::Ongoing
         };
 
-        let delta = read_mouse_delta(mouse_motion);
         input.send(InputAction(lifecycle, CameraMotion::Rotate(delta).into()));
     }
     // Stop Camera Rotation
@@ -287,11 +299,20 @@ fn translate_fps_camera_events(
     }
 }
 
-#[inline]
-fn read_mouse_delta(mut mouse_motion: EventReader<MouseMotion>) -> Vec2 {
-    mouse_motion
+#[derive(Resource, Default)]
+pub struct LastFrameMouseDelta(pub Vec2);
+
+impl LastFrameMouseDelta {
+    fn get(&self) -> Vec2 {
+        self.0
+    }
+}
+
+fn read_mouse_delta(mut mouse_motion: EventReader<MouseMotion>, mut last_delta: ResMut<LastFrameMouseDelta>) {
+    let delta = mouse_motion
         .read()
-        .fold(Vec2::ZERO, |accum, current| accum + current.delta)
+        .fold(Vec2::ZERO, |accum, current| accum + current.delta);
+    last_delta.0 = delta;
 }
 
 
