@@ -146,7 +146,7 @@ fn spawn_gizmo(
 fn sync_gizmo_transform(
     mut cmd : Commands,
     mut q_gizmo : Query<(&mut Transform, &TransformGizmo)>,
-    mut q_targets : Query<&GlobalTransform>
+    q_targets : Query<&GlobalTransform>
 ) {
     for (mut transform, gizmo) in q_gizmo.iter_mut() {
         if let Ok(target) = q_targets.get(gizmo.target) {
@@ -191,7 +191,7 @@ fn normalize_gizmo_scale(
     let Ok(cam_xform) = q_cam_xform.get_single() else {
         return;
     };
-    let Ok((mut xform, world_xform)) = q_gizmo.get_single_mut() else {
+    let Ok((mut xform, _)) = q_gizmo.get_single_mut() else {
         return;
     };
 

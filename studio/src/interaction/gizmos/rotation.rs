@@ -196,7 +196,7 @@ pub(super) fn on_rotation_start(
     let hit_point = event.hit.position.unwrap();
 
     cmd.entity(ent).insert((
-        InitialTransform(world_xform.clone()),
+        InitialTransform(*world_xform),
         InitialHitPoint(hit_point),
         LastHitPoint(hit_point),
         LastRotation {

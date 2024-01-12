@@ -1,10 +1,7 @@
-use bevy::{math::Affine3A, prelude::*};
+use bevy::prelude::*;
 use bevy_mod_picking::prelude::*;
 
-use crate::{
-    interaction::TransformSpace,
-    math::{IsNonUniform, MatrixExtras, VecExtras},
-};
+use crate::interaction::TransformSpace;
 
 #[derive(Component, Reflect)]
 pub(super) struct TransformGizmo {
@@ -35,7 +32,7 @@ impl TransformGizmoBundle {
         let name = Name::new("TransformGizmo");
         let marker = TransformGizmo {
             target,
-            transform_space: space.clone()
+            transform_space: space
         };
 
         match space {
@@ -48,7 +45,7 @@ impl TransformGizmoBundle {
                     name,
                     marker,
                     spatial: SpatialBundle {
-                        global_transform : GlobalTransform::from(transform.clone()),
+                        global_transform : GlobalTransform::from(transform),
                         transform,
                         ..default()
                     },
@@ -63,7 +60,7 @@ impl TransformGizmoBundle {
                     name,
                     marker,
                     spatial: SpatialBundle {
-                        global_transform : GlobalTransform::from(transform.clone()),
+                        global_transform : GlobalTransform::from(transform),
                         transform,
                         ..default()
                     },

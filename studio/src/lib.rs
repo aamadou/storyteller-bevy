@@ -84,10 +84,10 @@ pub fn init(viewport_size: ViewportSize) {
     ))
     .add_systems(
         Startup,
-        (move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
+        move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
             cmd.insert_resource(SkyboxId("gum_trees_4k".to_string()));
             ew.send(LoadSceneEvent("bookcase".to_string()));
-        })
+        }
     );
 
     // Only for registering components for undo

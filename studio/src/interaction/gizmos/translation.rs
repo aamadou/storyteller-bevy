@@ -1,9 +1,9 @@
 use bevy::{
-    ecs::system::EntityCommands, math::vec3, pbr::NotShadowCaster, prelude::*,
+    math::vec3, pbr::NotShadowCaster, prelude::*,
     render::view::RenderLayers,
 };
 use bevy_mod_picking::prelude::{
-    Drag, DragEnd, DragStart, Listener, ListenerInput, On, Out, Over, Pointer,
+    Drag, DragEnd, DragStart, Listener, On, Out, Over, Pointer,
 };
 
 use crate::{interaction::TransformSpace, MainCamera};
