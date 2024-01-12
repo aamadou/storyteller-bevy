@@ -48,85 +48,85 @@ pub(super) fn spawn_rotation_gizmo(
     mats: &GizmoMats,
 ) {
     cmd.spawn((
-                TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale),
-                On::<Pointer<DragStart>>::run(on_rotation_start),
-                On::<Pointer<Drag>>::run(on_rotate),
-                On::<Pointer<DragEnd>>::run(on_rotation_end),
-            ))
-            .with_children(|cmd| {
-                use super::{ROT_X, ROT_Y, ROT_Z};
+        TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale),
+        On::<Pointer<DragStart>>::run(on_rotation_start),
+        On::<Pointer<Drag>>::run(on_rotate),
+        On::<Pointer<DragEnd>>::run(on_rotation_end),
+    ))
+    .with_children(|cmd| {
+        use super::{ROT_X, ROT_Y, ROT_Z};
 
-                // Trackball
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    RotationWidget::Trackball,
-                    MaterialMeshBundle {
-                        mesh: meshes.rotate_ball.clone(),
-                        material: mats.rotate_trackball.clone(),
-                        ..default()
-                    },
-                    On::<Pointer<Over>>::run(on_trackball_hover),
-                    On::<Pointer<Out>>::run(on_trackball_unhover),
-                ));
+        // Trackball
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            RotationWidget::Trackball,
+            MaterialMeshBundle {
+                mesh: meshes.rotate_ball.clone(),
+                material: mats.rotate_trackball.clone(),
+                ..default()
+            },
+            On::<Pointer<Over>>::run(on_trackball_hover),
+            On::<Pointer<Out>>::run(on_trackball_unhover),
+        ));
 
-                // Screen-space
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    RotationWidget::ScreenSpace,
-                    MaterialMeshBundle {
-                        mesh: meshes.rotate_ss.clone(),
-                        material: mats.rotate_ss.clone(),
-                        ..default()
-                    },
-                    On::<Pointer<Over>>::run(on_gizmo_element_hover),
-                    On::<Pointer<Out>>::run(on_gizmo_element_unhover),
-                ));
+        // Screen-space
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            RotationWidget::ScreenSpace,
+            MaterialMeshBundle {
+                mesh: meshes.rotate_ss.clone(),
+                material: mats.rotate_ss.clone(),
+                ..default()
+            },
+            On::<Pointer<Over>>::run(on_gizmo_element_hover),
+            On::<Pointer<Out>>::run(on_gizmo_element_unhover),
+        ));
 
-                // X
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    RotationWidget::Axis(Vec3::X),
-                    MaterialMeshBundle {
-                        mesh: meshes.rotate_ring.clone(),
-                        material: mats.rotate_x.clone(),
-                        transform: Transform::from_rotation(ROT_X),
-                        ..default()
-                    },
-                    On::<Pointer<Over>>::run(on_gizmo_element_hover),
-                    On::<Pointer<Out>>::run(on_gizmo_element_unhover),
-                ));
-                // Y
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    RotationWidget::Axis(Vec3::Y),
-                    MaterialMeshBundle {
-                        mesh: meshes.rotate_ring.clone(),
-                        material: mats.rotate_y.clone(),
-                        transform: Transform::from_rotation(ROT_Y),
-                        ..default()
-                    },
-                    On::<Pointer<Over>>::run(on_gizmo_element_hover),
-                    On::<Pointer<Out>>::run(on_gizmo_element_unhover),
-                ));
-                // Z
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    RotationWidget::Axis(Vec3::Z),
-                    MaterialMeshBundle {
-                        mesh: meshes.rotate_ring.clone(),
-                        material: mats.rotate_z.clone(),
-                        transform: Transform::from_rotation(ROT_Z),
-                        ..default()
-                    },
-                    On::<Pointer<Over>>::run(on_gizmo_element_hover),
-                    On::<Pointer<Out>>::run(on_gizmo_element_unhover),
-                ));
-            });
+        // X
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            RotationWidget::Axis(Vec3::X),
+            MaterialMeshBundle {
+                mesh: meshes.rotate_ring.clone(),
+                material: mats.rotate_x.clone(),
+                transform: Transform::from_rotation(ROT_X),
+                ..default()
+            },
+            On::<Pointer<Over>>::run(on_gizmo_element_hover),
+            On::<Pointer<Out>>::run(on_gizmo_element_unhover),
+        ));
+        // Y
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            RotationWidget::Axis(Vec3::Y),
+            MaterialMeshBundle {
+                mesh: meshes.rotate_ring.clone(),
+                material: mats.rotate_y.clone(),
+                transform: Transform::from_rotation(ROT_Y),
+                ..default()
+            },
+            On::<Pointer<Over>>::run(on_gizmo_element_hover),
+            On::<Pointer<Out>>::run(on_gizmo_element_unhover),
+        ));
+        // Z
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            RotationWidget::Axis(Vec3::Z),
+            MaterialMeshBundle {
+                mesh: meshes.rotate_ring.clone(),
+                material: mats.rotate_z.clone(),
+                transform: Transform::from_rotation(ROT_Z),
+                ..default()
+            },
+            On::<Pointer<Over>>::run(on_gizmo_element_hover),
+            On::<Pointer<Out>>::run(on_gizmo_element_unhover),
+        ));
+    });
 }
 
 pub(super) fn update_ss_ring_rotation(
@@ -179,7 +179,7 @@ pub(super) fn on_rotation_start(
     event: Listener<Pointer<DragStart>>,
     mut cmd: Commands,
     q_xform: Query<(Entity, &GlobalTransform)>,
-    q_gizmos: Query<&TransformGizmo>
+    q_gizmos: Query<&TransformGizmo>,
 ) {
     info!("Rotation start");
 
@@ -211,7 +211,7 @@ pub(super) fn on_rotation_end(
     mut cmd: Commands,
     r_xform_mode: Res<TransformMode>,
     mut ev_rebuild_gizmo: EventWriter<RebuildGizmo>,
-    q_inited_components: Query<Entity, With<LastRotation>>
+    q_inited_components: Query<Entity, With<LastRotation>>,
 ) {
     info!("Rotation end");
 
@@ -222,7 +222,6 @@ pub(super) fn on_rotation_end(
             .remove::<LastHitPoint>()
             .remove::<LastRotation>();
     }
-    
 
     if matches!(r_xform_mode.space, TransformSpace::World) {
         ev_rebuild_gizmo.send(RebuildGizmo);
@@ -232,16 +231,14 @@ pub(super) fn on_rotation_end(
 pub(super) fn on_rotate(
     event: Listener<Pointer<Drag>>,
     mut raycast: Raycast,
-    mut q_root: Query<
-        (
-            &mut Transform,
-            Option<&Parent>,
-            &InitialTransform,
-            &InitialHitPoint,
-            &mut LastHitPoint,
-            &mut LastRotation,
-        ),
-    >,
+    mut q_root: Query<(
+        &mut Transform,
+        Option<&Parent>,
+        &InitialTransform,
+        &InitialHitPoint,
+        &mut LastHitPoint,
+        &mut LastRotation,
+    )>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     q_gizmo: Query<&GlobalTransform, (With<TransformGizmo>, Without<MainCamera>)>,
     q_world_xforms: Query<&GlobalTransform, (With<Children>, Without<MainCamera>)>,

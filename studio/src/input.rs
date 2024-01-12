@@ -13,9 +13,8 @@ impl Plugin for StudioInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<InputAction>();
 
-
         // Reading each frame of the mouse delta allows
-        // to get rid of the bug that delta is counted from the last reading, 
+        // to get rid of the bug that delta is counted from the last reading,
         // which leads to camera jumps if you move the mouse between clicks
         app.add_systems(
             PreUpdate,
@@ -32,7 +31,7 @@ impl Plugin for StudioInputPlugin {
                 translate_debug_toggle,
                 translate_dcc_camera_events,
                 translate_fps_camera_events,
-                send_undo_event
+                send_undo_event,
             )
                 .in_set(StudioInputSystem)
                 .after(bevy::input::InputSystem)
@@ -55,7 +54,7 @@ pub enum Lifecycle {
 pub enum Action {
     Camera(CameraMotion),
     Selection(Selection),
-    ToggleDebug
+    ToggleDebug,
 }
 
 #[derive(Clone, Copy)]
@@ -84,7 +83,6 @@ impl From<Selection> for Action {
         Action::Selection(value)
     }
 }
-
 
 // TODO: Make the bindings of raw device inputs to InputActions configurable
 
@@ -308,22 +306,20 @@ impl LastFrameMouseDelta {
     }
 }
 
-fn read_mouse_delta(mut mouse_motion: EventReader<MouseMotion>, mut last_delta: ResMut<LastFrameMouseDelta>) {
+fn read_mouse_delta(
+    mut mouse_motion: EventReader<MouseMotion>,
+    mut last_delta: ResMut<LastFrameMouseDelta>,
+) {
     let delta = mouse_motion
         .read()
         .fold(Vec2::ZERO, |accum, current| accum + current.delta);
     last_delta.0 = delta;
 }
 
-
 // TODO: Make it configurable
-fn send_undo_event(
-    mut events : EventWriter<UndoRedo>,
-    keyboard: Res<Input<KeyCode>>,
-) {
+fn send_undo_event(mut events: EventWriter<UndoRedo>, keyboard: Res<Input<KeyCode>>) {
     if keyboard.pressed(KeyCode::ControlLeft) && keyboard.just_pressed(KeyCode::Z) {
         events.send(UndoRedo::Undo);
         info!("Undo event sent");
     }
 }
-

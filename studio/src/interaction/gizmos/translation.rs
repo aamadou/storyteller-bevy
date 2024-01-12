@@ -1,10 +1,5 @@
-use bevy::{
-    math::vec3, pbr::NotShadowCaster, prelude::*,
-    render::view::RenderLayers,
-};
-use bevy_mod_picking::prelude::{
-    Drag, DragEnd, DragStart, Listener, On, Out, Over, Pointer,
-};
+use bevy::{math::vec3, pbr::NotShadowCaster, prelude::*, render::view::RenderLayers};
+use bevy_mod_picking::prelude::{Drag, DragEnd, DragStart, Listener, On, Out, Over, Pointer};
 
 use crate::{interaction::TransformSpace, MainCamera};
 
@@ -31,181 +26,181 @@ pub(super) fn spawn_translation_gizmo(
     mats: &GizmoMats,
 ) {
     cmd.spawn((
-                TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale),
-                On::<Pointer<Over>>::run(on_gizmo_element_hover),
-                On::<Pointer<Out>>::run(on_gizmo_element_unhover),
-                On::<Pointer<DragStart>>::run(on_translation_start),
-                On::<Pointer<Drag>>::run(on_translate),
-                On::<Pointer<DragEnd>>::run(on_translation_end),
-            ))
-            .with_children(|cmd| {
-                use super::{CIRC_45, ROT_X, ROT_Y, ROT_Z};
+        TransformGizmoBundle::new(target, target_global_transform, space, normalizing_scale),
+        On::<Pointer<Over>>::run(on_gizmo_element_hover),
+        On::<Pointer<Out>>::run(on_gizmo_element_unhover),
+        On::<Pointer<DragStart>>::run(on_translation_start),
+        On::<Pointer<Drag>>::run(on_translate),
+        On::<Pointer<DragEnd>>::run(on_translation_end),
+    ))
+    .with_children(|cmd| {
+        use super::{CIRC_45, ROT_X, ROT_Y, ROT_Z};
 
-                // Center sphere
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::ScreenSpace,
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_ss.clone(),
-                        material: mats.translate_ss.clone(),
-                        transform: Transform::IDENTITY,
-                        ..default()
-                    },
-                ));
+        // Center sphere
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::ScreenSpace,
+            MaterialMeshBundle {
+                mesh: meshes.translate_ss.clone(),
+                material: mats.translate_ss.clone(),
+                transform: Transform::IDENTITY,
+                ..default()
+            },
+        ));
 
-                // X
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Axis(Vec3::X),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_line.clone(),
-                        material: mats.translate_x.clone(),
-                        transform: Transform {
-                            rotation: ROT_X,
-                            translation: vec3(0.6, 0., 0.),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Axis(Vec3::X),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_arrow.clone(),
-                        material: mats.translate_x.clone(),
-                        transform: Transform {
-                            rotation: ROT_X,
-                            translation: vec3(1., 0., 0.),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
+        // X
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Axis(Vec3::X),
+            MaterialMeshBundle {
+                mesh: meshes.translate_line.clone(),
+                material: mats.translate_x.clone(),
+                transform: Transform {
+                    rotation: ROT_X,
+                    translation: vec3(0.6, 0., 0.),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Axis(Vec3::X),
+            MaterialMeshBundle {
+                mesh: meshes.translate_arrow.clone(),
+                material: mats.translate_x.clone(),
+                transform: Transform {
+                    rotation: ROT_X,
+                    translation: vec3(1., 0., 0.),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
 
-                // Y
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Axis(Vec3::Y),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_line.clone(),
-                        material: mats.translate_y.clone(),
-                        transform: Transform {
-                            rotation: ROT_Y,
-                            translation: vec3(0., 0.6, 0.),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Axis(Vec3::Y),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_arrow.clone(),
-                        material: mats.translate_y.clone(),
-                        transform: Transform {
-                            rotation: ROT_Y,
-                            translation: vec3(0., 1., 0.),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
+        // Y
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Axis(Vec3::Y),
+            MaterialMeshBundle {
+                mesh: meshes.translate_line.clone(),
+                material: mats.translate_y.clone(),
+                transform: Transform {
+                    rotation: ROT_Y,
+                    translation: vec3(0., 0.6, 0.),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Axis(Vec3::Y),
+            MaterialMeshBundle {
+                mesh: meshes.translate_arrow.clone(),
+                material: mats.translate_y.clone(),
+                transform: Transform {
+                    rotation: ROT_Y,
+                    translation: vec3(0., 1., 0.),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
 
-                // Z
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Axis(Vec3::Z),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_line.clone(),
-                        material: mats.translate_z.clone(),
-                        transform: Transform {
-                            rotation: ROT_Z,
-                            translation: vec3(0., 0., 0.6),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Axis(Vec3::Z),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_arrow.clone(),
-                        material: mats.translate_z.clone(),
-                        transform: Transform {
-                            rotation: ROT_Z,
-                            translation: vec3(0., 0., 1.),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
+        // Z
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Axis(Vec3::Z),
+            MaterialMeshBundle {
+                mesh: meshes.translate_line.clone(),
+                material: mats.translate_z.clone(),
+                transform: Transform {
+                    rotation: ROT_Z,
+                    translation: vec3(0., 0., 0.6),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Axis(Vec3::Z),
+            MaterialMeshBundle {
+                mesh: meshes.translate_arrow.clone(),
+                material: mats.translate_z.clone(),
+                transform: Transform {
+                    rotation: ROT_Z,
+                    translation: vec3(0., 0., 1.),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
 
-                // YZ Plane
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Plane(Vec3::X),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_plane.clone(),
-                        material: mats.translate_yz.clone(),
-                        transform: Transform {
-                            rotation: ROT_X,
-                            translation: vec3(0., CIRC_45, CIRC_45),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
-                // XZ Plane
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Plane(Vec3::Y),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_plane.clone(),
-                        material: mats.translate_xz.clone(),
-                        transform: Transform {
-                            rotation: ROT_Y,
-                            translation: vec3(CIRC_45, 0., CIRC_45),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
-                // XY Plane
-                cmd.spawn((
-                    NotShadowCaster,
-                    RenderLayers::layer(GIZMO_RENDER_LAYER),
-                    TranslationWidget::Plane(Vec3::Z),
-                    MaterialMeshBundle {
-                        mesh: meshes.translate_plane.clone(),
-                        material: mats.translate_xy.clone(),
-                        transform: Transform {
-                            rotation: ROT_Z,
-                            translation: vec3(CIRC_45, CIRC_45, 0.),
-                            ..default()
-                        },
-                        ..default()
-                    },
-                ));
-            });
+        // YZ Plane
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Plane(Vec3::X),
+            MaterialMeshBundle {
+                mesh: meshes.translate_plane.clone(),
+                material: mats.translate_yz.clone(),
+                transform: Transform {
+                    rotation: ROT_X,
+                    translation: vec3(0., CIRC_45, CIRC_45),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
+        // XZ Plane
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Plane(Vec3::Y),
+            MaterialMeshBundle {
+                mesh: meshes.translate_plane.clone(),
+                material: mats.translate_xz.clone(),
+                transform: Transform {
+                    rotation: ROT_Y,
+                    translation: vec3(CIRC_45, 0., CIRC_45),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
+        // XY Plane
+        cmd.spawn((
+            NotShadowCaster,
+            RenderLayers::layer(GIZMO_RENDER_LAYER),
+            TranslationWidget::Plane(Vec3::Z),
+            MaterialMeshBundle {
+                mesh: meshes.translate_plane.clone(),
+                material: mats.translate_xy.clone(),
+                transform: Transform {
+                    rotation: ROT_Z,
+                    translation: vec3(CIRC_45, CIRC_45, 0.),
+                    ..default()
+                },
+                ..default()
+            },
+        ));
+    });
 }
 
 pub(super) fn on_translation_start(
     _: Listener<Pointer<DragStart>>,
     mut cmd: Commands,
     q_xform: Query<(Entity, &GlobalTransform)>,
-    q_gizmos: Query<&TransformGizmo>
+    q_gizmos: Query<&TransformGizmo>,
 ) {
     for gizmo_data in q_gizmos.iter() {
         if let Ok((ent, &world_xform)) = q_xform.get(gizmo_data.target) {
@@ -230,10 +225,12 @@ pub(super) fn on_translate(
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     q_gizmo: Query<(&GlobalTransform, &TransformGizmo), Without<MainCamera>>,
     q_widget: Query<&TranslationWidget>,
-    q_all_global_transforms : Query<&GlobalTransform>
+    q_all_global_transforms: Query<&GlobalTransform>,
 ) {
     let (gizmo_xform, gizmo_data) = q_gizmo.single();
-    let Ok((mut target_transform, target_global_transform, target_parent)) = q_root.get_mut(gizmo_data.target) else {
+    let Ok((mut target_transform, target_global_transform, target_parent)) =
+        q_root.get_mut(gizmo_data.target)
+    else {
         error!("Translation gizmo target not found");
         return;
     };
@@ -272,8 +269,12 @@ pub(super) fn on_translate(
             let target_ws = origin_ws + axis_ws * projection_length;
 
             if let Some(target_parent) = target_parent {
-                if let Ok(parent_global_transform) = q_all_global_transforms.get(target_parent.get()) {
-                    let real_local_transform = GlobalTransform::from(Transform::from_translation(target_ws)).reparented_to(parent_global_transform);
+                if let Ok(parent_global_transform) =
+                    q_all_global_transforms.get(target_parent.get())
+                {
+                    let real_local_transform =
+                        GlobalTransform::from(Transform::from_translation(target_ws))
+                            .reparented_to(parent_global_transform);
                     target_transform.translation = real_local_transform.translation;
                 }
             } else {
@@ -295,8 +296,12 @@ pub(super) fn on_translate(
             let target_ws = ray.origin + ray.direction * hit_dist;
 
             if let Some(target_parent) = target_parent {
-                if let Ok(parent_global_transform) = q_all_global_transforms.get(target_parent.get()) {
-                    let real_local_transform = GlobalTransform::from(Transform::from_translation(target_ws)).reparented_to(parent_global_transform);
+                if let Ok(parent_global_transform) =
+                    q_all_global_transforms.get(target_parent.get())
+                {
+                    let real_local_transform =
+                        GlobalTransform::from(Transform::from_translation(target_ws))
+                            .reparented_to(parent_global_transform);
                     target_transform.translation = real_local_transform.translation;
                 }
             } else {

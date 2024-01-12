@@ -33,10 +33,8 @@ const ROT_Z: Quat = Quat::from_xyzw(CIRC_45, 0., 0., CIRC_45);
 
 pub struct GizmoPlugin;
 
-
 impl Plugin for GizmoPlugin {
     fn build(&self, app: &mut App) {
-
         app.register_type::<TransformGizmo>();
 
         app.add_event::<RebuildGizmo>();
@@ -60,8 +58,10 @@ impl Plugin for GizmoPlugin {
                     resource_exists::<Selection>()
                         .and_then(not(any_with_component::<TransformGizmo>())),
                 ),
-                (update_target_global_trasform, sync_gizmo_transform).chain().after(CameraMotionSystem),
-                normalize_gizmo_scale.after(CameraMotionSystem)
+                (update_target_global_trasform, sync_gizmo_transform)
+                    .chain()
+                    .after(CameraMotionSystem),
+                normalize_gizmo_scale.after(CameraMotionSystem),
             ),
         );
         app.add_systems(
@@ -71,10 +71,7 @@ impl Plugin for GizmoPlugin {
     }
 }
 
-fn despawn_existing_gizmo(
-    mut cmd: Commands,
-    q_gizmos: Query<Entity, With<TransformGizmo>>,
-) {
+fn despawn_existing_gizmo(mut cmd: Commands, q_gizmos: Query<Entity, With<TransformGizmo>>) {
     for ent in q_gizmos.iter() {
         cmd.entity(ent).despawn_recursive();
     }
@@ -142,11 +139,10 @@ fn spawn_gizmo(
     }
 }
 
-
 fn sync_gizmo_transform(
-    mut cmd : Commands,
-    mut q_gizmo : Query<(&mut Transform, &TransformGizmo)>,
-    q_targets : Query<&GlobalTransform>
+    mut cmd: Commands,
+    mut q_gizmo: Query<(&mut Transform, &TransformGizmo)>,
+    q_targets: Query<&GlobalTransform>,
 ) {
     for (mut transform, gizmo) in q_gizmo.iter_mut() {
         if let Ok(target) = q_targets.get(gizmo.target) {
@@ -155,10 +151,10 @@ fn sync_gizmo_transform(
                     let target_transform = target.compute_transform();
                     transform.translation = target_transform.translation;
                     transform.rotation = target_transform.rotation;
-                },
+                }
                 super::TransformSpace::World => {
                     transform.translation = target.translation();
-                },
+                }
             }
         } else {
             cmd.entity(gizmo.target).despawn_recursive();
@@ -167,9 +163,9 @@ fn sync_gizmo_transform(
 }
 
 fn update_target_global_trasform(
-    mut q_gizmo : Query<&TransformGizmo>,
-    mut q_targets : ParamSet<(TransformHelper,)>,
-    mut q_targets_global : Query<&mut GlobalTransform>
+    mut q_gizmo: Query<&TransformGizmo>,
+    mut q_targets: ParamSet<(TransformHelper,)>,
+    mut q_targets_global: Query<&mut GlobalTransform>,
 ) {
     for gizmo in q_gizmo.iter_mut() {
         if let Ok(global_transform) = q_targets.p0().compute_global_transform(gizmo.target) {
@@ -179,7 +175,6 @@ fn update_target_global_trasform(
         }
     }
 }
-
 
 fn normalize_gizmo_scale(
     q_cam_xform: Query<&Transform, With<MainCamera>>,

@@ -80,14 +80,14 @@ pub fn init(viewport_size: ViewportSize) {
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
-        UndoPlugin
+        UndoPlugin,
     ))
     .add_systems(
         Startup,
         move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
             cmd.insert_resource(SkyboxId("gum_trees_4k".to_string()));
             ew.send(LoadSceneEvent("bookcase".to_string()));
-        }
+        },
     );
 
     // Only for registering components for undo
@@ -147,7 +147,7 @@ pub fn start_viewer(
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
-        UndoPlugin
+        UndoPlugin,
     ))
     .add_systems(
         Startup,
@@ -157,7 +157,6 @@ pub fn start_viewer(
         },
     );
 
-    
     // Only for registering components for undo
     use space_editor::prelude::space_undo::AppAutoUndo;
     app.auto_reflected_undo::<Transform>();

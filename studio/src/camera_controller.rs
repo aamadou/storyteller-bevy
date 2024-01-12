@@ -100,7 +100,6 @@ fn camera_control_kinematic(
                 Lifecycle::Stop => any_stopped = true,
             }
 
-
             match motion {
                 Pan(delta) => do_pan(proj, &window, *delta, &mut xform, &mut controller),
                 Zoom(delta) => do_zoom(&window, *delta, &mut xform, &mut controller),
