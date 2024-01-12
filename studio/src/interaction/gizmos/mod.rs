@@ -60,7 +60,7 @@ impl Plugin for GizmoPlugin {
                     resource_exists::<Selection>()
                         .and_then(not(any_with_component::<TransformGizmo>())),
                 ),
-                (update_target_global_trasform, sync_gizmo_transform).chain(),
+                (update_target_global_trasform, sync_gizmo_transform).chain().after(CameraMotionSystem),
                 normalize_gizmo_scale.after(CameraMotionSystem)
             ),
         );
