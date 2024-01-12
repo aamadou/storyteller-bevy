@@ -13,6 +13,7 @@ use bevy::{
     scene::InstanceId,
 };
 
+use space_editor::prelude::{space_undo::OneFrameUndoIgnore, PrefabMarker};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -207,6 +208,8 @@ fn spawn_next_scene(
             SceneRoot,
             SceneElement,
             SpatialBundle::default(),
+            PrefabMarker,
+            OneFrameUndoIgnore::default(), //To prevert undo try to register add event
         ))
         .id();
 
@@ -254,7 +257,7 @@ fn tag_scene_elements(
         };
 
         if gltf.named_nodes.contains_key(&**name) {
-            cmd.entity(ent).insert(SceneElement);
+            cmd.entity(ent).insert(SceneElement).insert(PrefabMarker);
         }
     }
 }
