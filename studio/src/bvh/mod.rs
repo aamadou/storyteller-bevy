@@ -8,8 +8,10 @@ use bevy::{
     },
     gltf::Gltf,
     prelude::*,
+    render::INSTANCE_INDEX_SHADER_HANDLE,
     scene,
     transform::commands,
+    ui::debug::print_ui_layout_tree,
     utils::hashbrown::HashMap,
 };
 use bevy_inspector_egui::egui::TextBuffer;
@@ -20,7 +22,10 @@ use studio_bvh::{frames::Frame, joint};
 mod error;
 mod loader;
 
-use crate::{debug::print_mat3, scene::SceneState};
+use crate::{
+    debug::print_mat3,
+    scene::{ActiveScene, SceneState},
+};
 
 use self::loader::BvhLoader;
 
@@ -160,7 +165,6 @@ fn apply_frame<T: ReadOnlyWorldQuery>(
             .map(Entity::clone)
             .collect::<Vec<_>>();
 
-        drop(joint_data);
         drop(joint_entity);
 
         for child in children {
@@ -195,7 +199,7 @@ pub trait CommandsSpawnBvhExt {
 
     fn spawn_skined_bvh_with_transform(
         &mut self,
-        asset: &Handle<Bvh>,
+        asset: Handle<Bvh>,
         scene: Handle<Scene>,
         retarget_map: RetargetMap,
         transform: Transform,
@@ -222,24 +226,18 @@ impl<'w, 's> CommandsSpawnBvhExt for Commands<'w, 's> {
 
     fn spawn_skined_bvh_with_transform(
         &mut self,
-        asset: &Handle<Bvh>,
+        asset: Handle<Bvh>,
         scene: Handle<Scene>,
         retarget_map: RetargetMap,
         transform: Transform,
     ) -> Entity {
         let entity = self.spawn_empty().id();
-        let skinned_model = self
-            .spawn(SceneBundle {
-                scene,
-                ..Default::default()
-            })
-            .id();
 
         self.add(SpawnBvhCommand(
             entity,
-            asset.clone(),
+            asset,
             transform,
-            Some((skinned_model, retarget_map)),
+            Some((scene, retarget_map)),
         ));
         entity
     }
@@ -249,10 +247,11 @@ pub struct SpawnBvhCommand(
     Entity,
     Handle<Bvh>,
     Transform,
-    Option<(Entity, RetargetMap)>,
+    Option<(Handle<Scene>, RetargetMap)>,
 );
 
 impl Command for SpawnBvhCommand {
+    //TODO: This loading process with have to be async eventually.
     fn apply(self, world: &mut World) {
         let bvh = {
             let Some(bvh) = world.get_resource::<Assets<Bvh>>().unwrap().get(&self.1) else {
@@ -268,25 +267,60 @@ impl Command for SpawnBvhCommand {
             panic!("Could not create the BVH entity because the bvh file has no root joint")
         };
 
-        if let Some((skinned_model, retarget_map)) = self.3 {
-            world.entity_mut(skinned_model).insert((
-                BvhAnim {
-                    bvh: self.1,
-                    frame: 0,
-                    last_frame: 0,
-                    retarget: Some(retarget_map),
-                    should_play: true,
-                    timer: Timer::from_seconds(
-                        bvh.0.frame_time().as_secs_f32(),
-                        TimerMode::Repeating,
-                    ),
-                },
-                Name::new("BVH Anim"),
-            ));
+        if let Some((scene_handle, retarget_map)) = self.3 {
+            println!("Starting Scene Spawn");
+            let mut scene_spawner = SceneSpawner::from_world(world);
 
-            world.send_event(UpdateBVHAnim {
-                entity: skinned_model,
+            let id = match scene_spawner.spawn_sync(world, scene_handle.id()) {
+                Ok(val) => val,
+                Err(err) => {
+                    println!("There was an Error: {:?}", err);
+                    return;
+                }
+            };
+
+            for entity in scene_spawner.iter_instance_entities(id) {
+                println!("Bone {:?}", entity);
+
+                let Ok(potential_bone_name) = world.query::<&Name>().get(&world, entity) else {
+                    continue;
+                };
+                let Some(mapped_bone_name) = retarget_map.map.get(potential_bone_name.as_str())
+                else {
+                    continue;
+                };
+                let Some(bone_data) = bvh.0.get_joint_by_name(&mapped_bone_name) else {
+                    continue;
+                };
+
+                println!("Bone Index {}", bone_data.index());
+
+                world.entity_mut(entity).insert(BvhJoint(bone_data.index()));
+            }
+
+            world.insert_resource(ActiveScene {
+                instance: id,
+                source: scene_handle,
             });
+
+            // world.entity_mut(skinned_model).insert((
+            //     BvhAnim {
+            //         bvh: self.1,
+            //         frame: 0,
+            //         last_frame: 0,
+            //         retarget: Some(retarget_map),
+            //         should_play: true,
+            //         timer: Timer::from_seconds(
+            //             bvh.0.frame_time().as_secs_f32(),
+            //             TimerMode::Repeating,
+            //         ),
+            //     },
+            //     Name::new("BVH Anim"),
+            // ));
+
+            // world.send_event(UpdateBVHAnim {
+            //     entity: skinned_model,
+            // });
         } else {
             let entity = world.spawn_empty().id();
             spawn_bvh_recursive(world, &entity, root);
@@ -323,8 +357,9 @@ pub struct UpdateBVHAnim {
 
 fn update_bvh_anim(
     mut commands: Commands,
-    mut bvh_anims: Query<(Entity, &BvhAnim, Option<&Children>)>,
     mut update_events: EventReader<UpdateBVHAnim>,
+    bvh_anims: Query<(Entity, &BvhAnim, Option<&Children>)>,
+    skinned_model_nodes: Query<(&Name, Option<&Children>)>,
     bvh_assets: Res<Assets<Bvh>>,
 ) {
     for event in update_events.read() {
@@ -338,11 +373,36 @@ fn update_bvh_anim(
             let Some(bvh) = bvh_assets.get(bvh_anim.1.bvh.id()) else {
                 continue;
             };
+
+            println!("Children {:?}", bvh_anim.2);
+
+            if let Some(children) = bvh_anim.2 {
+                for child in children {
+                    update_bvh_recursive(child, &mut commands, &bvh, &skinned_model_nodes);
+                }
+            }
         };
     }
 }
 
-fn update_bvh_recursive(current_node: Entity, commands: &mut Commands, bvh_anim: &Bvh) {}
+fn update_bvh_recursive(
+    current_node: &Entity,
+    commands: &mut Commands,
+    bvh_anim: &Bvh,
+    skinned_model_nodes: &Query<(&Name, Option<&Children>)>,
+) {
+    println!("Called Function");
+
+    let Ok((current_name, current_children)) = skinned_model_nodes.get(*current_node) else {
+        return;
+    };
+
+    if let Some(children) = current_children {
+        for child in children.iter() {
+            update_bvh_recursive(child, commands, bvh_anim, skinned_model_nodes);
+        }
+    }
+}
 
 //==============================================================================
 //                        Utility Functions
@@ -411,61 +471,117 @@ pub struct RetargetMap {
 impl RetargetMap {
     pub fn mocap_to_rigify() -> RetargetMap {
         RetargetMap {
+            // map: [
+            //     ("hip", "DEF-spine"),
+            //     ("abdomen", "DEF-spine.002"),
+            //     ("chest", "DEF-spine.003"),
+            //     ("neck", "DEF-spine.004"),
+            //     ("neck1", "DEF-spine.005"),
+            //     ("head", "DEF-spine.006"),
+            //     ("rCollar", "DEF-shoulder.R"),
+            //     ("rShldr", "DEF-upper_arm.R"),
+            //     ("rForeArm", "DEF-forearm.R"),
+            //     ("rHand", "DEF-hand.R"),
+            //     ("metacarpal1.r", "DEF-palm.01.R"),
+            //     ("finger2-1.r", "DEF-f_index.01.R"),
+            //     ("finger3-2.r", "DEF-f_middle.02.R"),
+            //     ("finger3-3.r", "DEF-f_middle.03.R"),
+            //     ("metacarpal3.r", "DEF-palm.03.R"),
+            //     ("finger4-1.r", "DEF-f_ring.01.R"),
+            //     ("finger4-2.r", "DEF-f_ring.02.R"),
+            //     ("finger4-3.r", "DEF-f_ring.03.R"),
+            //     ("metacarpal4.r", "DEF-palm.04.R"),
+            //     ("finger5-1.r", "DEF-f_pinky.01.R"),
+            //     ("finger5-2.r", "DEF-f_pinky.02.R"),
+            //     ("finger5-3.r", "DEF-f_pinky.03.R"),
+            //     ("rthumb", "DEF-thumb.01.R"),
+            //     ("finger1-2.r", "DEF-thumb.02.R"),
+            //     ("finger1-3.r", "DEF-thumb.03.R"),
+            //     ("rThigh", "DEF-thumb.03.R"),
+            //     ("rShin", "DEF-shin.R"),
+            //     ("rFoot", "DEF-foot.R"),
+            //     ("lCollar", "DEF-shoulder.L"),
+            //     ("lShldr", "DEF-upper_arm.L"),
+            //     ("lForeArm", "DEF-forearm.L"),
+            //     ("lHand", "DEF-hand.L"),
+            //     ("metacarpal1.l", "DEF-palm.01.L"),
+            //     ("finger2-1.l", "DEF-f_index.01.L"),
+            //     ("finger2-2.l", "DEF-f_index.02.L"),
+            //     ("finger2-3.l", "DEF-f_index.03.L"),
+            //     ("metacarpal2.l", "DEF-palm.02.L"),
+            //     ("finger3-1.l", "DEF-f_middle.01.L"),
+            //     ("finger3-2.l", "DEF-f_middle.02.L"),
+            //     ("finger3-3.l", "DEF-f_middle.03.L"),
+            //     ("metacarpal3.l", "DEF-palm.03.L"),
+            //     ("finger4-1.l", "DEF-f_ring.01.L"),
+            //     ("finger4-2.l", "DEF-f_ring.02.L"),
+            //     ("finger4-3.l", "DEF-f_ring.03.L"),
+            //     ("metacarpal4.l", "DEF-palm.04.L"),
+            //     ("finger5-1.l", "DEF-f_pinky.01.L"),
+            //     ("finger5-2.l", "DEF-f_pinky.02.L"),
+            //     ("finger5-3.l", "DEF-f_pinky.03.L"),
+            //     ("lthumb", "DEF-thumb.01.L"),
+            //     ("finger1-2.l", "DEF-thumb.02.L"),
+            //     ("finger1-3.l", "DEF-thumb.03.L"),
+            //     ("lThigh", "DEF-thigh.L"),
+            //     ("lShin", "DEF-shin.L"),
+            //     ("lFoot", "DEF-foot.L"),
+            // ]
             map: [
-                ("hip", "DEF-spine"),
-                ("abdomen", "DEF-spine.002"),
-                ("chest", "DEF-spine.003"),
-                ("neck", "DEF-spine.004"),
-                ("neck1", "DEF-spine.005"),
-                ("head", "DEF-spine.006"),
-                ("rCollar", "DEF-shoulder.R"),
-                ("rShldr", "DEF-upper_arm.R"),
-                ("rForeArm", "DEF-forearm.R"),
-                ("rHand", "DEF-hand.R"),
-                ("metacarpal1.r", "DEF-palm.01.R"),
-                ("finger2-1.r", "DEF-f_index.01.R"),
-                ("finger3-2.r", "DEF-f_middle.02.R"),
-                ("finger3-3.r", "DEF-f_middle.03.R"),
-                ("metacarpal3.r", "DEF-palm.03.R"),
-                ("finger4-1.r", "DEF-f_ring.01.R"),
-                ("finger4-2.r", "DEF-f_ring.02.R"),
-                ("finger4-3.r", "DEF-f_ring.03.R"),
-                ("metacarpal4.r", "DEF-palm.04.R"),
-                ("finger5-1.r", "DEF-f_pinky.01.R"),
-                ("finger5-2.r", "DEF-f_pinky.02.R"),
-                ("finger5-3.r", "DEF-f_pinky.03.R"),
-                ("rthumb", "DEF-thumb.01.R"),
-                ("finger1-2.r", "DEF-thumb.02.R"),
-                ("finger1-3.r", "DEF-thumb.03.R"),
-                ("rThigh", "DEF-thumb.03.R"),
-                ("rShin", "DEF-shin.R"),
-                ("rFoot", "DEF-foot.R"),
-                ("lCollar", "DEF-shoulder.L"),
-                ("lShldr", "DEF-upper_arm.L"),
-                ("lForeArm", "DEF-forearm.L"),
-                ("lHand", "DEF-hand.L"),
-                ("metacarpal1.l", "DEF-palm.01.L"),
-                ("finger2-1.l", "DEF-f_index.01.L"),
-                ("finger2-2.l", "DEF-f_index.02.L"),
-                ("finger2-3.l", "DEF-f_index.03.L"),
-                ("metacarpal2.l", "DEF-palm.02.L"),
-                ("finger3-1.l", "DEF-f_middle.01.L"),
-                ("finger3-2.l", "DEF-f_middle.02.L"),
-                ("finger3-3.l", "DEF-f_middle.03.L"),
-                ("metacarpal3.l", "DEF-palm.03.L"),
-                ("finger4-1.l", "DEF-f_ring.01.L"),
-                ("finger4-2.l", "DEF-f_ring.02.L"),
-                ("finger4-3.l", "DEF-f_ring.03.L"),
-                ("metacarpal4.l", "DEF-palm.04.L"),
-                ("finger5-1.l", "DEF-f_pinky.01.L"),
-                ("finger5-2.l", "DEF-f_pinky.02.L"),
-                ("finger5-3.l", "DEF-f_pinky.03.L"),
-                ("lthumb", "DEF-thumb.01.L"),
-                ("finger1-2.l", "DEF-thumb.02.L"),
-                ("finger1-3.l", "DEF-thumb.03.L"),
-                ("lThigh", "DEF-thigh.L"),
-                ("lShin", "DEF-shin.L"),
-                ("lFoot", "DEF-foot.L"),
+                ("DEF-spine", "hip"),
+                ("DEF-spine.002", "abdomen"),
+                ("DEF-spine.003", "chest"),
+                ("DEF-spine.004", "neck"),
+                ("DEF-spine.005", "neck1"),
+                ("DEF-spine.006", "head"),
+                ("DEF-shoulder.R", "rCollar"),
+                ("DEF-upper_arm.R", "rShldr"),
+                ("DEF-forearm.R", "rForeArm"),
+                ("DEF-hand.R", "rHand"),
+                ("DEF-palm.01.R", "metacarpal1.r"),
+                ("DEF-f_index.01.R", "finger2-1.r"),
+                ("DEF-f_middle.02.R", "finger3-2.r"),
+                ("DEF-f_middle.03.R", "finger3-3.r"),
+                ("DEF-palm.03.R", "metacarpal3.r"),
+                ("DEF-f_ring.01.R", "finger4-1.r"),
+                ("DEF-f_ring.02.R", "finger4-2.r"),
+                ("DEF-f_ring.03.R", "finger4-3.r"),
+                ("DEF-palm.04.R", "metacarpal4.r"),
+                ("DEF-f_pinky.01.R", "finger5-1.r"),
+                ("DEF-f_pinky.02.R", "finger5-2.r"),
+                ("DEF-f_pinky.03.R", "finger5-3.r"),
+                ("DEF-thumb.01.R", "rthumb"),
+                ("DEF-thumb.02.R", "finger1-2.r"),
+                ("DEF-thumb.03.R", "finger1-3.r"),
+                ("DEF-thumb.03.R", "rThigh"),
+                ("DEF-shin.R", "rShin"),
+                ("DEF-foot.R", "rFoot"),
+                ("DEF-shoulder.L", "lCollar"),
+                ("DEF-upper_arm.L", "lShldr"),
+                ("DEF-forearm.L", "lForeArm"),
+                ("DEF-hand.L", "lHand"),
+                ("DEF-palm.01.L", "metacarpal1.l"),
+                ("DEF-f_index.01.L", "finger2-1.l"),
+                ("DEF-f_index.02.L", "finger2-2.l"),
+                ("DEF-f_index.03.L", "finger2-3.l"),
+                ("DEF-palm.02.L", "metacarpal2.l"),
+                ("DEF-f_middle.01.L", "finger3-1.l"),
+                ("DEF-f_middle.02.L", "finger3-2.l"),
+                ("DEF-f_middle.03.L", "finger3-3.l"),
+                ("DEF-palm.03.L", "metacarpal3.l"),
+                ("DEF-f_ring.01.L", "finger4-1.l"),
+                ("DEF-f_ring.02.L", "finger4-2.l"),
+                ("DEF-f_ring.03.L", "finger4-3.l"),
+                ("DEF-palm.04.L", "metacarpal4.l"),
+                ("DEF-f_pinky.01.L", "finger5-1.l"),
+                ("DEF-f_pinky.02.L", "finger5-2.l"),
+                ("DEF-f_pinky.03.L", "finger5-3.l"),
+                ("DEF-thumb.01.L", "lthumb"),
+                ("DEF-thumb.02.L", "finger1-2.l"),
+                ("DEF-thumb.03.L", "finger1-3.l"),
+                ("DEF-thigh.L", "lThigh"),
+                ("DEF-shin.L", "lShin"),
+                ("DEF-foot.L", "lFoot"),
             ]
             .iter()
             .map(|v| (v.0.to_string(), v.1.to_string()))

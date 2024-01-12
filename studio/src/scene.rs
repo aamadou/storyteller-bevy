@@ -11,6 +11,7 @@ use bevy::{
     prelude::*,
     render::{mesh::skinning::SkinnedMesh, primitives::Aabb, view::NoFrustumCulling},
     scene::InstanceId,
+    transform::commands,
 };
 
 #[cfg(feature = "wasm")]
@@ -88,13 +89,13 @@ pub enum SceneState {
 }
 
 #[derive(Resource, Deref, DerefMut)]
-struct PendingScene(pub Handle<Gltf>);
+struct PendingScene(pub Handle<Scene>);
 
 #[derive(Resource, Deref)]
 pub struct ActiveScene {
     #[deref]
     pub instance: InstanceId,
-    pub source: Handle<Gltf>,
+    pub source: Handle<Scene>,
 }
 
 #[derive(Event, Deref)]
@@ -150,7 +151,7 @@ fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
     ));
 
     // TODO
-    cmd.insert_resource(TestBvh(r_assets.load("mocap/shuffle.bvh")));
+    cmd.insert_resource(TestBvh(r_assets.load("mocap/scott.bvh")));
 }
 
 // TODO
@@ -160,19 +161,19 @@ fn spawn_test_bvh(
     r_bvh: Res<TestBvh>,
     mut asset_server: ResMut<AssetServer>,
 ) {
-    for event in er_bvh_events.read() {
-        if matches!(event, AssetEvent::LoadedWithDependencies { .. }) {
-            commands.spawn_skined_bvh_with_transform(
-                &r_bvh.0,
-                asset_server.load("gltf/base-human-female.gltf#Scene0"),
-                RetargetMap::mocap_to_rigify(),
-                Transform::from_scale(Vec3::splat(1.0))
-                    .with_translation(Vec3::new(0., 1.0, -0.024)),
-            );
+    // for event in er_bvh_events.read() {
+    //     if matches!(event, AssetEvent::LoadedWithDependencies { .. }) {
+    //         commands.spawn_skined_bvh_with_transform(
+    //             &r_bvh.0,
+    //             asset_server.load("gltf/base-human-female.gltf#Scene0"),
+    //             RetargetMap::mocap_to_rigify(),
+    //             Transform::from_scale(Vec3::splat(1.0))
+    //                 .with_translation(Vec3::new(0., 1.0, -0.024)),
+    //         );
 
-            commands.spawn_bvh_with_transform(&r_bvh.0, Transform::from_xyz(0.0, 1.0, -0.024));
-        }
-    }
+    //         commands.spawn_bvh_with_transform(&r_bvh.0, Transform::from_xyz(0.0, 1.0, -0.024));
+    //     }
+    // }
 }
 
 fn init_scene_loading(
@@ -184,7 +185,7 @@ fn init_scene_loading(
 ) {
     if let Some(id) = er.read().last() {
         let name = &**id;
-        let path = format!("gltf/{name}.glb");
+        let path = format!("gltf/{name}.gltf#Scene0");
 
         // Avoid trying to re-load this scene if it's already active
         if let Some(active_scene_path) =
@@ -208,17 +209,14 @@ fn despawn_previous_scene(mut cmd: Commands, q_scene_root: Query<Entity, With<Sc
 
 fn tick_scene_loading(
     r_pending_scene: Res<PendingScene>,
-    ra_gltfs: Res<Assets<Gltf>>,
+    ra_gltfs: Res<Assets<Scene>>,
     mut er_scene_events: EventReader<AssetEvent<Scene>>,
     mut st_next: ResMut<NextState<SceneState>>,
 ) {
     for event in er_scene_events.read() {
         if let AssetEvent::LoadedWithDependencies { id } = event {
-            let gltf = ra_gltfs.get(&**r_pending_scene).unwrap();
-            if gltf.default_scene.is_some() && gltf.default_scene.as_ref().unwrap().id() == *id {
-                st_next.set(SceneState::Spawning);
-                break;
-            }
+            st_next.set(SceneState::Spawning);
+            break;
         }
     }
 }
@@ -227,30 +225,39 @@ fn spawn_next_scene(
     mut cmd: Commands,
     ra_gltfs: Res<Assets<Gltf>>,
     r_pending_scene: Res<PendingScene>,
+    test_bvh: Res<TestBvh>,
+    mut asset_server: ResMut<AssetServer>,
     mut r_scene_spawner: ResMut<SceneSpawner>,
 ) {
-    let gltf = ra_gltfs.get(&**r_pending_scene).unwrap();
-    let scene = gltf
-        .default_scene
-        .as_ref()
-        .expect("Expected glTF to include a default scene");
+    println!("Spawning Scene");
+    cmd.spawn_skined_bvh_with_transform(
+        test_bvh.0.clone(),
+        r_pending_scene.0.clone(),
+        RetargetMap::mocap_to_rigify(),
+        Transform::default(),
+    );
+    // let gltf = ra_gltfs.get(&**r_pending_scene).unwrap();
+    // let scene = gltf
+    //     .default_scene
+    //     .as_ref()
+    //     .expect("Expected glTF to include a default scene");
 
-    let parent = cmd
-        .spawn((
-            Name::new("Scene"),
-            SceneRoot,
-            SceneElement,
-            SpatialBundle::default(),
-        ))
-        .id();
+    // let parent = cmd
+    //     .spawn((
+    //         Name::new("Scene"),
+    //         SceneRoot,
+    //         SceneElement,
+    //         SpatialBundle::default(),
+    //     ))
+    //     .id();
 
-    let instance = r_scene_spawner.spawn_as_child(scene.clone(), parent);
+    // let instance = r_scene_spawner.spawn_as_child(scene.clone(), parent);
 
-    cmd.remove_resource::<PendingScene>();
-    cmd.insert_resource(ActiveScene {
-        instance,
-        source: r_pending_scene.clone(),
-    });
+    // cmd.remove_resource::<PendingScene>();
+    // cmd.insert_resource(ActiveScene {
+    //     instance,
+    //     source: r_pending_scene.clone(),
+    // });
 }
 
 fn tick_scene_spawning(
@@ -270,7 +277,7 @@ fn tag_scene_elements(
     mut cmd: Commands,
     r_scene_spawner: Res<SceneSpawner>,
     r_active_scene: Res<ActiveScene>,
-    ra_gltfs: Res<Assets<Gltf>>,
+    ra_gltfs: Res<Assets<Scene>>,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
     // which is basically a bundle of vertices paired with the material used to
     // shade them. It's those "sub-meshes" that carry the actual mesh handles,
@@ -281,33 +288,33 @@ fn tag_scene_elements(
     q_named_non_primitives: Query<&Name, Without<Handle<Mesh>>>,
     q_skinned_meshes: Query<&SkinnedMesh>,
 ) {
-    let gltf = ra_gltfs.get(&r_active_scene.source).unwrap();
+    // let gltf = ra_gltfs.get(&r_active_scene.source).unwrap();
 
-    for (ent, name) in r_scene_spawner
-        .iter_instance_entities(**r_active_scene)
-        .filter_map(|ent| match q_named_non_primitives.get(ent) {
-            Ok(name) => Some((ent, name)),
-            _ => None,
-        })
-    {
-        if gltf.named_nodes.contains_key(&**name) {
-            cmd.entity(ent).insert(SceneElement);
-        }
-    }
+    // for (ent, name) in r_scene_spawner
+    //     .iter_instance_entities(**r_active_scene)
+    //     .filter_map(|ent| match q_named_non_primitives.get(ent) {
+    //         Ok(name) => Some((ent, name)),
+    //         _ => None,
+    //     })
+    // {
+    //     if gltf.named_nodes.contains_key(&**name) {
+    //         cmd.entity(ent).insert(SceneElement);
+    //     }
+    // }
 
-    for (ent, skinned_mesh) in r_scene_spawner
-        .iter_instance_entities(**r_active_scene)
-        .filter_map(|ent| match q_skinned_meshes.get(ent) {
-            Ok(skinned_mesh) => Some((ent, skinned_mesh)),
-            _ => None,
-        })
-    {
-        cmd.entity(ent).insert(NoFrustumCulling);
+    // for (ent, skinned_mesh) in r_scene_spawner
+    //     .iter_instance_entities(**r_active_scene)
+    //     .filter_map(|ent| match q_skinned_meshes.get(ent) {
+    //         Ok(skinned_mesh) => Some((ent, skinned_mesh)),
+    //         _ => None,
+    //     })
+    // {
+    //     cmd.entity(ent).insert(NoFrustumCulling);
 
-        for &joint in skinned_mesh.joints.iter() {
-            cmd.entity(joint).insert(SkeletalJoint(Color::BLACK));
-        }
-    }
+    //     for &joint in skinned_mesh.joints.iter() {
+    //         cmd.entity(joint).insert(SkeletalJoint(Color::BLACK));
+    //     }
+    // }
 }
 
 fn spawn_main_scene_light(

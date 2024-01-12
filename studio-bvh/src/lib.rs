@@ -689,6 +689,12 @@ impl Bvh {
             None
         }
     }
+
+    pub fn get_joint_by_name(&self, name: &str) -> Option<&JointData> {
+        self.joints
+            .iter()
+            .find(|joint| joint.name_str().unwrap_or_default() == name)
+    }
 }
 
 impl Default for Bvh {
