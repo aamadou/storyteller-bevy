@@ -1,112 +1,31 @@
-:host {
+.app-root {
 	position: fixed;
 	inset: 0;
-	pointer-events: none;
 }
 
-.btn-help {
+// Layout utilities
+.v-start {
 	position: absolute;
 	top: 16px;
-	right: 16px;
 }
-
-.toolbar {
-	display: flex;
-	gap: 16px;
+.v-after-toolbar {
 	position: absolute;
-	top: 16px;
+	top: 60px;
+}
+.h-start { left: 16px }
+.h-end  { right: 16px }
+.h-center {
 	left: 50%;
 	transform: translateX(-50%);
 }
 
-.toolbar-group {
-	display: flex;
-	gap: 2px;
+sts-button.active {
+	background: #7A2C34E3;
+	color: #FFF;
 }
 
-.btn-toggle {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	position: relative;
-	font-size: 16px;
-	padding: 10px 12px;
-	pointer-events: auto;
-	outline: 0 solid transparent;
-
-	// TODO: Copypasta
-	background: #0006;
-	color: #FFFC;
-	backdrop-filter: blur(16px);
-	transition: {
-		property: background, color, outline-width, outline-color;
-		duration: 0.1s;
-		timing-function: linear;
-	}
-
-	&:first-child {
-		border: {
-			top-left-radius: 8px;
-			bottom-left-radius: 8px;
-		}
-	}
-
-	&:last-child {
-		border: {
-			top-right-radius: 8px;
-			bottom-right-radius: 8px;
-		}
-	}
-
-	&:hover {
-		background: #0008;
-		color: #FFF;
-	}
-
-	&:has(:focus-visible) {
-		z-index: 1;
-		outline: 4px solid #2F83FFBF;
-	}
-
-	&:has(:checked) {
-		background: #7A2C34E3;
-		color: #FFF;
-
-		&:hover {
-			background: #90363F;
-		}
-	}
-
-	&:has(:disabled) {
-		background: #0003 !important;
-		color: #FFF6 !important;
-	}
-
-	input {
-		display: block;
-		appearance: none;
-		border: 0;
-		margin: 0;
-		padding: 0;
-		opacity: 0;
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		z-index: 1;
-	}
-}
-
-.help {
-	position: absolute;
-	top: 60px;
-	right: 16px;
-}
-
+// Hierarchy (TODO: Probably move this)
 .hierarchy {
-	position: absolute;
-	top: 16px;
-	left: 16px;
 	overflow: auto;
 
 	box-sizing: border-box;
