@@ -37,7 +37,6 @@ impl Plugin for GizmoPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<TransformGizmo>();
 
-        app.add_event::<RebuildGizmo>();
         app.add_systems(Startup, init_resources);
         app.add_systems(
             PreUpdate,
@@ -51,8 +50,7 @@ impl Plugin for GizmoPlugin {
             (
                 despawn_existing_gizmo.run_if(
                     resource_changed_or_removed::<Selection>()
-                        .or_else(resource_changed::<TransformMode>())
-                        .or_else(on_event::<RebuildGizmo>()),
+                        .or_else(resource_changed::<TransformMode>()),
                 ),
                 spawn_gizmo.after(despawn_existing_gizmo).run_if(
                     resource_exists::<Selection>()

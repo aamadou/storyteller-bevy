@@ -9,9 +9,6 @@ pub(super) struct TransformGizmo {
     pub(super) transform_space: TransformSpace,
 }
 
-#[derive(Event)]
-pub(super) struct RebuildGizmo;
-
 #[derive(Bundle)]
 pub(super) struct TransformGizmoBundle {
     name: Name,

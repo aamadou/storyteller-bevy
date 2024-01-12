@@ -8,14 +8,14 @@ use bevy_mod_picking::prelude::*;
 use bevy_mod_raycast::prelude::{Raycast, RaycastSettings};
 
 use crate::{
-    interaction::{TransformMode, TransformSpace},
+    interaction::TransformSpace,
     math::{MatrixExtras, NearlyZero},
     MainCamera,
 };
 
 use super::{
     on_gizmo_element_hover, on_gizmo_element_unhover, GizmoMats, GizmoMeshes, InitialTransform,
-    RebuildGizmo, TransformGizmo, TransformGizmoBundle, GIZMO_RENDER_LAYER,
+    TransformGizmo, TransformGizmoBundle, GIZMO_RENDER_LAYER,
 };
 
 #[derive(Component)]
@@ -209,8 +209,6 @@ pub(super) fn on_rotation_start(
 pub(super) fn on_rotation_end(
     _: Listener<Pointer<DragEnd>>,
     mut cmd: Commands,
-    r_xform_mode: Res<TransformMode>,
-    mut ev_rebuild_gizmo: EventWriter<RebuildGizmo>,
     q_inited_components: Query<Entity, With<LastRotation>>,
 ) {
     info!("Rotation end");
@@ -221,10 +219,6 @@ pub(super) fn on_rotation_end(
             .remove::<InitialHitPoint>()
             .remove::<LastHitPoint>()
             .remove::<LastRotation>();
-    }
-
-    if matches!(r_xform_mode.space, TransformSpace::World) {
-        ev_rebuild_gizmo.send(RebuildGizmo);
     }
 }
 
