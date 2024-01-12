@@ -60,7 +60,8 @@ impl Plugin for GizmoPlugin {
                     resource_exists::<Selection>()
                         .and_then(not(any_with_component::<TransformGizmo>())),
                 ),
-                (update_target_global_trasform, sync_gizmo_transform).chain()
+                (update_target_global_trasform, sync_gizmo_transform).chain(),
+                normalize_gizmo_scale.after(CameraMotionSystem)
             ),
         );
         app.add_systems(
@@ -177,4 +178,23 @@ fn update_target_global_trasform(
             }
         }
     }
+}
+
+
+fn normalize_gizmo_scale(
+    q_cam_xform: Query<&Transform, With<MainCamera>>,
+    mut q_gizmo: Query<
+        (&mut Transform, &GlobalTransform),
+        (With<TransformGizmo>, Without<MainCamera>),
+    >,
+) {
+    let Ok(cam_xform) = q_cam_xform.get_single() else {
+        return;
+    };
+    let Ok((mut xform, world_xform)) = q_gizmo.get_single_mut() else {
+        return;
+    };
+
+    let dist = Vec3::distance(cam_xform.translation, xform.translation);
+    xform.scale = Vec3::splat(dist / 15.);
 }
