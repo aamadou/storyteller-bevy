@@ -184,9 +184,14 @@ export class AppElement extends LitElement {
 			class="app-root"
 			${ref(this.#canvasProvider as any)}
 		>
+			${
+				// TODO: See notes in studio-web/src/lib/viewer.element.ts
+				nothing
+			}
 			<sts-viewer
 				objectId="sample-room"
 				skyboxId="test_scene"
+				.mode=${this.mode}
 				@scene-state=${this.onSceneStateChange}
 			></sts-viewer>
 
