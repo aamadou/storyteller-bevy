@@ -7,7 +7,7 @@ use bevy_mod_picking::debug::DebugPickingMode;
 use crate::{
     camera_controller::{CameraController, CameraMotionSystem},
     input::{Action, InputAction, Lifecycle},
-    MainCamera,
+    is_editor, MainCamera,
 };
 
 #[derive(Resource, Deref, DerefMut)]
@@ -36,7 +36,9 @@ impl Plugin for DebugPlugin {
                 Update,
                 (
                     toggle_debug_mode,
-                    update_debug_picking_mode.run_if(resource_changed::<DebugMode>()),
+                    update_debug_picking_mode
+                        .run_if(is_editor)
+                        .run_if(resource_changed::<DebugMode>()),
                     update_gizmo_line_thickness,
                     (draw_world_axes, draw_debug_points)
                         .after(CameraMotionSystem)
