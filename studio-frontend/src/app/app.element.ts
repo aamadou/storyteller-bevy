@@ -202,13 +202,15 @@ export class AppElement extends LitElement {
 				</sts-toolbar-group>
 			</sts-toolbar>
 
-			<sts-transform-toolbar
-				class="v-start h-center"
-				.type=${this.transformType}
-				@type-change=${this.onTransformTypeChange}
-				.space=${this.transformSpace}
-				@space-change=${this.onTransformSpaceChange}
-			></sts-transform-toolbar>
+			${this.mode === StudioMode.Editor ? html`
+				<sts-transform-toolbar
+					class="v-start h-center"
+					.type=${this.transformType}
+					@type-change=${this.onTransformTypeChange}
+					.space=${this.transformSpace}
+					@space-change=${this.onTransformSpaceChange}
+				></sts-transform-toolbar>
+			` : nothing}
 
 			<div class="hierarchy v-start h-end">
 				${this.sceneObjects.map(obj => html`
