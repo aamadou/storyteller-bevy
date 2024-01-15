@@ -186,7 +186,8 @@ pub fn start_editor(
 }
 
 // TODO: These `start_` functiions should be refactored to better support the
-//       needs of the "reaodnly viewer" vs "full studio editor" use cases.
+//       needs of the "reaodnly viewer" vs "full studio editor" use cases. See
+//       notes in `studio-web/src/lib/viewer.element.ts` for more info.
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = start))]
 pub fn start_internal(
     object_id: &str,
