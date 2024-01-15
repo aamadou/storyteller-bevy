@@ -9,6 +9,7 @@ import {
 	TransformSpace,
 	TransformType,
 	SceneState,
+	StudioMode,
 } from "@storyteller/studio";
 import { CanvasProvider } from "@storyteller/studio-web/canvas-provider";
 import { match } from "@storyteller/utility";
@@ -43,6 +44,8 @@ export class AppElement extends LitElement {
 	@state() sceneObjects: SceneObject[] = [];
 	@state() selection?: string | null;
 
+	@state() mode?: StudioMode;
+
 	#sceneObjects: studio.SceneObject[] = [];
 	#entityMap = new Map<string, SceneObject>();
 	#canvasProvider: Ref<CanvasProvider> = createRef();
@@ -52,6 +55,18 @@ export class AppElement extends LitElement {
 		if (!provider) return null;
 
 		return document.getElementById(provider.canvasId) as HTMLCanvasElement | null;
+	}
+
+	override connectedCallback(): void {
+		super.connectedCallback();
+
+		const params = new URLSearchParams(document.location.search);
+
+		this.mode = match (params.get("mode"), {
+			"studio": () => StudioMode.Editor,
+			"Viewer": () => StudioMode.Viewer,
+			_: () => StudioMode.Viewer,
+		});
 	}
 
 	protected override createRenderRoot(): Element | ShadowRoot {
