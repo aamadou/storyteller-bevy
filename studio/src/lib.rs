@@ -157,8 +157,6 @@ pub fn start_viewer(
     canvas_alt: &str,
     viewport_size: ViewportSize,
 ) {
-    info!("start_viewer");
-
     start_internal(
         object_id,
         skybox_id,
@@ -177,8 +175,6 @@ pub fn start_editor(
     canvas_alt: &str,
     viewport_size: ViewportSize,
 ) {
-    info!("start_editor");
-
     start_internal(
         object_id,
         skybox_id,
