@@ -3,7 +3,10 @@
 use bevy::prelude::*;
 use bevy_mod_picking::DefaultPickingPlugins;
 
-use space_editor::prelude::space_undo::UndoPlugin;
+use space_editor::{
+    prelude::space_undo::UndoPlugin,
+    space_editor_ui::{EditorPluginGroup, ext::{bevy_egui::EguiPlugin, bevy_inspector_egui::DefaultInspectorConfigPlugin}, EditorPickingPlugin},
+};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -80,7 +83,6 @@ pub fn init(viewport_size: ViewportSize) {
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
-        UndoPlugin,
     ))
     .add_systems(
         Startup,
@@ -147,7 +149,6 @@ pub fn start_viewer(
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
-        UndoPlugin,
     ))
     .add_systems(
         Startup,

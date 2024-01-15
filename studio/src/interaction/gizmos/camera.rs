@@ -9,7 +9,7 @@ use crate::MainCamera;
 use super::GIZMO_RENDER_LAYER;
 
 #[derive(Component)]
-pub(super) struct GizmoCamera;
+pub struct GizmoCamera;
 
 pub(super) fn spawn_gizmo_camera(
     mut cmd: Commands,

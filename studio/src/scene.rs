@@ -252,12 +252,13 @@ fn tag_scene_elements(
     let gltf = ra_gltfs.get(&r_active_scene.source).unwrap();
 
     for ent in r_scene_spawner.iter_instance_entities(**r_active_scene) {
+        cmd.entity(ent).insert(PrefabMarker);
         let Ok(name) = q_named_non_primitives.get(ent) else {
             continue;
         };
 
         if gltf.named_nodes.contains_key(&**name) {
-            cmd.entity(ent).insert(SceneElement).insert(PrefabMarker);
+            cmd.entity(ent).insert(SceneElement);
         }
     }
 }

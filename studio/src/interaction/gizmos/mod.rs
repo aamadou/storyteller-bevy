@@ -13,7 +13,7 @@ use self::{
 
 use super::{Selection, TransformMode, TransformType};
 
-mod camera;
+pub mod camera;
 mod combo;
 mod common;
 mod resources;
