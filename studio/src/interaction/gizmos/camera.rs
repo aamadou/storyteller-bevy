@@ -38,3 +38,18 @@ pub(super) fn spawn_gizmo_camera(
         ));
     });
 }
+
+pub(super) fn sync_gizmo_and_main_cameras(
+    q_main_camera: Query<&Camera, (With<MainCamera>, Without<GizmoCamera>)>,
+    mut q_gizmo_camera: Query<&mut Camera, (With<GizmoCamera>, Without<MainCamera>)>,
+) {
+    let Ok(main_cam) = q_main_camera.get_single() else {
+        return;
+    };
+
+    let Ok(mut gizmo_cam) = q_gizmo_camera.get_single_mut() else {
+        return;
+    };
+
+    gizmo_cam.viewport = main_cam.viewport.clone();
+}

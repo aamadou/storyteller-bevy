@@ -62,6 +62,10 @@ impl Plugin for GizmoPlugin {
                 normalize_gizmo_scale.after(CameraMotionSystem),
             ),
         );
+
+        //sync camera viewports
+        app.add_systems(Update, camera::sync_gizmo_and_main_cameras);
+
         app.add_systems(
             PostUpdate,
             update_ss_ring_rotation.after(TransformSystem::TransformPropagate),

@@ -3,7 +3,7 @@ use std::fmt;
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{quick::WorldInspectorPlugin, bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_mod_picking::debug::DebugPickingMode;
-use space_editor::{space_editor_ui::{EditorPluginGroup, EditorPickingPlugin, EditorDefaultCameraPlugin, bottom_menu::BottomMenuPlugin, EditorUiCore}, prelude::{EditorCameraMarker, space_undo::UndoPlugin}};
+use space_editor::{space_editor_ui::{EditorPluginGroup, EditorPickingPlugin, EditorDefaultCameraPlugin, bottom_menu::BottomMenuPlugin, EditorUiCore, tools::gizmo::GizmoToolPlugin, ShowEditorUi}, prelude::{EditorCameraMarker, space_undo::UndoPlugin}};
 
 use crate::{
     camera_controller::{CameraController, CameraMotionSystem},
@@ -24,7 +24,6 @@ pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DebugMode(false))
-            .add_plugins(WorldInspectorPlugin::new().run_if(is_debug_mode))
             .insert_resource(State::new(DebugPickingMode::Disabled))
             .insert_resource(GizmoConfig {
                 enabled: true,
@@ -44,6 +43,7 @@ impl Plugin for DebugPlugin {
                         .run_if(is_debug_mode),
                 ),
             );
+
         
         //space_editor stuff
         // app.add_plugins(UndoPlugin);
@@ -58,19 +58,33 @@ impl Plugin for DebugPlugin {
                 .disable::<EditorPickingPlugin>()
                 .disable::<EditorDefaultCameraPlugin>()
                 .disable::<BottomMenuPlugin>()
-                .disable::<space_editor::space_editor_ui::ext::bevy_inspector_egui::quick::WorldInspectorPlugin>(),);
+                .disable::<GizmoToolPlugin>()
+        );
 
         app.add_systems(Update, sync_editor_camera);
+        app.add_systems(Update, update_editor_ui_mode.run_if(resource_changed::<DebugMode>()));
     }
 }
 
-fn toggle_debug_mode(mut input: EventReader<InputAction>, mut r_debug: ResMut<DebugMode>) {
+fn toggle_debug_mode(
+        mut input: EventReader<InputAction>, 
+        mut r_debug: ResMut<DebugMode>,) {
     if input
         .read()
         .any(|action| matches!(action, InputAction(Lifecycle::Stop, Action::ToggleDebug)))
     {
         **r_debug = !**r_debug;
     }
+}
+
+fn update_editor_ui_mode(
+    r_debug: Res<DebugMode>,
+    mut s_show_editor_ui: ResMut<NextState<ShowEditorUi>>,
+) {
+    s_show_editor_ui.set(match **r_debug {
+        true => ShowEditorUi::Show,
+        false => ShowEditorUi::Hide,
+    });
 }
 
 fn update_debug_picking_mode(
