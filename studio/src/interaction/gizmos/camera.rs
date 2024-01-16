@@ -3,6 +3,7 @@ use bevy::{
     prelude::*,
     render::view::RenderLayers,
 };
+use space_editor::space_editor_ui::NotShowCamera;
 
 use crate::MainCamera;
 
@@ -35,6 +36,7 @@ pub(super) fn spawn_gizmo_camera(
             },
             RenderLayers::layer(GIZMO_RENDER_LAYER),
             Fxaa::default(),
+            NotShowCamera
         ));
     });
 }
