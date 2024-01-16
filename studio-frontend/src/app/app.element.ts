@@ -64,7 +64,7 @@ export class AppElement extends LitElement {
 
 		this.mode = match (params.get("mode"), {
 			"studio": () => StudioMode.Editor,
-			"Viewer": () => StudioMode.Viewer,
+			"viewer": () => StudioMode.Viewer,
 			_: () => StudioMode.Viewer,
 		});
 	}
