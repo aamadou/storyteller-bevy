@@ -143,10 +143,10 @@ fn spawn_gizmo(
 
 fn sync_gizmo_transform(
     mut cmd: Commands,
-    mut q_gizmo: Query<(&mut Transform, &TransformGizmo)>,
+    mut q_gizmo: Query<(Entity, &mut Transform, &TransformGizmo)>,
     q_targets: Query<&GlobalTransform>,
 ) {
-    for (mut transform, gizmo) in q_gizmo.iter_mut() {
+    for (ent, mut transform, gizmo) in q_gizmo.iter_mut() {
         if let Ok(target) = q_targets.get(gizmo.target) {
             match gizmo.transform_space {
                 super::TransformSpace::Local => {
@@ -159,7 +159,7 @@ fn sync_gizmo_transform(
                 }
             }
         } else {
-            cmd.entity(gizmo.target).despawn_recursive();
+            cmd.entity(ent).despawn_recursive();
         }
     }
 }
