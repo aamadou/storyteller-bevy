@@ -190,7 +190,6 @@ export class AppElement extends LitElement {
 			}
 			<sts-viewer
 				objectId="Mannequin.gltf"
-				skyboxId="test_scene"
 				.mode=${this.mode}
 				@scene-state=${this.onSceneStateChange}
 			></sts-viewer>
