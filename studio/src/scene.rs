@@ -9,7 +9,11 @@ use bevy::{
     math::{vec2, vec3},
     pbr::ShadowFilteringMethod,
     prelude::*,
-    render::primitives::Aabb,
+    render::{
+        mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes},
+        primitives::Aabb,
+        view::NoFrustumCulling,
+    },
     scene::InstanceId,
 };
 
@@ -18,6 +22,7 @@ use space_editor::prelude::{space_undo::OneFrameUndoIgnore, PrefabMarker};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
+    bvh::{Bvh, CommandsSpawnBvhExt},
     camera_controller::{CameraController, CameraControllerBundle},
     debug::DebugPoint,
     math::{Combinable, Extrema},
@@ -39,6 +44,7 @@ impl Plugin for ScenePlugin {
             .add_systems(
                 Update,
                 (
+                    spawn_test_bvh, // TODO
                     init_scene_loading,
                     tick_scene_loading.run_if(in_state(SceneState::Loading)),
                     tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
@@ -109,12 +115,28 @@ pub struct LoadSceneEvent(pub String);
 pub struct SceneElement;
 
 #[derive(Component)]
+pub struct SkeletalJoint(pub Color);
+
+#[derive(Component)]
 pub struct SceneRoot;
 
-fn initialize(mut cmd: Commands) {
+#[derive(Resource, Deref, DerefMut)]
+struct TestBvh(Handle<Bvh>); // TODO
+
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+pub struct BindPoseLocal(pub Transform);
+
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+pub struct BindPoseGlobal(pub Mat4);
+
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+pub struct InvBindPose(pub Mat4);
+
+fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
     // Camera, graphics settings
     let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
+
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
@@ -140,6 +162,26 @@ fn initialize(mut cmd: Commands) {
         },
         Fxaa::default(),
     ));
+
+    // TODO
+    cmd.insert_resource(TestBvh(r_assets.load("mocap/shuffle.bvh")));
+}
+
+// TODO
+fn spawn_test_bvh(
+    mut commands: Commands,
+    mut er_bvh_events: EventReader<AssetEvent<Bvh>>,
+    r_bvh: Res<TestBvh>,
+) {
+    for event in er_bvh_events.read() {
+        if matches!(event, AssetEvent::LoadedWithDependencies { .. }) {
+            commands.spawn_bvh_with_transform(
+                &r_bvh.0,
+                Transform::from_scale(Vec3::splat(0.06))
+                    .with_translation(Vec3::new(0., 1.0, 0.524)),
+            );
+        }
+    }
 }
 
 fn init_scene_loading(
@@ -151,7 +193,7 @@ fn init_scene_loading(
 ) {
     if let Some(id) = er.read().last() {
         let name = &**id;
-        let path = format!("gltf/{name}.gltf");
+        let path = format!("gltf/{name}.glb");
 
         // Avoid trying to re-load this scene if it's already active
         if let Some(active_scene_path) =
@@ -240,6 +282,7 @@ fn tag_scene_elements(
     r_scene_spawner: Res<SceneSpawner>,
     r_active_scene: Res<ActiveScene>,
     ra_gltfs: Res<Assets<Gltf>>,
+    ra_inv_bindposes: Res<Assets<SkinnedMeshInverseBindposes>>,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
     // which is basically a bundle of vertices paired with the material used to
     // shade them. It's those "sub-meshes" that carry the actual mesh handles,
@@ -248,16 +291,47 @@ fn tag_scene_elements(
     // leafy parts of a plant. Here we only want to tag the elements that a user
     // might want to individually address when arranging or animating a scene.
     q_named_non_primitives: Query<&Name, Without<Handle<Mesh>>>,
+    q_skinned_meshes: Query<&SkinnedMesh>,
+    mut q_xforms: ParamSet<(TransformHelper, Query<&Transform>)>,
 ) {
     let gltf = ra_gltfs.get(&r_active_scene.source).unwrap();
 
-    for ent in r_scene_spawner.iter_instance_entities(**r_active_scene) {
-        let Ok(name) = q_named_non_primitives.get(ent) else {
-            continue;
-        };
-
+    for (ent, name) in r_scene_spawner
+        .iter_instance_entities(**r_active_scene)
+        .filter_map(|ent| match q_named_non_primitives.get(ent) {
+            Ok(name) => Some((ent, name)),
+            _ => None,
+        })
+    {
         if gltf.named_nodes.contains_key(&**name) {
             cmd.entity(ent).insert(SceneElement).insert(PrefabMarker);
+        }
+    }
+
+    for (ent, skinned_mesh) in r_scene_spawner
+        .iter_instance_entities(**r_active_scene)
+        .filter_map(|ent| match q_skinned_meshes.get(ent) {
+            Ok(skinned_mesh) => Some((ent, skinned_mesh)),
+            _ => None,
+        })
+    {
+        cmd.entity(ent).insert(NoFrustumCulling);
+
+        let inv_bind_poses = ra_inv_bindposes
+            .get(skinned_mesh.inverse_bindposes.clone())
+            .unwrap();
+
+        for (idx, &joint) in skinned_mesh.joints.iter().enumerate() {
+            let inv_bind_pose = inv_bind_poses[idx];
+            let global_bind_pose = q_xforms.p0().compute_global_transform(joint).unwrap();
+            let local_bind_pose = *q_xforms.p1().get(joint).unwrap();
+
+            cmd.entity(joint).insert((
+                SkeletalJoint(Color::BLACK),
+                BindPoseLocal(local_bind_pose),
+                BindPoseGlobal(global_bind_pose.compute_matrix()),
+                InvBindPose(inv_bind_pose),
+            ));
         }
     }
 }

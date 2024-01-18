@@ -7,6 +7,7 @@ use space_editor::prelude::space_undo::UndoPlugin;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+mod bvh;
 mod camera_controller;
 mod debug;
 mod design_system;
@@ -21,6 +22,7 @@ mod viewport;
 mod world_grid;
 
 use crate::{
+    bvh::BvhPlugin,
     camera_controller::CameraControllerPlugin,
     debug::DebugPlugin,
     input::StudioInputPlugin,
@@ -58,6 +60,7 @@ struct CommonPlugins;
 impl PluginGroup for CommonPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
+            .add(BvhPlugin)
             .add(CameraControllerPlugin)
             .add(DebugPlugin)
             .add(InspectorPlugin)
