@@ -5,6 +5,8 @@ use bevy::{
 };
 use space_editor::prelude::space_undo::UndoRedo;
 
+use crate::is_editor;
+
 #[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone)]
 pub struct StudioInputSystem;
 
@@ -31,7 +33,7 @@ impl Plugin for StudioInputPlugin {
                 translate_debug_toggle,
                 translate_dcc_camera_events,
                 translate_fps_camera_events,
-                send_undo_event,
+                send_undo_event.run_if(is_editor),
             )
                 .in_set(StudioInputSystem)
                 .after(bevy::input::InputSystem)
