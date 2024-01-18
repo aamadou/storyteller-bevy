@@ -1,5 +1,5 @@
 import * as studio from "@storyteller/studio";
-import { ViewportSize } from "@storyteller/studio";
+import { StudioMode, ViewportSize } from "@storyteller/studio";
 import { inject } from "@storyteller/framework";
 import { LitElement, PropertyValues, html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
@@ -12,8 +12,18 @@ import styles from "./viewer.element.scss?inline";
 export class ViewerElement extends LitElement {
 	static override styles = unsafeCSS(styles);
 
+	// TODO: `<sts-viewer />` and `<sts-studio />` should be separate element
+	//       types with different inputs. `<sts-viewer />` should take a BVH
+	//       animation and load a simple mannequin asset playing the given
+	//       animation in a loop, while `<sts-studio />` should take a scene
+	//       asset handle and load it with full editing capabilities.
+	//
+	//       Both elements should share most of the core functionality here,
+	//       which could easily be extracted to a base class for inheritance by
+	//       making `#startViewer` an abstract method.
 	@property() objectId?: string;
 	@property() skyboxId?: string;
+	@property({ type: Number }) mode?: StudioMode;
 
 	@inject(CANVAS_PROVIDER)
 	_canvasProvider?: CanvasProvider;
@@ -68,15 +78,17 @@ export class ViewerElement extends LitElement {
 		if (!this.#canvas) return;
 		if (!this.objectId) return;
 		if (!this.skyboxId) return;
+		if (this.mode == null) return;
 
 		const { width, height } = this.getBoundingClientRect();
 		try {
-			studio.startViewer(
+			studio.start(
 				this.objectId,
 				this.skyboxId,
 				`#${this._canvasProvider!.canvasId}`,
 				"Storyteller Studio",
 				new ViewportSize(width, height),
+				this.mode,
 			);
 		} catch (err) {
 			if (!(err as Error).message?.startsWith("Using exceptions for control flow"))

@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
-use bevy::prelude::*;
+use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 use space_editor::prelude::space_undo::UndoPlugin;
@@ -39,6 +39,46 @@ mod wasm;
 
 #[derive(Component)]
 pub(crate) struct MainCamera;
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(Resource, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum StudioMode {
+    Editor,
+    Viewer,
+}
+
+pub(crate) fn is_editor(r_studio_mode: Res<StudioMode>) -> bool {
+    matches!(*r_studio_mode, StudioMode::Editor)
+}
+
+/// The collection of plugins that should be loaded for both viewer-mode and
+/// editor-mode instances of the app.
+struct CommonPlugins;
+impl PluginGroup for CommonPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(CameraControllerPlugin)
+            .add(DebugPlugin)
+            .add(InspectorPlugin)
+            .add(InterpolationPlugin)
+            .add(ScenePlugin)
+            .add(SkyboxPlugin)
+            .add(StudioInputPlugin)
+            .add(UiLayerPlugin)
+            .add(WorldGridPlugin)
+    }
+}
+
+/// The collection of plugins that should be loaded only for editor-mode
+/// instances of the app.
+struct EditorPlugins;
+impl PluginGroup for EditorPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(InteractionPlugin)
+            .add(UndoPlugin)
+    }
+}
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn init(viewport_size: ViewportSize) {
@@ -117,6 +157,46 @@ pub fn start_viewer(
     canvas_alt: &str,
     viewport_size: ViewportSize,
 ) {
+    start_internal(
+        object_id,
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        StudioMode::Viewer,
+    );
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startEditor))]
+pub fn start_editor(
+    object_id: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+) {
+    start_internal(
+        object_id,
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        StudioMode::Editor,
+    );
+}
+
+// TODO: These `start_` functiions should be refactored to better support the
+//       needs of the "reaodnly viewer" vs "full studio editor" use cases. See
+//       notes in `studio-web/src/lib/viewer.element.ts` for more info.
+#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = start))]
+pub fn start_internal(
+    object_id: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+    studio_mode: StudioMode,
+) {
     #[cfg(feature = "wasm")]
     console_error_panic_hook::set_once();
 
@@ -124,6 +204,9 @@ pub fn start_viewer(
     let skybox_id = skybox_id.to_string();
 
     let mut app = App::new();
+
+    app.insert_resource(studio_mode);
+
     app.add_plugins((
         #[cfg(feature = "wasm")]
         viewport::wasm::ViewportPlugin,
@@ -136,30 +219,24 @@ pub fn start_viewer(
             }),
             ..default()
         }),
-        DefaultPickingPlugins,
-        DebugPlugin,
-        InteractionPlugin,
-        InspectorPlugin,
-        StudioInputPlugin,
-        InterpolationPlugin,
-        CameraControllerPlugin,
-        ScenePlugin,
-        SkyboxPlugin,
-        UiLayerPlugin,
-        WorldGridPlugin,
-        UndoPlugin,
-    ))
-    .add_systems(
+        CommonPlugins,
+    ));
+
+    if matches!(studio_mode, StudioMode::Editor) {
+        app.add_plugins((DefaultPickingPlugins, EditorPlugins));
+
+        // Only for registering components for undo
+        use space_editor::prelude::space_undo::AppAutoUndo;
+        app.auto_reflected_undo::<Transform>();
+    }
+
+    app.add_systems(
         Startup,
         move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
             cmd.insert_resource(SkyboxId(skybox_id.clone()));
             ew.send(LoadSceneEvent(object_id.clone()));
         },
     );
-
-    // Only for registering components for undo
-    use space_editor::prelude::space_undo::AppAutoUndo;
-    app.auto_reflected_undo::<Transform>();
 
     #[cfg(feature = "wasm")]
     wasm::initialize();
