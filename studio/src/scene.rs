@@ -43,7 +43,7 @@ impl Plugin for ScenePlugin {
                     spawn_test_bvh, // TODO
                     init_scene_loading,
                     tick_scene_loading.run_if(in_state(SceneState::Loading)),
-                    tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
+                    // tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
                 )
                     .in_set(SceneSpawnerSystem),
             )
@@ -95,7 +95,7 @@ struct PendingScene(pub Handle<Scene>);
 pub struct ActiveScene {
     #[deref]
     pub instance: InstanceId,
-    pub source: Handle<Scene>,
+    // pub source: Handle<Scene>,
 }
 
 #[derive(Event, Deref)]
@@ -151,7 +151,7 @@ fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
     ));
 
     // TODO
-    cmd.insert_resource(TestBvh(r_assets.load("mocap/scott.bvh")));
+    cmd.insert_resource(TestBvh(r_assets.load("mocap/shuffle.bvh")));
 }
 
 // TODO
@@ -185,16 +185,16 @@ fn init_scene_loading(
 ) {
     if let Some(id) = er.read().last() {
         let name = &**id;
-        let path = format!("gltf/{name}.gltf#Scene0");
+        let path = format!("gltf/{name}.glb#Scene0");
 
         // Avoid trying to re-load this scene if it's already active
-        if let Some(active_scene_path) =
-            r_active_scene.and_then(|scene| scene.source.path().cloned())
-        {
-            if active_scene_path == AssetPath::parse(&path) {
-                return;
-            }
-        }
+        // if let Some(active_scene_path) =
+        //     r_active_scene.and_then(|scene| scene.source.path().cloned())
+        // {
+        //     if active_scene_path == AssetPath::parse(&path) {
+        //         return;
+        //     }
+        // }
 
         cmd.insert_resource(PendingScene(assets.load(path)));
         st_next.set(SceneState::Loading);
@@ -230,7 +230,7 @@ fn spawn_next_scene(
     mut r_scene_spawner: ResMut<SceneSpawner>,
 ) {
     println!("Spawning Scene");
-    cmd.spawn_skined_bvh_with_transform(
+    cmd.spawn_bvh(
         test_bvh.0.clone(),
         r_pending_scene.0.clone(),
         RetargetMap::mocap_to_rigify(),

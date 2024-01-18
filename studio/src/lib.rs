@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
-use bevy::prelude::*;
+use bevy::{prelude::*, window::close_on_esc};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 #[cfg(feature = "wasm")]
@@ -87,9 +87,10 @@ pub fn init(viewport_size: ViewportSize) {
         Startup,
         (move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
             cmd.insert_resource(SkyboxId("gum_trees_4k".to_string()));
-            ew.send(LoadSceneEvent("base-human-female".to_string()));
+            ew.send(LoadSceneEvent("base_human_female".to_string()));
         })
     )
+    .add_systems(Update, close_on_esc)
     // .add_systems(
     //     Update,
     //     bevy::window::close_on_esc
