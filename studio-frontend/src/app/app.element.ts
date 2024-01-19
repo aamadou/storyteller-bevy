@@ -202,7 +202,7 @@ export class AppElement extends LitElement {
 				></sts-bvh-viewer>
 			` : html`
 				<sts-viewer
-					objectId="Mannequin.gltf"
+					objectId="sample-room.gltf"
 					skyboxId="test_scene"
 					.mode=${this.mode}
 					@scene-state=${this.onSceneStateChange}
