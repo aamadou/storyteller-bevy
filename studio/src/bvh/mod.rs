@@ -97,11 +97,9 @@ pub fn animate_bvh(
 
             if anim.timer.just_finished() {
                 anim.frame = (anim.frame + 1) % bvh_len;
-                anim.timer.reset();
-                0.
-            } else {
-                anim.timer.percent()
             }
+
+            anim.timer.percent()
         } else {
             0.
         };
