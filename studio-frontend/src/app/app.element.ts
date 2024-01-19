@@ -72,11 +72,6 @@ export class AppElement extends LitElement {
 			"viewer": () => StudioMode.Viewer,
 			_: () => StudioMode.Viewer,
 		});
-
-		console.log({
-			mode: this.mode,
-			bvh: this.bvhPath,
-		});
 	}
 
 	protected override createRenderRoot(): Element | ShadowRoot {
