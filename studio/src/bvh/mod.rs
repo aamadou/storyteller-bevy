@@ -13,7 +13,7 @@ mod error;
 mod loader;
 
 use crate::{
-    math::Lerp,
+    math::{Lerp, MatrixExtras},
     scene::{BindPoseGlobal, InvBindPose, SceneState, SkeletalJoint},
 };
 
@@ -73,7 +73,7 @@ fn compute_inverse_bindposes(
     q_bvh_joints: Query<(Entity, &GlobalTransform), (With<BvhJoint>, Without<InvBindPose>)>,
 ) {
     for (ent, world_xform) in q_bvh_joints.iter() {
-        let inv_bind_pose = world_xform.compute_matrix().inverse();
+        let inv_bind_pose = world_xform.affine().inverse();
         cmd.entity(ent).insert(InvBindPose(inv_bind_pose));
     }
 }
@@ -97,11 +97,9 @@ pub fn animate_bvh(
 
             if anim.timer.just_finished() {
                 anim.frame = (anim.frame + 1) % bvh_len;
-                anim.timer.reset();
-                0.
-            } else {
-                anim.timer.percent()
             }
+
+            anim.timer.percent()
         } else {
             0.
         };
@@ -192,7 +190,6 @@ fn retarget_bvh(
     >,
     q_world_xforms: Query<&GlobalTransform>,
 ) {
-    // let retarget_map = RetargetMap::mocap_to_rigify();
     for (source_name, source_inv_bind_pose, source_world_xform) in q_source_bones.iter() {
         // Lookup the target name in the retarget map
         let Some(target_name) = r_retarget_map.source_to_target.get(source_name.as_str()) else {
@@ -234,24 +231,21 @@ fn retarget_bvh(
         // exactly reversed (DirectX uses row-major matrices, while Bevy uses
         // column-major ordering)
 
-        // FIXME: We're seeing some jitteryness due to numerical instability.
-        //        Should refactor the Mat4's to Affine3A's and periodically re-
-        //        orthonormalize the matrices inbetween operations.
-
         // [psuedo] local_mat = source_inv_bind_mat * source_world_mat;
-        let mut local_mat = source_world_xform.compute_matrix() * (**source_inv_bind_pose);
+        let mut local_mat = source_world_xform.affine() * (**source_inv_bind_pose);
+        local_mat.matrix3 = local_mat.matrix3.orthonormalize();
 
         // [psuedo] local_mat = target_world_mat * local_mat * target_inv_parent_mat;
         let parent_world_xform = match q_world_xforms.get(**target_parent_ent) {
             Ok(world_xform) => world_xform,
             Err(_) => &GlobalTransform::IDENTITY,
         };
-        let target_inv_parent_mat = parent_world_xform.compute_matrix().inverse();
+        let target_inv_parent_mat = parent_world_xform.affine().inverse();
         local_mat = target_inv_parent_mat * local_mat * (**target_bind_pose_global);
+        local_mat.matrix3 = local_mat.matrix3.orthonormalize();
 
         // [psuedo] target_xform.rotation = local_mat.rotation;
-        let (_, rotation, _) = local_mat.to_scale_rotation_translation();
-        target_xform.rotation = rotation;
+        target_xform.rotation = Quat::from_affine3(&local_mat);
     }
 }
 

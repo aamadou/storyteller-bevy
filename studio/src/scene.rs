@@ -6,14 +6,10 @@ use bevy::{
         tonemapping::Tonemapping,
     },
     gltf::Gltf,
-    math::{vec2, vec3},
+    math::{vec2, vec3, Affine3A},
     pbr::ShadowFilteringMethod,
     prelude::*,
-    render::{
-        mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes},
-        primitives::Aabb,
-        view::NoFrustumCulling,
-    },
+    render::{mesh::skinning::SkinnedMesh, primitives::Aabb, view::NoFrustumCulling},
     scene::InstanceId,
 };
 
@@ -127,10 +123,10 @@ struct TestBvh(Handle<Bvh>); // TODO
 pub struct BindPoseLocal(pub Transform);
 
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
-pub struct BindPoseGlobal(pub Mat4);
+pub struct BindPoseGlobal(pub Affine3A);
 
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
-pub struct InvBindPose(pub Mat4);
+pub struct InvBindPose(pub Affine3A);
 
 fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
     // Camera, graphics settings
@@ -282,7 +278,6 @@ fn tag_scene_elements(
     r_scene_spawner: Res<SceneSpawner>,
     r_active_scene: Res<ActiveScene>,
     ra_gltfs: Res<Assets<Gltf>>,
-    ra_inv_bindposes: Res<Assets<SkinnedMeshInverseBindposes>>,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
     // which is basically a bundle of vertices paired with the material used to
     // shade them. It's those "sub-meshes" that carry the actual mesh handles,
@@ -317,20 +312,15 @@ fn tag_scene_elements(
     {
         cmd.entity(ent).insert(NoFrustumCulling);
 
-        let inv_bind_poses = ra_inv_bindposes
-            .get(skinned_mesh.inverse_bindposes.clone())
-            .unwrap();
-
-        for (idx, &joint) in skinned_mesh.joints.iter().enumerate() {
-            let inv_bind_pose = inv_bind_poses[idx];
+        for &joint in skinned_mesh.joints.iter() {
             let global_bind_pose = q_xforms.p0().compute_global_transform(joint).unwrap();
             let local_bind_pose = *q_xforms.p1().get(joint).unwrap();
 
             cmd.entity(joint).insert((
                 SkeletalJoint(Color::BLACK),
                 BindPoseLocal(local_bind_pose),
-                BindPoseGlobal(global_bind_pose.compute_matrix()),
-                InvBindPose(inv_bind_pose),
+                BindPoseGlobal(global_bind_pose.affine()),
+                InvBindPose(global_bind_pose.affine().inverse()),
             ));
         }
     }
