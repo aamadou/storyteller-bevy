@@ -359,115 +359,128 @@ fn spawn_bvh_recursive(world: &mut World, entity: &Entity, joint: studio_bvh::Jo
 
 #[derive(Resource, Debug)]
 pub struct RetargetMap {
-    pub target_to_source: HashMap<String, String>,
     pub source_to_target: HashMap<String, String>,
 }
 
 #[rustfmt::skip]
-static TARGET_TO_SOURCE: [(&str, &str); 62] = [
+static SOURCE_TO_TARGET: [(&str, &str); 80] = [
     // Spine
-    ("DEF-spine", "LowerBack"),
-    ("DEF-spine.002", "abdomen"),
-    ("DEF-spine.003", "chest"),
-    ("DEF-spine.004", "Neck"),
-    ("DEF-spine.005", "Neck1"),
-    ("DEF-spine.006", "Head"),
+    ("LowerBack", "DEF-spine"),
+    ("hip", "DEF-spine"),
+    ("abdomen", "DEF-spine.002"),
+    ("chest", "DEF-spine.003"),
+    ("Neck", "DEF-spine.004"),
+    ("neck", "DEF-spine.004"),
+    ("Neck1", "DEF-spine.005"),
+    ("neck1", "DEF-spine.005"),
+    ("Head", "DEF-spine.006"),
+    ("head", "DEF-spine.006"),
 
     // Right arm
-    ("DEF-shoulder.R", "rcollar"),
-    ("DEF-upper_arm.R", "rshoulder"),
-    ("DEF-forearm.R", "relbow"),
-    ("DEF-hand.R", "rhand"),
+    ("rcollar", "DEF-shoulder.R"),
+    ("rCollar", "DEF-shoulder.R"),
+    ("rshoulder", "DEF-upper_arm.R"),
+    ("rShldr", "DEF-upper_arm.R"),
+    ("relbow", "DEF-forearm.R"),
+    ("rForeArm", "DEF-forearm.R"),
+    ("rhand", "DEF-hand.R"),
+    ("rHand", "DEF-hand.R"),
 
     // Right fingers
     // -- Index
-    ("DEF-palm.01.R", "metacarpal1.r"),
-    ("DEF-f_index.01.R", "finger2-1.r"),
-    ("DEF-f_index.02.R", "finger2-2.r"),
-    ("DEF-f_index.03.R", "finger2-3.r"),
+    ("metacarpal1.r", "DEF-palm.01.R"),
+    ("finger2-1.r", "DEF-f_index.01.R"),
+    ("finger2-2.r", "DEF-f_index.02.R"),
+    ("finger2-3.r", "DEF-f_index.03.R"),
     // -- Middle
-    ("DEF-palm.02.R", "metacarpal2.r"),
-    ("DEF-f_middle.01.R", "finger3-1.r"),
-    ("DEF-f_middle.02.R", "finger3-2.r"),
-    ("DEF-f_middle.03.R", "finger3-3.r"),
+    ("metacarpal2.r", "DEF-palm.02.R"),
+    ("finger3-1.r", "DEF-f_middle.01.R"),
+    ("finger3-2.r", "DEF-f_middle.02.R"),
+    ("finger3-3.r", "DEF-f_middle.03.R"),
     // -- Ring
-    ("DEF-palm.03.R", "metacarpal3.r"),
-    ("DEF-f_ring.01.R", "finger4-1.r"),
-    ("DEF-f_ring.02.R", "finger4-2.r"),
-    ("DEF-f_ring.03.R", "finger4-3.r"),
+    ("metacarpal3.r", "DEF-palm.03.R"),
+    ("finger4-1.r", "DEF-f_ring.01.R"),
+    ("finger4-2.r", "DEF-f_ring.02.R"),
+    ("finger4-3.r", "DEF-f_ring.03.R"),
     // -- Pinky
-    ("DEF-palm.04.R", "metacarpal4.r"),
-    ("DEF-f_pinky.01.R", "finger5-1.r"),
-    ("DEF-f_pinky.02.R", "finger5-2.r"),
-    ("DEF-f_pinky.03.R", "finger5-3.r"),
+    ("metacarpal4.r", "DEF-palm.04.R"),
+    ("finger5-1.r", "DEF-f_pinky.01.R"),
+    ("finger5-2.r", "DEF-f_pinky.02.R"),
+    ("finger5-3.r", "DEF-f_pinky.03.R"),
     // -- Thumb
-    ("DEF-thumb.01.R", "rthumb"),
-    ("DEF-thumb.02.R", "finger1-2.r"),
-    ("DEF-thumb.03.R", "finger1-3.r"),
+    ("rthumb", "DEF-thumb.01.R"),
+    ("finger1-2.r", "DEF-thumb.02.R"),
+    ("finger1-3.r", "DEF-thumb.03.R"),
 
     // Right leg
-    ("DEF-thigh.R", "rhip"),
-    ("DEF-shin.R", "rknee"),
-    ("DEF-foot.R", "rfoot"),
-    ("DEF-toe.R", "RightToeBase"),
+    ("rhip", "DEF-thigh.R"),
+    ("rThigh", "DEF-thigh.R"),
+    ("rknee", "DEF-shin.R"),
+    ("rShin", "DEF-shin.R"),
+    ("rfoot", "DEF-foot.R"),
+    ("rFoot", "DEF-foot.R"),
+    ("RightToeBase", "DEF-toe.R"),
 
     // Left arm
-    ("DEF-shoulder.L", "lcollar"),
-    ("DEF-upper_arm.L", "lshoulder"),
-    ("DEF-forearm.L", "lelbow"),
-    ("DEF-hand.L", "lhand"),
+    ("lcollar", "DEF-shoulder.L"),
+    ("lCollar", "DEF-shoulder.L"),
+    ("lshoulder", "DEF-upper_arm.L"),
+    ("lShldr", "DEF-upper_arm.L"),
+    ("lelbow", "DEF-forearm.L"),
+    ("lForeArm", "DEF-forearm.L"),
+    ("lhand", "DEF-hand.L"),
+    ("lHand", "DEF-hand.L"),
 
     // Left fingers
     // -- Index
-    ("DEF-palm.01.L", "metacarpal1.l"),
-    ("DEF-f_index.01.L", "finger2-1.l"),
-    ("DEF-f_index.02.L", "finger2-2.l"),
-    ("DEF-f_index.03.L", "finger2-3.l"),
+    ("metacarpal1.l", "DEF-palm.01.L"),
+    ("finger2-1.l", "DEF-f_index.01.L"),
+    ("finger2-2.l", "DEF-f_index.02.L"),
+    ("finger2-3.l", "DEF-f_index.03.L"),
 
     // -- Middle
-    ("DEF-palm.02.L", "metacarpal2.l"),
-    ("DEF-f_middle.01.L", "finger3-1.l"),
-    ("DEF-f_middle.02.L", "finger3-2.l"),
-    ("DEF-f_middle.03.L", "finger3-3.l"),
+    ("metacarpal2.l", "DEF-palm.02.L"),
+    ("finger3-1.l", "DEF-f_middle.01.L"),
+    ("finger3-2.l", "DEF-f_middle.02.L"),
+    ("finger3-3.l", "DEF-f_middle.03.L"),
 
     // -- Ring
-    ("DEF-palm.03.L", "metacarpal3.l"),
-    ("DEF-f_ring.01.L", "finger4-1.l"),
-    ("DEF-f_ring.02.L", "finger4-2.l"),
-    ("DEF-f_ring.03.L", "finger4-3.l"),
+    ("metacarpal3.l", "DEF-palm.03.L"),
+    ("finger4-1.l", "DEF-f_ring.01.L"),
+    ("finger4-2.l", "DEF-f_ring.02.L"),
+    ("finger4-3.l", "DEF-f_ring.03.L"),
 
     // -- Pinky
-    ("DEF-palm.04.L", "metacarpal4.l"),
-    ("DEF-f_pinky.01.L", "finger5-1.l"),
-    ("DEF-f_pinky.02.L", "finger5-2.l"),
-    ("DEF-f_pinky.03.L", "finger5-3.l"),
+    ("metacarpal4.l", "DEF-palm.04.L"),
+    ("finger5-1.l", "DEF-f_pinky.01.L"),
+    ("finger5-2.l", "DEF-f_pinky.02.L"),
+    ("finger5-3.l", "DEF-f_pinky.03.L"),
 
     // -- Thumb
-    ("DEF-thumb.01.L", "lthumb"),
-    ("DEF-thumb.02.L", "finger1-2.l"),
-    ("DEF-thumb.03.L", "finger1-3.l"),
+    ("lthumb", "DEF-thumb.01.L"),
+    ("finger1-2.l", "DEF-thumb.02.L"),
+    ("finger1-3.l", "DEF-thumb.03.L"),
 
     // Left leg
-    ("DEF-thigh.L", "lhip"),
-    ("DEF-shin.L", "lknee"),
-    ("DEF-foot.L", "lfoot"),
-    ("DEF-toe.L", "LeftToeBase"),
+    ("lhip", "DEF-thigh.L"),
+    ("lThigh", "DEF-thigh.L"),
+    ("lknee", "DEF-shin.L"),
+    ("lShin", "DEF-shin.L"),
+    ("lfoot", "DEF-foot.L"),
+    ("lFoot", "DEF-foot.L"),
+    ("LeftToeBase", "DEF-toe.L"),
 
     // Pelvis
-    ("DEF-pelvis.R", "RHipJoint"),
-    ("DEF-pelvis.L", "LHipJoint"),
+    ("RHipJoint", "DEF-pelvis.R"),
+    ("LHipJoint", "DEF-pelvis.L"),
 ];
 
 impl Default for RetargetMap {
     fn default() -> Self {
         Self {
-            target_to_source: TARGET_TO_SOURCE
+            source_to_target: SOURCE_TO_TARGET
                 .iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
-            source_to_target: TARGET_TO_SOURCE
-                .iter()
-                .map(|(v, k)| (k.to_string(), v.to_string()))
                 .collect(),
         }
     }
