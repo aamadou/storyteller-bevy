@@ -61,6 +61,7 @@ impl Plugin for ScenePlugin {
                     tag_scene_elements,
                     spawn_main_scene_light,
                     frame_scene_in_view,
+                    start_animation_clip,
                 )
                     .in_set(SceneSpawnerSystem),
             );
@@ -127,6 +128,9 @@ pub struct BindPoseGlobal(pub Affine3A);
 
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
 pub struct InvBindPose(pub Affine3A);
+
+#[derive(Resource)]
+pub struct MorphAnimation(pub Handle<AnimationClip>);
 
 fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
     // Camera, graphics settings
@@ -197,6 +201,7 @@ fn init_scene_loading(
             }
         }
 
+        cmd.insert_resource(MorphAnimation(assets.load(format!("{}#Animation2", path))));
         cmd.insert_resource(PendingScene(assets.load(path)));
         st_next.set(SceneState::Loading);
     }
@@ -483,6 +488,15 @@ fn frame_scene_in_view(
     cam.focus = aabb.center.into();
     cam.radius = radius;
     cam_xform.translation = cam.focus + cam_xform.back() * radius;
+}
+
+fn start_animation_clip(
+    mut animation_clips: Query<&mut AnimationPlayer>,
+    morph_animation: Res<MorphAnimation>,
+) {
+    for mut animation_clip in animation_clips.iter_mut() {
+        animation_clip.play(morph_animation.0.clone()).repeat();
+    }
 }
 
 #[cfg(feature = "wasm")]

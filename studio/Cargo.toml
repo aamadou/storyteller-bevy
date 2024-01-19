@@ -26,6 +26,7 @@ serde = { version = "1.0.192", optional = true }
 serde-wasm-bindgen = { version = "0.6.1", optional = true }
 serde_json = { version = "1.0.108", optional = true }
 studio-bvh = { path = "../studio-bvh" }
+studio-lipsync = {path = "../studio-lipsync"}
 wasm-bindgen = "0.2.84"
 web-sys = { version = "0.3.65", optional = true, features = [
 	"CustomEvent",
