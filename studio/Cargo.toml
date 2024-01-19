@@ -35,6 +35,7 @@ web-sys = { version = "0.3.65", optional = true, features = [
 	"Window",
 ] }
 space_editor = {git = "https://github.com/rewin123/space_editor", rev = "e150ecaf0647de6532d2967928982abf2558bfbc"}
+bevy_web_asset = "0.7.0"
 
 [features]
 wasm = [
