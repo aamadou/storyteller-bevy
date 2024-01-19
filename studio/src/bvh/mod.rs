@@ -231,10 +231,6 @@ fn retarget_bvh(
         // exactly reversed (DirectX uses row-major matrices, while Bevy uses
         // column-major ordering)
 
-        // FIXME: We're seeing some jitteryness due to numerical instability.
-        //        Should refactor the Mat4's to Affine3A's and periodically re-
-        //        orthonormalize the matrices inbetween operations.
-
         // [psuedo] local_mat = source_inv_bind_mat * source_world_mat;
         let mut local_mat = source_world_xform.affine() * (**source_inv_bind_pose);
         local_mat.matrix3 = local_mat.matrix3.orthonormalize();
