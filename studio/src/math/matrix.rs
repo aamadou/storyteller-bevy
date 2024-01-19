@@ -9,6 +9,7 @@ where
 {
     fn decompose_scale(&self) -> Self;
     fn decompose_scale_rotation(&self) -> (Self, Self);
+    fn orthonormalize(&self) -> Self;
 }
 
 pub trait VecExtras
@@ -49,6 +50,24 @@ impl MatrixExtras for Mat3A {
 
         (scale_mat, rotation)
     }
+
+    #[inline]
+    fn orthonormalize(&self) -> Self {
+        let x_axis = self.x_axis.normalize();
+
+        let mut y_axis = self.y_axis;
+        y_axis -= y_axis.dot(x_axis) / x_axis.dot(x_axis) * x_axis;
+        y_axis = y_axis.normalize();
+
+        let mut z_axis = x_axis.cross(y_axis);
+        z_axis = z_axis.normalize();
+
+        Self {
+            x_axis,
+            y_axis,
+            z_axis,
+        }
+    }
 }
 
 impl MatrixExtras for Mat3 {
@@ -61,6 +80,11 @@ impl MatrixExtras for Mat3 {
     fn decompose_scale_rotation(&self) -> (Mat3, Mat3) {
         let (scale, rotation) = Mat3A::from(*self).decompose_scale_rotation();
         (scale.into(), rotation.into())
+    }
+
+    #[inline]
+    fn orthonormalize(&self) -> Self {
+        Mat3A::from(*self).orthonormalize().into()
     }
 }
 
