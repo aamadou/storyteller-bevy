@@ -20,6 +20,7 @@ import { Ref, createRef, ref } from "lit-html/directives/ref.js";
 
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/viewer";
+import "@storyteller/studio-web/bvh-viewer";
 import "./button.element";
 import "./help.element";
 import "./icon.element";
@@ -44,6 +45,7 @@ export class AppElement extends LitElement {
 	@state() sceneObjects: SceneObject[] = [];
 	@state() selection?: string | null;
 
+	@state() bvhPath?: string;
 	@state() mode?: StudioMode;
 
 	#sceneObjects: studio.SceneObject[] = [];
@@ -62,10 +64,18 @@ export class AppElement extends LitElement {
 
 		const params = new URLSearchParams(document.location.search);
 
+		if (params.has("bvh"))
+			this.bvhPath = params.get("bvh")!;
+
 		this.mode = match (params.get("mode"), {
 			"studio": () => StudioMode.Editor,
 			"viewer": () => StudioMode.Viewer,
 			_: () => StudioMode.Viewer,
+		});
+
+		console.log({
+			mode: this.mode,
+			bvh: this.bvhPath,
 		});
 	}
 
@@ -184,16 +194,20 @@ export class AppElement extends LitElement {
 			class="app-root"
 			${ref(this.#canvasProvider as any)}
 		>
-			${
-				// TODO: See notes in studio-web/src/lib/viewer.element.ts
-				nothing
-			}
-			<sts-viewer
-				objectId="Mannequin.gltf"
-        skyboxId="test_scene"
-				.mode=${this.mode}
-				@scene-state=${this.onSceneStateChange}
-			></sts-viewer>
+			${this.bvhPath ? html`
+				<sts-bvh-viewer
+					bvhPath=${this.bvhPath}
+					skyboxId="test_scene"
+					@scene-state=${this.onSceneStateChange}
+				></sts-bvh-viewer>
+			` : html`
+				<sts-viewer
+					objectId="Mannequin.gltf"
+					skyboxId="test_scene"
+					.mode=${this.mode}
+					@scene-state=${this.onSceneStateChange}
+				></sts-viewer>
+			`}
 
 			<sts-toolbar class="v-start h-start">
 				<sts-toolbar-group>
@@ -215,17 +229,17 @@ export class AppElement extends LitElement {
 					.space=${this.transformSpace}
 					@space-change=${this.onTransformSpaceChange}
 				></sts-transform-toolbar>
-			` : nothing}
 
-			<div class="hierarchy v-start h-end">
-				${this.sceneObjects.map(obj => html`
-					<sts-tree class="scene-object"
-						id=${obj.id}
-						.name=${obj.name}
-						.treeChildren=${obj.children}
-					></sts-tree>
-				`)}
-			</div>
+				<div class="hierarchy v-start h-end">
+					${this.sceneObjects.map(obj => html`
+						<sts-tree class="scene-object"
+							id=${obj.id}
+							.name=${obj.name}
+							.treeChildren=${obj.children}
+						></sts-tree>
+					`)}
+				</div>
+			` : nothing}
 
 			${this.showHelp ? html`
 				<sts-help class="help v-after-toolbar h-start"></sts-help>

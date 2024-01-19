@@ -2,8 +2,9 @@
 
 use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
-
+use bevy_web_asset::WebAssetPlugin;
 use space_editor::prelude::space_undo::UndoPlugin;
+
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -29,7 +30,7 @@ use crate::{
     inspector::InspectorPlugin,
     interaction::InteractionPlugin,
     math::InterpolationPlugin,
-    scene::{LoadSceneEvent, ScenePlugin},
+    scene::{LoadSceneEvent, ScenePlugin, TestBvh},
     skybox::{SkyboxId, SkyboxPlugin},
     ui::UiLayerPlugin,
     world_grid::WorldGridPlugin,
@@ -82,6 +83,35 @@ impl PluginGroup for EditorPlugins {
             .add(InteractionPlugin)
             .add(UndoPlugin)
     }
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startBvhViewer))]
+pub fn start_bvh_viewer(
+    bvh_path: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+) {
+    let mut app = start_internal(
+        "Mannequin.gltf",
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        StudioMode::Viewer,
+    );
+
+    let bvh_path = bvh_path.to_string();
+
+    app.add_systems(
+        Startup,
+        move |mut cmd: Commands, r_assets: Res<AssetServer>| {
+            cmd.insert_resource(TestBvh(r_assets.load(bvh_path.clone())));
+        },
+    );
+
+    app.run();
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startViewer))]
@@ -175,6 +205,7 @@ pub fn start_internal(
     app.add_plugins((
         #[cfg(feature = "wasm")]
         viewport::wasm::ViewportPlugin,
+        WebAssetPlugin,
         DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: viewport_size.into(),

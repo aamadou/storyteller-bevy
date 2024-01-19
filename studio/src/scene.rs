@@ -44,7 +44,7 @@ impl Plugin for ScenePlugin {
             .add_systems(
                 Update,
                 (
-                    spawn_test_bvh, // TODO
+                    spawn_test_bvh.run_if(resource_exists::<TestBvh>()), // TODO
                     init_scene_loading,
                     tick_scene_loading.run_if(in_state(SceneState::Loading)),
                     tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
@@ -121,7 +121,7 @@ pub struct SkeletalJoint(pub Color);
 pub struct SceneRoot;
 
 #[derive(Resource, Deref, DerefMut)]
-struct TestBvh(Handle<Bvh>); // TODO
+pub struct TestBvh(pub Handle<Bvh>); // TODO
 
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
 pub struct BindPoseLocal(pub Transform);
@@ -162,9 +162,6 @@ fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
         },
         Fxaa::default(),
     ));
-
-    // TODO
-    cmd.insert_resource(TestBvh(r_assets.load("mocap/shuffle.bvh")));
 }
 
 // TODO
