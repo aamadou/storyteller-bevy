@@ -59,8 +59,7 @@ impl MatrixExtras for Mat3A {
         y_axis -= y_axis.dot(x_axis) / x_axis.dot(x_axis) * x_axis;
         y_axis = y_axis.normalize();
 
-        let mut z_axis = x_axis.cross(y_axis);
-        z_axis = z_axis.normalize();
+        let z_axis = x_axis.cross(y_axis);
 
         Self {
             x_axis,
