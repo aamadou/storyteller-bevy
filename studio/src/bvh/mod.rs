@@ -245,8 +245,7 @@ fn retarget_bvh(
         local_mat.matrix3 = local_mat.matrix3.orthonormalize();
 
         // [psuedo] target_xform.rotation = local_mat.rotation;
-        let (_, rotation, _) = local_mat.to_scale_rotation_translation();
-        target_xform.rotation = rotation;
+        target_xform.rotation = Quat::from_affine3(&local_mat);
     }
 }
 
