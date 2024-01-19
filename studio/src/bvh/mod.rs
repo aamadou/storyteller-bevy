@@ -13,7 +13,7 @@ mod error;
 mod loader;
 
 use crate::{
-    math::Lerp,
+    math::{Lerp, MatrixExtras},
     scene::{BindPoseGlobal, InvBindPose, SceneState, SkeletalJoint},
 };
 
@@ -237,6 +237,7 @@ fn retarget_bvh(
 
         // [psuedo] local_mat = source_inv_bind_mat * source_world_mat;
         let mut local_mat = source_world_xform.affine() * (**source_inv_bind_pose);
+        local_mat.matrix3 = local_mat.matrix3.orthonormalize();
 
         // [psuedo] local_mat = target_world_mat * local_mat * target_inv_parent_mat;
         let parent_world_xform = match q_world_xforms.get(**target_parent_ent) {
@@ -245,6 +246,7 @@ fn retarget_bvh(
         };
         let target_inv_parent_mat = parent_world_xform.affine().inverse();
         local_mat = target_inv_parent_mat * local_mat * (**target_bind_pose_global);
+        local_mat.matrix3 = local_mat.matrix3.orthonormalize();
 
         // [psuedo] target_xform.rotation = local_mat.rotation;
         let (_, rotation, _) = local_mat.to_scale_rotation_translation();
