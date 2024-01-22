@@ -1,5 +1,3 @@
-use godot::prelude::*;
-
 mod lip_sync;
 
 mod algorithm;
@@ -7,7 +5,8 @@ mod debug;
 mod job;
 mod model;
 
-struct LipSyncLib;
-
-#[gdextension]
-unsafe impl ExtensionLibrary for LipSyncLib {}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_lip_sync() {}
+}
