@@ -4,7 +4,7 @@ use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 use space_editor::{
-    prelude::space_undo::UndoPlugin,
+    prelude::{space_undo::UndoPlugin, PersistencePlugin},
     space_editor_ui::{EditorPluginGroup, ext::{bevy_egui::EguiPlugin, bevy_inspector_egui::DefaultInspectorConfigPlugin}, EditorPickingPlugin},
 };
 #[cfg(feature = "wasm")]
@@ -70,6 +70,7 @@ impl PluginGroup for CommonPlugins {
             .add(StudioInputPlugin)
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)
+            .add(persistance::PersistancePlugin)
     }
 }
 
@@ -124,6 +125,7 @@ pub fn init(viewport_size: ViewportSize) {
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
+        persistance::PersistancePlugin
     ))
     .add_systems(
         Startup,
@@ -131,7 +133,8 @@ pub fn init(viewport_size: ViewportSize) {
             cmd.insert_resource(SkyboxId("gum_trees_4k".to_string()));
             ew.send(LoadSceneEvent("bookcase".to_string()));
         },
-    );
+    )
+    .insert_resource(StudioMode::Editor);
 
     // Only for registering components for undo
     use space_editor::prelude::space_undo::AppAutoUndo;

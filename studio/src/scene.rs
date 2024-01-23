@@ -5,7 +5,7 @@ use bevy::{
         fxaa::Fxaa,
         tonemapping::Tonemapping,
     },
-    gltf::Gltf,
+    gltf::{Gltf, GltfLoader},
     math::{vec2, vec3},
     pbr::ShadowFilteringMethod,
     prelude::*,
@@ -109,6 +109,12 @@ pub struct LoadSceneEvent(pub String);
 pub struct SceneElement;
 
 #[derive(Component)]
+pub struct SceneData {
+    pub scene_path: String,
+}
+
+
+#[derive(Component)]
 pub struct SceneRoot;
 
 fn initialize(mut cmd: Commands) {
@@ -150,20 +156,33 @@ fn init_scene_loading(
     mut st_next: ResMut<NextState<SceneState>>,
 ) {
     if let Some(id) = er.read().last() {
-        let name = &**id;
-        let path = format!("gltf/{name}.gltf");
+        // let name = &**id;
+        // let path = format!("gltf/{name}.gltf");
 
-        // Avoid trying to re-load this scene if it's already active
-        if let Some(active_scene_path) =
-            r_active_scene.and_then(|scene| scene.source.path().cloned())
-        {
-            if active_scene_path == AssetPath::parse(&path) {
-                return;
-            }
-        }
+        // // Avoid trying to re-load this scene if it's already active
+        // if let Some(active_scene_path) =
+        //     r_active_scene.and_then(|scene| scene.source.path().cloned())
+        // {
+        //     if active_scene_path == AssetPath::parse(&path) {
+        //         return;
+        //     }
+        // }
 
-        cmd.insert_resource(PendingScene(assets.load(path)));
-        st_next.set(SceneState::Loading);
+        // cmd.insert_resource(PendingScene(assets.load(path)));
+        // st_next.set(SceneState::Loading);
+
+        info!("Loading scene: {}", id.0);
+
+        cmd.spawn((
+            SpatialBundle::default(),
+            space_editor::prelude::GltfPrefab {
+                path: format!("gltf/{}.gltf", id.0),
+                scene: "Scene0".to_string(),
+            },
+            PrefabMarker,
+            SceneElement
+        ));
+        
     }
 }
 
