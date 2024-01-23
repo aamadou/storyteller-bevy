@@ -363,7 +363,7 @@ pub struct RetargetMap {
 }
 
 #[rustfmt::skip]
-static SOURCE_TO_TARGET: [(&str, &str); 80] = [
+static SRC2TGT_MOCAPNET: [(&str, &str); 80] = [
     // Spine
     ("LowerBack", "DEF-spine"),
     ("hip", "DEF-spine"),
@@ -475,11 +475,102 @@ static SOURCE_TO_TARGET: [(&str, &str); 80] = [
     ("LHipJoint", "DEF-pelvis.L"),
 ];
 
+#[rustfmt::skip]
+static SRC2TGT_MIXAMO: [(&str, &str); 59] = [
+    // Spine
+    ("mixamorig-Hips",   "DEF-spine"),
+    ("mixamorig-Spine",  "DEF-spine.002"),
+    ("mixamorig-Spine2", "DEF-spine.003"),
+    ("mixamorig-Neck",   "DEF-spine.004"),
+    ("mixamorig-Head",   "DEF-spine.006"),
+
+    // Right arm
+    ("mixamorig-RightShoulder", "DEF-shoulder.R"),
+    ("mixamorig-RightArm",      "DEF-upper_arm.R"),
+    ("mixamorig-RightForeArm",  "DEF-forearm.R"),
+    ("mixamorig-RightHand",     "DEF-hand.R"),
+
+    // Right fingers
+    // -- Index
+    ("mixamorig-RightHandIndex1", "DEF-palm.01.R"),
+    ("mixamorig-RightHandIndex2", "DEF-f_index.01.R"),
+    ("mixamorig-RightHandIndex3", "DEF-f_index.02.R"),
+    ("mixamorig-RightHandIndex4", "DEF-f_index.03.R"),
+    // -- Middle
+    ("mixamorig-RightHandMiddle1", "DEF-palm.02.R"),
+    ("mixamorig-RightHandMiddle2", "DEF-f_middle.01.R"),
+    ("mixamorig-RightHandMiddle3", "DEF-f_middle.02.R"),
+    ("mixamorig-RightHandMiddle4", "DEF-f_middle.03.R"),
+    // -- Ring
+    ("mixamorig-RightHandRing1", "DEF-palm.03.R"),
+    ("mixamorig-RightHandRing2", "DEF-f_ring.01.R"),
+    ("mixamorig-RightHandRing3", "DEF-f_ring.02.R"),
+    ("mixamorig-RightHandRing4", "DEF-f_ring.03.R"),
+    // -- Pinky
+    ("mixamorig-RightHandPinky1", "DEF-palm.04.R"),
+    ("mixamorig-RightHandPinky2", "DEF-f_pinky.01.R"),
+    ("mixamorig-RightHandPinky3", "DEF-f_pinky.02.R"),
+    ("mixamorig-RightHandPinky4", "DEF-f_pinky.03.R"),
+    // -- Thumb
+    ("mixamorig-RightHandThumb1", "DEF-thumb.01.R"),
+    ("mixamorig-RightHandThumb2", "DEF-thumb.02.R"),
+    ("mixamorig-RightHandThumb3", "DEF-thumb.03.R"),
+
+    // Right leg
+    ("mixamorig-RightUpLeg",   "DEF-thigh.R"),
+    ("mixamorig-RightLeg",     "DEF-shin.R"),
+    ("mixamorig-RightFoot",    "DEF-foot.R"),
+    ("mixamorig-RightToeBase", "DEF-toe.R"),
+
+    // Left arm
+    ("mixamorig-LeftShoulder", "DEF-shoulder.L"),
+    ("mixamorig-LeftArm",      "DEF-upper_arm.L"),
+    ("mixamorig-LeftForeArm",  "DEF-forearm.L"),
+    ("mixamorig-LeftHand",     "DEF-hand.L"),
+
+    // Left fingers
+    // -- Index
+    ("mixamorig-LeftHandIndex1", "DEF-palm.01.L"),
+    ("mixamorig-LeftHandIndex2", "DEF-f_index.01.L"),
+    ("mixamorig-LeftHandIndex3", "DEF-f_index.02.L"),
+    ("mixamorig-LeftHandIndex4", "DEF-f_index.03.L"),
+
+    // -- Middle
+    ("mixamorig-LeftHandMiddle1", "DEF-palm.02.L"),
+    ("mixamorig-LeftHandMiddle2", "DEF-f_middle.01.L"),
+    ("mixamorig-LeftHandMiddle3", "DEF-f_middle.02.L"),
+    ("mixamorig-LeftHandMiddle4", "DEF-f_middle.03.L"),
+
+    // -- Ring
+    ("mixamorig-LeftHandRing1", "DEF-palm.03.L"),
+    ("mixamorig-LeftHandRing2", "DEF-f_ring.01.L"),
+    ("mixamorig-LeftHandRing3", "DEF-f_ring.02.L"),
+    ("mixamorig-LeftHandRing4", "DEF-f_ring.03.L"),
+
+    // -- Pinky
+    ("mixamorig-LeftHandPinky1", "DEF-palm.04.L"),
+    ("mixamorig-LeftHandPinky2", "DEF-f_pinky.01.L"),
+    ("mixamorig-LeftHandPinky3", "DEF-f_pinky.02.L"),
+    ("mixamorig-LeftHandPinky4", "DEF-f_pinky.03.L"),
+
+    // -- Thumb
+    ("mixamorig-LeftHandThumb1", "DEF-thumb.01.L"),
+    ("mixamorig-LeftHandThumb2", "DEF-thumb.02.L"),
+    ("mixamorig-LeftHandThumb3", "DEF-thumb.03.L"),
+
+    // Left leg
+    ("mixamorig-LeftUpLeg",   "DEF-thigh.L"),
+    ("mixamorig-LeftLeg",     "DEF-shin.L"),
+    ("mixamorig-LeftFoot",    "DEF-foot.L"),
+    ("mixamorig-LeftToeBase", "DEF-toe.L"),
+];
+
 impl Default for RetargetMap {
     fn default() -> Self {
         Self {
-            source_to_target: SOURCE_TO_TARGET
+            source_to_target: SRC2TGT_MOCAPNET
                 .iter()
+                .chain(SRC2TGT_MIXAMO.iter())
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect(),
         }
