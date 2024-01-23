@@ -363,7 +363,7 @@ pub struct RetargetMap {
 }
 
 #[rustfmt::skip]
-static SOURCE_TO_TARGET: [(&str, &str); 80] = [
+static SRC_TO_TGT_MOCAPNET: [(&str, &str); 80] = [
     // Spine
     ("LowerBack", "DEF-spine"),
     ("hip", "DEF-spine"),
@@ -475,11 +475,98 @@ static SOURCE_TO_TARGET: [(&str, &str); 80] = [
     ("LHipJoint", "DEF-pelvis.L"),
 ];
 
+#[rustfmt::skip]
+static SRC_TO_TGT_ROKOKO: [(&str, &str); 59] = [
+    // Spine
+    ("Hips",   "DEF-spine"),
+    ("Spine1", "DEF-spine.002"),
+    ("Spine3", "DEF-spine.003"),
+    ("Neck",   "DEF-spine.004"),
+    ("Head",   "DEF-spine.006"),
+
+    // Right arm
+    ("RightShoulder", "DEF-shoulder.R"),
+    ("RightArm",      "DEF-upper_arm.R"),
+    ("RightForeArm",  "DEF-forearm.R"),
+    ("RightHand",     "DEF-hand.R"),
+
+    // Right fingers
+    // -- Index
+    ("RightFinger2Metacarpal", "DEF-palm.01.R"),
+    ("RightFinger2Proximal",   "DEF-f_index.01.R"),
+    ("RightFinger2Medial",     "DEF-f_index.02.R"),
+    ("RightFinger2Distal",     "DEF-f_index.03.R"),
+    // -- Middle
+    ("RightFinger3Metacarpal", "DEF-palm.02.R"),
+    ("RightFinger3Proximal",   "DEF-f_middle.01.R"),
+    ("RightFinger3Medial",     "DEF-f_middle.02.R"),
+    ("RightFinger3Medial",     "DEF-f_middle.03.R"),
+    // -- Ring
+    ("RightFinger4Metacarpal", "DEF-palm.03.R"),
+    ("RightFinger4Proximal",   "DEF-f_ring.01.R"),
+    ("RightFinger4Medial",     "DEF-f_ring.02.R"),
+    ("RightFinger4Medial",     "DEF-f_ring.03.R"),
+    // -- Pinky
+    ("RightFinger5Metacarpal", "DEF-palm.04.R"),
+    ("RightFinger5Proximal",   "DEF-f_pinky.01.R"),
+    ("RightFinger5Medial",     "DEF-f_pinky.02.R"),
+    ("RightFinger5Medial",     "DEF-f_pinky.03.R"),
+    // -- Thumb
+    ("RightFinger1Metacarpal", "DEF-thumb.01.R"),
+    ("RightFinger1Proximal",   "DEF-thumb.02.R"),
+    ("RightFinger1Distal",     "DEF-thumb.03.R"),
+
+    // Right leg
+    ("RightThigh", "DEF-thigh.R"),
+    ("RightShin",  "DEF-shin.R"),
+    ("RightFoot",  "DEF-foot.R"),
+    ("RightToe",   "DEF-toe.R"),
+
+    // Left arm
+    ("LeftShoulder", "DEF-shoulder.L"),
+    ("LeftArm",      "DEF-upper_arm.L"),
+    ("LeftForeArm",  "DEF-forearm.L"),
+    ("LeftHand",     "DEF-hand.L"),
+
+    // Left fingers
+    // -- Index
+    ("LeftFinger2Metacarpal", "DEF-palm.01.L"),
+    ("LeftFinger2Proximal",   "DEF-f_index.01.L"),
+    ("LeftFinger2Medial",     "DEF-f_index.02.L"),
+    ("LeftFinger2Distal",     "DEF-f_index.03.L"),
+    // -- Middle
+    ("LeftFinger3Metacarpal", "DEF-palm.02.L"),
+    ("LeftFinger3Proximal",   "DEF-f_middle.01.L"),
+    ("LeftFinger3Medial",     "DEF-f_middle.02.L"),
+    ("LeftFinger3Medial",     "DEF-f_middle.03.L"),
+    // -- Ring
+    ("LeftFinger4Metacarpal", "DEF-palm.03.L"),
+    ("LeftFinger4Proximal",   "DEF-f_ring.01.L"),
+    ("LeftFinger4Medial",     "DEF-f_ring.02.L"),
+    ("LeftFinger4Medial",     "DEF-f_ring.03.L"),
+    // -- Pinky
+    ("LeftFinger5Metacarpal", "DEF-palm.04.L"),
+    ("LeftFinger5Proximal",   "DEF-f_pinky.01.L"),
+    ("LeftFinger5Medial",     "DEF-f_pinky.02.L"),
+    ("LeftFinger5Medial",     "DEF-f_pinky.03.L"),
+    // -- Thumb
+    ("LeftFinger1Metacarpal", "DEF-thumb.01.L"),
+    ("LeftFinger1Proximal",   "DEF-thumb.02.L"),
+    ("LeftFinger1Distal",     "DEF-thumb.03.L"),
+
+    // Left leg
+    ("LeftThigh", "DEF-thigh.L"),
+    ("LeftShin",  "DEF-shin.L"),
+    ("LeftFoot",  "DEF-foot.L"),
+    ("LeftToe",   "DEF-toe.L"),
+];
+
 impl Default for RetargetMap {
     fn default() -> Self {
         Self {
-            source_to_target: SOURCE_TO_TARGET
+            source_to_target: SRC_TO_TGT_MOCAPNET
                 .iter()
+                .chain(SRC_TO_TGT_ROKOKO.iter())
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect(),
         }
