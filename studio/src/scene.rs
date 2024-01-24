@@ -18,6 +18,7 @@ use space_editor::prelude::{space_undo::OneFrameUndoIgnore, PrefabMarker};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
+    algo,
     bvh::{Bvh, CommandsSpawnBvhExt},
     camera_controller::{CameraController, CameraControllerBundle},
     debug::DebugPoint,
@@ -58,7 +59,7 @@ impl Plugin for ScenePlugin {
             .add_systems(
                 OnEnter(SceneState::Active),
                 (
-                    tag_scene_elements,
+                    (tag_scene_elements, apply_deferred, tag_skeleton).chain(),
                     spawn_main_scene_light,
                     frame_scene_in_view,
                 )
@@ -114,6 +115,9 @@ pub struct SceneElement;
 pub struct SkeletalJoint(pub Color);
 
 #[derive(Component)]
+pub struct Skeleton;
+
+#[derive(Component)]
 pub struct SceneRoot;
 
 #[derive(Resource, Deref, DerefMut)]
@@ -128,7 +132,7 @@ pub struct BindPoseGlobal(pub Affine3A);
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
 pub struct InvBindPose(pub Affine3A);
 
-fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
+fn initialize(mut cmd: Commands) {
     // Camera, graphics settings
     let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
@@ -320,6 +324,17 @@ fn tag_scene_elements(
                 InvBindPose(global_bind_pose.affine().inverse()),
             ));
         }
+    }
+}
+
+fn tag_skeleton(
+    mut cmd: Commands,
+    q_joints: Query<Entity, With<SkeletalJoint>>,
+    q_parents: Query<Option<&Parent>>,
+) {
+    let joints: Vec<_> = q_joints.iter().collect();
+    if let Some(root) = algo::nearest_common_ancestor(&joints, &q_parents) {
+        cmd.entity(root).insert(Skeleton);
     }
 }
 

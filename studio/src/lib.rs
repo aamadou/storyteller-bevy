@@ -8,6 +8,7 @@ use space_editor::prelude::space_undo::UndoPlugin;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+mod algo;
 mod bvh;
 mod camera_controller;
 mod debug;
