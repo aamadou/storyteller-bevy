@@ -79,14 +79,13 @@ pub(crate) fn nearest_common_ancestor(
     }
 }
 
-fn find_depth(mut target: Entity, q_parents: &Query<Option<&Parent>>) -> usize {
+fn find_depth(target: Entity, q_parents: &Query<Option<&Parent>>) -> usize {
     let mut result = 0;
     let mut parent = find_parent(target, q_parents);
 
     while let Some(p) = parent {
         result += 1;
-        target = p;
-        parent = find_parent(target, q_parents);
+        parent = find_parent(p, q_parents);
     }
 
     result
