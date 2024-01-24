@@ -18,8 +18,12 @@ pub(crate) fn find_parent(target: Entity, q_parents: &Query<Option<&Parent>>) ->
 /// Find the nearest common ancestor entity of a set of `entities`. Returns
 /// `None` if the provided `entities` do not have a common ancestor.
 ///
-/// - Time: O(D) where D = the depth of the deepest member of `entities`
-/// - Space: O(N) where N = the length of `entities`
+/// - Time: O(DN)
+/// - Space: O(N)
+///
+/// where
+/// - D = depth of the most deeply-nested member of `entites`
+/// - N = the number of `entities` provided
 pub(crate) fn nearest_common_ancestor(
     entities: &[Entity],
     q_parents: &Query<Option<&Parent>>,
