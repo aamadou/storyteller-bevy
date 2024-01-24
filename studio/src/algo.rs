@@ -54,6 +54,12 @@ pub(crate) fn nearest_common_ancestor(
         equalized.insert(result);
     }
 
+    // NOTE: If a member of `entities` should be considered a valid result (i.e.
+    //       if it should count as its own "ancestor"), then we should check the
+    //       length of `equalized` here and return if it only has one member.
+    //       This isn't a use case we need currently, but it could be supported
+    //       by adding a some kind of mode switch to this function's parameters.
+
     // Walk up the tree from each of those entities until we find the common ancestor
     let mut parents: EntityHashSet<Entity> = EntityHashSet::default();
     loop {
