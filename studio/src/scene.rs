@@ -13,7 +13,7 @@ use bevy::{
     scene::InstanceId,
 };
 
-use space_editor::prelude::{space_undo::OneFrameUndoIgnore, PrefabMarker};
+use space_editor::{prelude::{space_undo::OneFrameUndoIgnore, PrefabMarker}, space_prefab::component::{SceneAutoChild, SceneAutoRoot}};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -62,6 +62,8 @@ impl Plugin for ScenePlugin {
                 )
                     .in_set(SceneSpawnerSystem),
             );
+
+        app.add_systems(Update, tag_scene_elements);
 
         #[cfg(feature = "wasm")]
         app.add_systems(
@@ -156,22 +158,8 @@ fn init_scene_loading(
     mut st_next: ResMut<NextState<SceneState>>,
 ) {
     if let Some(id) = er.read().last() {
-        // let name = &**id;
-        // let path = format!("gltf/{name}.gltf");
-
-        // // Avoid trying to re-load this scene if it's already active
-        // if let Some(active_scene_path) =
-        //     r_active_scene.and_then(|scene| scene.source.path().cloned())
-        // {
-        //     if active_scene_path == AssetPath::parse(&path) {
-        //         return;
-        //     }
-        // }
-
-        // cmd.insert_resource(PendingScene(assets.load(path)));
-        // st_next.set(SceneState::Loading);
-
         info!("Loading scene: {}", id.0);
+        st_next.set(SceneState::Active);
 
         cmd.spawn((
             SpatialBundle::default(),
@@ -180,7 +168,7 @@ fn init_scene_loading(
                 scene: "Scene0".to_string(),
             },
             PrefabMarker,
-            SceneElement
+            SceneRoot
         ));
         
     }
@@ -256,9 +244,6 @@ fn tick_scene_spawning(
 
 fn tag_scene_elements(
     mut cmd: Commands,
-    r_scene_spawner: Res<SceneSpawner>,
-    r_active_scene: Res<ActiveScene>,
-    ra_gltfs: Res<Assets<Gltf>>,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
     // which is basically a bundle of vertices paired with the material used to
     // shade them. It's those "sub-meshes" that carry the actual mesh handles,
@@ -266,26 +251,17 @@ fn tag_scene_elements(
     // because they often consist of stuff like a single eyeball, or just the
     // leafy parts of a plant. Here we only want to tag the elements that a user
     // might want to individually address when arranging or animating a scene.
-    q_named_non_primitives: Query<&Name, Without<Handle<Mesh>>>,
+    q_named_non_primitives: Query<Entity, (With<SceneAutoChild>, With<Name>, Without<Handle<Mesh>>, Without<SceneElement>)>,
 ) {
-    let gltf = ra_gltfs.get(&r_active_scene.source).unwrap();
-
-    for ent in r_scene_spawner.iter_instance_entities(**r_active_scene) {
-        cmd.entity(ent).insert(PrefabMarker);
-        let Ok(name) = q_named_non_primitives.get(ent) else {
-            continue;
-        };
-
-        if gltf.named_nodes.contains_key(&**name) {
-            cmd.entity(ent).insert(SceneElement);
-        }
+    for loaded_part in q_named_non_primitives.iter() {
+        cmd.entity(loaded_part).insert(SceneElement);
     }
 }
 
 fn spawn_main_scene_light(
     mut cmd: Commands,
     r_scene_spawner: Res<SceneSpawner>,
-    r_active_scene: Res<ActiveScene>,
+    // r_active_scene: Res<ActiveScene>,
     q_aabbs: Query<(&Aabb, &GlobalTransform)>,
     q_scene_root: Query<Entity, With<SceneRoot>>,
 ) {
@@ -293,155 +269,155 @@ fn spawn_main_scene_light(
         return;
     };
 
-    let Some(aabb) = Aabb::combine(
-        r_scene_spawner
-            .iter_instance_entities(**r_active_scene)
-            .filter_map(|ent| q_aabbs.get(ent).ok()),
-    ) else {
-        return;
-    };
+    // let Some(aabb) = Aabb::combine(
+    //     r_scene_spawner
+    //         .iter_instance_entities(**r_active_scene)
+    //         .filter_map(|ent| q_aabbs.get(ent).ok()),
+    // ) else {
+    //     return;
+    // };
 
-    let light_offset_base = vec3(0.5, 1., 1.).normalize();
-    let size = f32::max(
-        f32::max(aabb.half_extents.x, aabb.half_extents.y),
-        aabb.half_extents.z,
-    ) * 2.;
-    let light_pos = Vec3::from(aabb.center) + light_offset_base * size * 2.;
+    // let light_offset_base = vec3(0.5, 1., 1.).normalize();
+    // let size = f32::max(
+    //     f32::max(aabb.half_extents.x, aabb.half_extents.y),
+    //     aabb.half_extents.z,
+    // ) * 2.;
+    // let light_pos = Vec3::from(aabb.center) + light_offset_base * size * 2.;
 
-    cmd.spawn(DebugPoint {
-        point: light_pos,
-        color: Color::WHITE,
-    });
-    cmd.entity(scene_root).with_children(|cmd| {
-        cmd.spawn((
-            Name::new("Light"),
-            SceneElement,
-            SpotLightBundle {
-                spot_light: SpotLight {
-                    color: Color::WHITE,
-                    // TODO: This doesn't scale super well to very large objects
-                    intensity: 200. * size,
-                    radius: 0.1,
-                    shadows_enabled: true,
-                    shadow_normal_bias: 0.2 * size,
-                    outer_angle: f32::to_radians(150.),
-                    inner_angle: f32::to_radians(45.),
-                    ..default()
-                },
-                transform: Transform::from_translation(light_pos)
-                    .looking_at(aabb.center.into(), Vec3::Y),
-                ..default()
-            },
-        ));
-    });
+    // cmd.spawn(DebugPoint {
+    //     point: light_pos,
+    //     color: Color::WHITE,
+    // });
+    // cmd.entity(scene_root).with_children(|cmd| {
+    //     cmd.spawn((
+    //         Name::new("Light"),
+    //         SceneElement,
+    //         SpotLightBundle {
+    //             spot_light: SpotLight {
+    //                 color: Color::WHITE,
+    //                 // TODO: This doesn't scale super well to very large objects
+    //                 intensity: 200. * size,
+    //                 radius: 0.1,
+    //                 shadows_enabled: true,
+    //                 shadow_normal_bias: 0.2 * size,
+    //                 outer_angle: f32::to_radians(150.),
+    //                 inner_angle: f32::to_radians(45.),
+    //                 ..default()
+    //             },
+    //             transform: Transform::from_translation(light_pos)
+    //                 .looking_at(aabb.center.into(), Vec3::Y),
+    //             ..default()
+    //         },
+    //     ));
+    // });
 }
 
 fn frame_scene_in_view(
-    mut cmd: Commands,
-    r_scene_spawner: Res<SceneSpawner>,
-    r_active_scene: Res<ActiveScene>,
-    q_aabbs: Query<(&Aabb, &GlobalTransform)>,
-    mut q_camera: Query<(&mut CameraController, &mut Transform, &Projection)>,
+    // mut cmd: Commands,
+    // r_scene_spawner: Res<SceneSpawner>,
+    // r_active_scene: Res<ActiveScene>,
+    // q_aabbs: Query<(&Aabb, &GlobalTransform)>,
+    // mut q_camera: Query<(&mut CameraController, &mut Transform, &Projection)>,
 ) {
-    let Ok((mut cam, mut cam_xform, cam_proj)) = q_camera.get_single_mut() else {
-        return;
-    };
+    // let Ok((mut cam, mut cam_xform, cam_proj)) = q_camera.get_single_mut() else {
+    //     return;
+    // };
 
-    let Some(aabb) = Aabb::combine(
-        r_scene_spawner
-            .iter_instance_entities(**r_active_scene)
-            .filter_map(|ent| q_aabbs.get(ent).ok()),
-    ) else {
-        return;
-    };
+    // let Some(aabb) = Aabb::combine(
+    //     r_scene_spawner
+    //         .iter_instance_entities(**r_active_scene)
+    //         .filter_map(|ent| q_aabbs.get(ent).ok()),
+    // ) else {
+    //     return;
+    // };
 
-    let world2cam = cam_xform.compute_matrix().inverse();
-    let plane_origin = Vec3::from(aabb.center);
-    let plane_normal = cam_xform.forward();
+    // let world2cam = cam_xform.compute_matrix().inverse();
+    // let plane_origin = Vec3::from(aabb.center);
+    // let plane_normal = cam_xform.forward();
 
-    let Some((_depth, bounding_rect)) = aabb
-        .extrema()
-        .iter()
-        .copied()
-        .map(|mut p| {
-            cmd.spawn(DebugPoint {
-                point: p,
-                color: Color::CYAN,
-            });
+    // let Some((_depth, bounding_rect)) = aabb
+    //     .extrema()
+    //     .iter()
+    //     .copied()
+    //     .map(|mut p| {
+    //         cmd.spawn(DebugPoint {
+    //             point: p,
+    //             color: Color::CYAN,
+    //         });
 
-            // Inflate the combined AABB to give the model some breathing room
-            p *= 1.5;
+    //         // Inflate the combined AABB to give the model some breathing room
+    //         p *= 1.5;
 
-            // Project each corner onto the camera plane
-            let v = p - plane_origin;
-            let proj = p - v.project_onto_normalized(plane_normal);
+    //         // Project each corner onto the camera plane
+    //         let v = p - plane_origin;
+    //         let proj = p - v.project_onto_normalized(plane_normal);
 
-            cmd.spawn(DebugPoint {
-                point: proj,
-                color: Color::FUCHSIA,
-            });
+    //         cmd.spawn(DebugPoint {
+    //             point: proj,
+    //             color: Color::FUCHSIA,
+    //         });
 
-            // Transform into the camera's local space
-            world2cam.transform_point(proj)
-        })
-        // Fold the camera-space plane-projected points into a bounding rect and view depth
-        .fold(None, |accum: Option<(f32, Rect)>, p: Vec3| match accum {
-            Some((depth, rect)) => Some((depth, rect.union_point(vec2(p.x, p.y)))),
-            None => {
-                let depth = p.z.abs();
-                let p = vec2(p.x, p.y);
-                Some((depth, Rect::from_corners(p, p)))
-            }
-        })
-    else {
-        return;
-    };
+    //         // Transform into the camera's local space
+    //         world2cam.transform_point(proj)
+    //     })
+    //     // Fold the camera-space plane-projected points into a bounding rect and view depth
+    //     .fold(None, |accum: Option<(f32, Rect)>, p: Vec3| match accum {
+    //         Some((depth, rect)) => Some((depth, rect.union_point(vec2(p.x, p.y)))),
+    //         None => {
+    //             let depth = p.z.abs();
+    //             let p = vec2(p.x, p.y);
+    //             Some((depth, Rect::from_corners(p, p)))
+    //         }
+    //     })
+    // else {
+    //     return;
+    // };
 
-    let pproj = match cam_proj {
-        Projection::Perspective(p) => p,
-        _ => panic!("Expected a perspective projection"),
-    };
+    // let pproj = match cam_proj {
+    //     Projection::Perspective(p) => p,
+    //     _ => panic!("Expected a perspective projection"),
+    // };
 
-    // Formula for the target camera distance
-    // (c/o https://stackoverflow.com/questions/2866350/move-camera-to-fit-3d-scene):
-    //
-    // d = (s/2) / tan(a/2)
-    // where:
-    //   d = distance
-    //   s = size of the largest camera-aligned axis in world coords
-    //   a = field-of-view angle for the same axis
-    let Vec2 {
-        x: width,
-        y: height,
-    } = bounding_rect.size();
+    // // Formula for the target camera distance
+    // // (c/o https://stackoverflow.com/questions/2866350/move-camera-to-fit-3d-scene):
+    // //
+    // // d = (s/2) / tan(a/2)
+    // // where:
+    // //   d = distance
+    // //   s = size of the largest camera-aligned axis in world coords
+    // //   a = field-of-view angle for the same axis
+    // let Vec2 {
+    //     x: width,
+    //     y: height,
+    // } = bounding_rect.size();
 
-    let s = f32::max(width, height);
-    let a = if s == height {
-        pproj.fov
-    } else {
-        f32::atan(pproj.aspect_ratio * f32::tan(pproj.fov / 2.))
-    };
+    // let s = f32::max(width, height);
+    // let a = if s == height {
+    //     pproj.fov
+    // } else {
+    //     f32::atan(pproj.aspect_ratio * f32::tan(pproj.fov / 2.))
+    // };
 
-    // TODO:
-    // According to "I eat babies" at the Ars Technica forums
-    // (https://arstechnica.com/civis/threads/if-you-have-aspect-ratio-and-vertical-fov-can-you-calc-horizontal-fov.37447/):
-    //
-    // tan(fov_v / 2) = y / z
-    // tan(fov_h / 2) = x / z
-    //
-    // Theoretically, this would let us skip some costly tan/atan
-    // computations, but I must be missing something, because just
-    // substituting (s / depth) for the divisor below would make the
-    // whole equation independent of the FOV, which is obviously
-    // wrong.
-    //
-    // Unfortunately I'm embarrassingly bad at algebra, but there
-    // must be some room for simplification here.
-    let radius = (s / 2.) / f32::tan(a / 2.);
+    // // TODO:
+    // // According to "I eat babies" at the Ars Technica forums
+    // // (https://arstechnica.com/civis/threads/if-you-have-aspect-ratio-and-vertical-fov-can-you-calc-horizontal-fov.37447/):
+    // //
+    // // tan(fov_v / 2) = y / z
+    // // tan(fov_h / 2) = x / z
+    // //
+    // // Theoretically, this would let us skip some costly tan/atan
+    // // computations, but I must be missing something, because just
+    // // substituting (s / depth) for the divisor below would make the
+    // // whole equation independent of the FOV, which is obviously
+    // // wrong.
+    // //
+    // // Unfortunately I'm embarrassingly bad at algebra, but there
+    // // must be some room for simplification here.
+    // let radius = (s / 2.) / f32::tan(a / 2.);
 
-    cam.focus = aabb.center.into();
-    cam.radius = radius;
-    cam_xform.translation = cam.focus + cam_xform.back() * radius;
+    // cam.focus = aabb.center.into();
+    // cam.radius = radius;
+    // cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
 #[cfg(feature = "wasm")]

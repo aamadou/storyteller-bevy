@@ -61,6 +61,9 @@ impl Plugin for DebugPlugin {
                 .disable::<EditorDefaultCameraPlugin>()
                 .disable::<BottomMenuPlugin>()
                 .disable::<GizmoToolPlugin>()
+                .set(space_editor::prelude::SelectedPlugin {
+                    show_selected_wireframe: false
+                })
         );
 
         app.add_systems(Update, sync_editor_camera);

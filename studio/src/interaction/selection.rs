@@ -24,6 +24,8 @@ impl Plugin for SelectionPlugin {
                     .chain()
                     .after(SceneSpawnerSystem),
             );
+        
+        app.add_systems(Update, tag_scene_elements);
 
         #[cfg(feature = "wasm")]
         app.add_systems(
