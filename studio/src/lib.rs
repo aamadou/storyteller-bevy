@@ -115,6 +115,29 @@ pub fn start_bvh_viewer(
     app.run();
 }
 
+#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startMixamoViewer))]
+pub fn start_mixamo_viewer(
+    mixamo_path: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+) {
+    let mut app = start_internal(
+        "Mannequin.gltf",
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        StudioMode::Viewer,
+    );
+
+    // TODO
+    info!("Mixamo path: '{mixamo_path}'");
+
+    app.run();
+}
+
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startViewer))]
 /// Start the application as a read-only viewer for a single library object.
 ///

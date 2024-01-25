@@ -1,9 +1,9 @@
 import * as studio from "@storyteller/studio";
 import { ViewportSize } from "@storyteller/studio";
+import { PropertyValues } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
 import { StudioBaseElement } from "./studio-base.element";
-import { PropertyValues } from "lit";
 
 @customElement("sts-bvh-viewer")
 export class BvhViewerElement extends StudioBaseElement {
