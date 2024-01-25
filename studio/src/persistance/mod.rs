@@ -6,17 +6,23 @@ pub struct PersistancePlugin;
 impl Plugin for PersistancePlugin {
     fn build(&self, app: &mut App) {
         info!("PersistancePlugin::build");
-        app.editor_tab_by_trait(EditorTabName::Other("Persistance".to_string()), DebugPersistanceTab::default());
+        app.editor_tab_by_trait(
+            EditorTabName::Other("Persistance".to_string()),
+            DebugPersistanceTab::default(),
+        );
     }
 }
 
 #[derive(Resource, Default)]
-pub struct DebugPersistanceTab {
-
-}
+pub struct DebugPersistanceTab {}
 
 impl EditorTab for DebugPersistanceTab {
-    fn ui(&mut self, ui: &mut bevy_inspector_egui::egui::Ui, commands: &mut Commands, world: &mut World) {
+    fn ui(
+        &mut self,
+        ui: &mut bevy_inspector_egui::egui::Ui,
+        commands: &mut Commands,
+        world: &mut World,
+    ) {
         if ui.button("Save").clicked() {
             world.send_event(EditorEvent::Save(EditorPrefabPath::MemoryCahce));
         }

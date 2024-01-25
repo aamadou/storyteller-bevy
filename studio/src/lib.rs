@@ -3,10 +3,6 @@
 use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
-use space_editor::{
-    prelude::{space_undo::UndoPlugin, PersistencePlugin},
-    space_editor_ui::{EditorPluginGroup, ext::{bevy_egui::EguiPlugin, bevy_inspector_egui::DefaultInspectorConfigPlugin}, EditorPickingPlugin},
-};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -17,12 +13,12 @@ mod input;
 mod inspector;
 mod interaction;
 mod math;
+mod persistance;
 mod scene;
 mod skybox;
 mod ui;
 mod viewport;
 mod world_grid;
-mod persistance;
 
 use crate::{
     camera_controller::CameraControllerPlugin,
@@ -79,9 +75,7 @@ impl PluginGroup for CommonPlugins {
 struct EditorPlugins;
 impl PluginGroup for EditorPlugins {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(InteractionPlugin)
-            .add(UndoPlugin)
+        PluginGroupBuilder::start::<Self>().add(InteractionPlugin)
     }
 }
 
@@ -125,7 +119,7 @@ pub fn init(viewport_size: ViewportSize) {
         SkyboxPlugin,
         UiLayerPlugin,
         WorldGridPlugin,
-        persistance::PersistancePlugin
+        persistance::PersistancePlugin,
     ))
     .add_systems(
         Startup,
@@ -228,7 +222,8 @@ pub fn start_internal(
         CommonPlugins,
     ));
 
-    if matches!(studio_mode, StudioMode::Editor) {
+    if studio_mode == StudioMode::Editor {
+        info!("Starting in editor mode");
         app.add_plugins((DefaultPickingPlugins, EditorPlugins));
 
         // Only for registering components for undo

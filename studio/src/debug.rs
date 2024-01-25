@@ -1,9 +1,15 @@
 use std::fmt;
 
 use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_inspector_egui::{quick::WorldInspectorPlugin, bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
+use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_mod_picking::debug::DebugPickingMode;
-use space_editor::{space_editor_ui::{EditorPluginGroup, EditorPickingPlugin, EditorDefaultCameraPlugin, bottom_menu::BottomMenuPlugin, EditorUiCore, tools::gizmo::GizmoToolPlugin, ShowEditorUi}, prelude::{EditorCameraMarker, space_undo::UndoPlugin}};
+use space_editor::{
+    prelude::EditorCameraMarker,
+    space_editor_ui::{
+        bottom_menu::BottomMenuPlugin, tools::gizmo::GizmoToolPlugin, EditorDefaultCameraPlugin,
+        EditorPickingPlugin, EditorPluginGroup, EditorUiCore, ShowEditorUi,
+    },
+};
 
 use crate::{
     camera_controller::{CameraController, CameraMotionSystem},
@@ -46,14 +52,14 @@ impl Plugin for DebugPlugin {
                 ),
             );
 
-        
         //space_editor stuff
         // app.add_plugins(UndoPlugin);
         app.add_plugins(
-            EditorPluginGroup.build()
+            EditorPluginGroup
+                .build()
                 .disable::<EditorUiCore>()
                 .add_before::<EditorDefaultCameraPlugin, _>(EditorUiCore {
-                    disable_no_editor_cams: false
+                    disable_no_editor_cams: false,
                 })
                 .disable::<EguiPlugin>()
                 .disable::<DefaultInspectorConfigPlugin>()
@@ -62,18 +68,19 @@ impl Plugin for DebugPlugin {
                 .disable::<BottomMenuPlugin>()
                 .disable::<GizmoToolPlugin>()
                 .set(space_editor::prelude::SelectedPlugin {
-                    show_selected_wireframe: false
-                })
+                    show_selected_wireframe: false,
+                }),
         );
 
         app.add_systems(Update, sync_editor_camera);
-        app.add_systems(Update, update_editor_ui_mode.run_if(resource_changed::<DebugMode>()));
+        app.add_systems(
+            Update,
+            update_editor_ui_mode.run_if(resource_changed::<DebugMode>()),
+        );
     }
 }
 
-fn toggle_debug_mode(
-        mut input: EventReader<InputAction>, 
-        mut r_debug: ResMut<DebugMode>,) {
+fn toggle_debug_mode(mut input: EventReader<InputAction>, mut r_debug: ResMut<DebugMode>) {
     if input
         .read()
         .any(|action| matches!(action, InputAction(Lifecycle::Stop, Action::ToggleDebug)))
@@ -164,8 +171,8 @@ pub fn print_mat3(m: &Mat3, label: impl fmt::Display) -> fmt::Result {
 }
 
 fn sync_editor_camera(
-    mut cmd : Commands,
-    mut q_cam : Query<Entity, (With<MainCamera>, Without<EditorCameraMarker>)>
+    mut cmd: Commands,
+    mut q_cam: Query<Entity, (With<MainCamera>, Without<EditorCameraMarker>)>,
 ) {
     for ent in q_cam.iter_mut() {
         cmd.entity(ent).insert(EditorCameraMarker);

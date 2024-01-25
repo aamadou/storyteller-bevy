@@ -36,7 +36,7 @@ pub(super) fn spawn_gizmo_camera(
             },
             RenderLayers::layer(GIZMO_RENDER_LAYER),
             Fxaa::default(),
-            NotShowCamera
+            NotShowCamera,
         ));
     });
 }

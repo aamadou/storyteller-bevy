@@ -1,19 +1,19 @@
 use bevy::{
-    asset::AssetPath,
+    asset::{DependencyLoadState, LoadState, RecursiveDependencyLoadState},
     core_pipeline::{
         bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
         fxaa::Fxaa,
         tonemapping::Tonemapping,
     },
-    gltf::{Gltf, GltfLoader},
-    math::{vec2, vec3},
+    gltf::Gltf,
+    math::vec2,
     pbr::ShadowFilteringMethod,
     prelude::*,
     render::primitives::Aabb,
     scene::InstanceId,
 };
 
-use space_editor::{prelude::{space_undo::OneFrameUndoIgnore, PrefabMarker}, space_prefab::component::{SceneAutoChild, SceneAutoRoot}};
+use space_editor::{prelude::PrefabMarker, space_prefab::component::SceneAutoChild};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -40,30 +40,32 @@ impl Plugin for ScenePlugin {
                 Update,
                 (
                     init_scene_loading,
-                    tick_scene_loading.run_if(in_state(SceneState::Loading)),
                     tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
                 )
                     .in_set(SceneSpawnerSystem),
             )
             .add_systems(
-                OnEnter(SceneState::Loading),
-                despawn_previous_scene.in_set(SceneSpawnerSystem),
-            )
-            .add_systems(
-                OnEnter(SceneState::Spawning),
-                spawn_next_scene.in_set(SceneSpawnerSystem),
-            )
-            .add_systems(
                 OnEnter(SceneState::Active),
-                (
-                    tag_scene_elements,
-                    spawn_main_scene_light,
-                    frame_scene_in_view,
-                )
-                    .in_set(SceneSpawnerSystem),
+                (tag_scene_elements, frame_scene_in_view).in_set(SceneSpawnerSystem),
             );
 
         app.add_systems(Update, tag_scene_elements);
+
+        //Auto loading screen
+        //Register handles on which we will look to show loading screen
+        app.init_resource::<LoadingQueue>();
+        app.add_systems(
+            PostUpdate,
+            (
+                check_loading,
+                auto_add_handle::<Scene>,
+                auto_add_handle::<Mesh>,
+                auto_add_handle::<StandardMaterial>,
+            ),
+        );
+
+        //setup default light
+        app.add_systems(Startup, minimal_scene_setup);
 
         #[cfg(feature = "wasm")]
         app.add_systems(
@@ -78,6 +80,18 @@ impl Plugin for ScenePlugin {
     }
 }
 
+fn minimal_scene_setup(mut cmd: Commands) {
+    cmd.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            shadows_enabled: false,
+            ..default()
+        },
+        transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
+        ..default()
+    })
+    .insert(PrefabMarker);
+}
+
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 #[derive(States, Clone, Copy, Default, Debug, PartialEq, Eq, Hash)]
 pub enum SceneState {
@@ -88,14 +102,56 @@ pub enum SceneState {
     Active,
 }
 
-#[derive(Resource, Deref, DerefMut)]
-struct PendingScene(pub Handle<Gltf>);
-
 #[derive(Resource, Deref)]
 pub struct ActiveScene {
     #[deref]
     pub instance: InstanceId,
     pub source: Handle<Gltf>,
+}
+
+#[derive(Resource, Default)]
+pub struct LoadingQueue {
+    pub queue: Vec<UntypedHandle>,
+}
+
+fn check_loading(
+    mut loading_queue: ResMut<LoadingQueue>,
+    mut st_next: ResMut<NextState<SceneState>>,
+    asset_server: Res<AssetServer>,
+) {
+    if !loading_queue.queue.is_empty() {
+        //filter queue to only include notloaded assets
+        loading_queue.queue.retain(|h| {
+            if let Some((load_state, dep_load_state, rec_load_state)) =
+                asset_server.get_load_states(h.id())
+            {
+                let is_loaded = dep_load_state == DependencyLoadState::Loaded;
+
+                let is_failed = dep_load_state == DependencyLoadState::Failed
+                    || rec_load_state == RecursiveDependencyLoadState::Failed
+                    || load_state == LoadState::Failed;
+
+                !(is_failed || is_loaded)
+            } else {
+                false
+            }
+        });
+
+        info!("Loading {} assets", loading_queue.queue.len());
+
+        st_next.set(SceneState::Loading);
+    } else {
+        st_next.set(SceneState::Active);
+    }
+}
+
+fn auto_add_handle<T: Asset>(
+    mut queue: ResMut<LoadingQueue>,
+    query: Query<&Handle<T>, Added<Handle<T>>>,
+) {
+    for h in query.iter() {
+        queue.queue.push(h.clone().untyped());
+    }
 }
 
 #[derive(Event, Deref)]
@@ -114,7 +170,6 @@ pub struct SceneElement;
 pub struct SceneData {
     pub scene_path: String,
 }
-
 
 #[derive(Component)]
 pub struct SceneRoot;
@@ -152,8 +207,6 @@ fn initialize(mut cmd: Commands) {
 
 fn init_scene_loading(
     mut cmd: Commands,
-    assets: Res<AssetServer>,
-    r_active_scene: Option<Res<ActiveScene>>,
     mut er: EventReader<LoadSceneEvent>,
     mut st_next: ResMut<NextState<SceneState>>,
 ) {
@@ -168,65 +221,9 @@ fn init_scene_loading(
                 scene: "Scene0".to_string(),
             },
             PrefabMarker,
-            SceneRoot
-        ));
-        
-    }
-}
-
-fn despawn_previous_scene(mut cmd: Commands, q_scene_root: Query<Entity, With<SceneRoot>>) {
-    if let Ok(scene_root) = q_scene_root.get_single() {
-        cmd.entity(scene_root).despawn_recursive();
-    }
-}
-
-fn tick_scene_loading(
-    r_pending_scene: Res<PendingScene>,
-    ra_gltfs: Res<Assets<Gltf>>,
-    mut er_scene_events: EventReader<AssetEvent<Scene>>,
-    mut st_next: ResMut<NextState<SceneState>>,
-) {
-    for event in er_scene_events.read() {
-        if let AssetEvent::LoadedWithDependencies { id } = event {
-            let gltf = ra_gltfs.get(&**r_pending_scene).unwrap();
-            if gltf.default_scene.is_some() && gltf.default_scene.as_ref().unwrap().id() == *id {
-                st_next.set(SceneState::Spawning);
-                break;
-            }
-        }
-    }
-}
-
-fn spawn_next_scene(
-    mut cmd: Commands,
-    ra_gltfs: Res<Assets<Gltf>>,
-    r_pending_scene: Res<PendingScene>,
-    mut r_scene_spawner: ResMut<SceneSpawner>,
-) {
-    let gltf = ra_gltfs.get(&**r_pending_scene).unwrap();
-    let scene = gltf
-        .default_scene
-        .as_ref()
-        .expect("Expected glTF to include a default scene");
-
-    let parent = cmd
-        .spawn((
-            Name::new("Scene"),
             SceneRoot,
-            SceneElement,
-            SpatialBundle::default(),
-            PrefabMarker,
-            OneFrameUndoIgnore::default(), //To prevert undo try to register add event
-        ))
-        .id();
-
-    let instance = r_scene_spawner.spawn_as_child(scene.clone(), parent);
-
-    cmd.remove_resource::<PendingScene>();
-    cmd.insert_resource(ActiveScene {
-        instance,
-        source: r_pending_scene.clone(),
-    });
+        ));
+    }
 }
 
 fn tick_scene_spawning(
@@ -251,152 +248,101 @@ fn tag_scene_elements(
     // because they often consist of stuff like a single eyeball, or just the
     // leafy parts of a plant. Here we only want to tag the elements that a user
     // might want to individually address when arranging or animating a scene.
-    q_named_non_primitives: Query<Entity, (With<SceneAutoChild>, With<Name>, Without<Handle<Mesh>>, Without<SceneElement>)>,
+    q_named_non_primitives: Query<
+        Entity,
+        (
+            With<SceneAutoChild>,
+            With<Name>,
+            Without<Handle<Mesh>>,
+            Without<SceneElement>,
+        ),
+    >,
 ) {
     for loaded_part in q_named_non_primitives.iter() {
         cmd.entity(loaded_part).insert(SceneElement);
     }
 }
 
-fn spawn_main_scene_light(
+fn frame_scene_in_view(
     mut cmd: Commands,
-    r_scene_spawner: Res<SceneSpawner>,
-    // r_active_scene: Res<ActiveScene>,
-    q_aabbs: Query<(&Aabb, &GlobalTransform)>,
-    q_scene_root: Query<Entity, With<SceneRoot>>,
+    q_aabbs: Query<(&Aabb, &GlobalTransform), With<SceneAutoChild>>,
+    mut q_camera: Query<(&mut CameraController, &mut Transform, &Projection)>,
 ) {
-    let Ok(scene_root) = q_scene_root.get_single() else {
+    let Ok((mut cam, mut cam_xform, cam_proj)) = q_camera.get_single_mut() else {
+        error!("Failed to get camera controller");
         return;
     };
 
-    // let Some(aabb) = Aabb::combine(
-    //     r_scene_spawner
-    //         .iter_instance_entities(**r_active_scene)
-    //         .filter_map(|ent| q_aabbs.get(ent).ok()),
-    // ) else {
-    //     return;
-    // };
+    let Some(aabb) = Aabb::combine(q_aabbs.iter()) else {
+        return;
+    };
 
-    // let light_offset_base = vec3(0.5, 1., 1.).normalize();
-    // let size = f32::max(
-    //     f32::max(aabb.half_extents.x, aabb.half_extents.y),
-    //     aabb.half_extents.z,
-    // ) * 2.;
-    // let light_pos = Vec3::from(aabb.center) + light_offset_base * size * 2.;
+    let world2cam = cam_xform.compute_matrix().inverse();
+    let plane_origin = Vec3::from(aabb.center);
+    let plane_normal = cam_xform.forward();
 
-    // cmd.spawn(DebugPoint {
-    //     point: light_pos,
-    //     color: Color::WHITE,
-    // });
-    // cmd.entity(scene_root).with_children(|cmd| {
-    //     cmd.spawn((
-    //         Name::new("Light"),
-    //         SceneElement,
-    //         SpotLightBundle {
-    //             spot_light: SpotLight {
-    //                 color: Color::WHITE,
-    //                 // TODO: This doesn't scale super well to very large objects
-    //                 intensity: 200. * size,
-    //                 radius: 0.1,
-    //                 shadows_enabled: true,
-    //                 shadow_normal_bias: 0.2 * size,
-    //                 outer_angle: f32::to_radians(150.),
-    //                 inner_angle: f32::to_radians(45.),
-    //                 ..default()
-    //             },
-    //             transform: Transform::from_translation(light_pos)
-    //                 .looking_at(aabb.center.into(), Vec3::Y),
-    //             ..default()
-    //         },
-    //     ));
-    // });
-}
+    let Some((_depth, bounding_rect)) = aabb
+        .extrema()
+        .iter()
+        .copied()
+        .map(|mut p| {
+            cmd.spawn(DebugPoint {
+                point: p,
+                color: Color::CYAN,
+            });
 
-fn frame_scene_in_view(
-    // mut cmd: Commands,
-    // r_scene_spawner: Res<SceneSpawner>,
-    // r_active_scene: Res<ActiveScene>,
-    // q_aabbs: Query<(&Aabb, &GlobalTransform)>,
-    // mut q_camera: Query<(&mut CameraController, &mut Transform, &Projection)>,
-) {
-    // let Ok((mut cam, mut cam_xform, cam_proj)) = q_camera.get_single_mut() else {
-    //     return;
-    // };
+            // Inflate the combined AABB to give the model some breathing room
+            p *= 1.5;
 
-    // let Some(aabb) = Aabb::combine(
-    //     r_scene_spawner
-    //         .iter_instance_entities(**r_active_scene)
-    //         .filter_map(|ent| q_aabbs.get(ent).ok()),
-    // ) else {
-    //     return;
-    // };
+            // Project each corner onto the camera plane
+            let v = p - plane_origin;
+            let proj = p - v.project_onto_normalized(plane_normal);
 
-    // let world2cam = cam_xform.compute_matrix().inverse();
-    // let plane_origin = Vec3::from(aabb.center);
-    // let plane_normal = cam_xform.forward();
+            cmd.spawn(DebugPoint {
+                point: proj,
+                color: Color::FUCHSIA,
+            });
 
-    // let Some((_depth, bounding_rect)) = aabb
-    //     .extrema()
-    //     .iter()
-    //     .copied()
-    //     .map(|mut p| {
-    //         cmd.spawn(DebugPoint {
-    //             point: p,
-    //             color: Color::CYAN,
-    //         });
+            // Transform into the camera's local space
+            world2cam.transform_point(proj)
+        })
+        // Fold the camera-space plane-projected points into a bounding rect and view depth
+        .fold(None, |accum: Option<(f32, Rect)>, p: Vec3| match accum {
+            Some((depth, rect)) => Some((depth, rect.union_point(vec2(p.x, p.y)))),
+            None => {
+                let depth = p.z.abs();
+                let p = vec2(p.x, p.y);
+                Some((depth, Rect::from_corners(p, p)))
+            }
+        })
+    else {
+        return;
+    };
 
-    //         // Inflate the combined AABB to give the model some breathing room
-    //         p *= 1.5;
+    let pproj = match cam_proj {
+        Projection::Perspective(p) => p,
+        _ => panic!("Expected a perspective projection"),
+    };
 
-    //         // Project each corner onto the camera plane
-    //         let v = p - plane_origin;
-    //         let proj = p - v.project_onto_normalized(plane_normal);
+    // Formula for the target camera distance
+    // (c/o https://stackoverflow.com/questions/2866350/move-camera-to-fit-3d-scene):
+    //
+    // d = (s/2) / tan(a/2)
+    // where:
+    //   d = distance
+    //   s = size of the largest camera-aligned axis in world coords
+    //   a = field-of-view angle for the same axis
+    let Vec2 {
+        x: width,
+        y: height,
+    } = bounding_rect.size();
 
-    //         cmd.spawn(DebugPoint {
-    //             point: proj,
-    //             color: Color::FUCHSIA,
-    //         });
-
-    //         // Transform into the camera's local space
-    //         world2cam.transform_point(proj)
-    //     })
-    //     // Fold the camera-space plane-projected points into a bounding rect and view depth
-    //     .fold(None, |accum: Option<(f32, Rect)>, p: Vec3| match accum {
-    //         Some((depth, rect)) => Some((depth, rect.union_point(vec2(p.x, p.y)))),
-    //         None => {
-    //             let depth = p.z.abs();
-    //             let p = vec2(p.x, p.y);
-    //             Some((depth, Rect::from_corners(p, p)))
-    //         }
-    //     })
-    // else {
-    //     return;
-    // };
-
-    // let pproj = match cam_proj {
-    //     Projection::Perspective(p) => p,
-    //     _ => panic!("Expected a perspective projection"),
-    // };
-
-    // // Formula for the target camera distance
-    // // (c/o https://stackoverflow.com/questions/2866350/move-camera-to-fit-3d-scene):
-    // //
-    // // d = (s/2) / tan(a/2)
-    // // where:
-    // //   d = distance
-    // //   s = size of the largest camera-aligned axis in world coords
-    // //   a = field-of-view angle for the same axis
-    // let Vec2 {
-    //     x: width,
-    //     y: height,
-    // } = bounding_rect.size();
-
-    // let s = f32::max(width, height);
-    // let a = if s == height {
-    //     pproj.fov
-    // } else {
-    //     f32::atan(pproj.aspect_ratio * f32::tan(pproj.fov / 2.))
-    // };
+    let s = f32::max(width, height);
+    let a = if s == height {
+        pproj.fov
+    } else {
+        f32::atan(pproj.aspect_ratio * f32::tan(pproj.fov / 2.))
+    };
 
     // // TODO:
     // // According to "I eat babies" at the Ars Technica forums
@@ -413,11 +359,11 @@ fn frame_scene_in_view(
     // //
     // // Unfortunately I'm embarrassingly bad at algebra, but there
     // // must be some room for simplification here.
-    // let radius = (s / 2.) / f32::tan(a / 2.);
+    let radius = (s / 2.) / f32::tan(a / 2.);
 
-    // cam.focus = aabb.center.into();
-    // cam.radius = radius;
-    // cam_xform.translation = cam.focus + cam_xform.back() * radius;
+    cam.focus = aabb.center.into();
+    cam.radius = radius;
+    cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
 #[cfg(feature = "wasm")]
