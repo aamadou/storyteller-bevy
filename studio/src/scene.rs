@@ -59,7 +59,13 @@ impl Plugin for ScenePlugin {
             .add_systems(
                 OnEnter(SceneState::Active),
                 (
-                    (tag_scene_elements, apply_deferred, tag_skeleton).chain(),
+                    (
+                        tag_scene_elements,
+                        apply_deferred,
+                        tag_skeleton,
+                        play_animation,
+                    )
+                        .chain(),
                     spawn_main_scene_light,
                     frame_scene_in_view,
                 )
@@ -335,6 +341,24 @@ fn tag_skeleton(
     let joints: Vec<_> = q_joints.iter().collect();
     if let Some(root) = algo::nearest_common_ancestor(&joints, &q_parents) {
         cmd.entity(root).insert(Skeleton);
+    }
+}
+
+// TODO
+fn play_animation(
+    r_scene: Res<ActiveScene>,
+    ra_gltfs: Res<Assets<Gltf>>,
+    mut q_players: Query<&mut AnimationPlayer>,
+) {
+    let Some(gltf) = ra_gltfs.get(&r_scene.source) else {
+        return;
+    };
+    let Some(anim) = gltf.animations.first() else {
+        return;
+    };
+
+    for mut player in q_players.iter_mut() {
+        player.play(anim.clone_weak()).repeat();
     }
 }
 
