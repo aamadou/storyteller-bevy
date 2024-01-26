@@ -187,6 +187,26 @@ pub fn start_editor(
     );
 }
 
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn start(
+    object_id: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+    studio_mode: StudioMode,
+) {
+    start_internal(
+        object_id,
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        studio_mode,
+    )
+    .run();
+}
+
 // TODO: These `start_` functiions should be refactored to better support the
 //       needs of the "reaodnly viewer" vs "full studio editor" use cases. See
 //       notes in `studio-web/src/lib/viewer.element.ts` for more info.

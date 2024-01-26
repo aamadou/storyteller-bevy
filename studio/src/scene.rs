@@ -42,7 +42,6 @@ impl Plugin for ScenePlugin {
                 (
                     spawn_test_bvh.run_if(resource_exists::<TestBvh>()), // TODO
                     init_scene_loading,
-                    tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
                 )
                     .in_set(SceneSpawnerSystem),
             )
@@ -101,7 +100,6 @@ pub enum SceneState {
     #[default]
     None,
     Loading,
-    Spawning,
     Active,
 }
 
@@ -124,6 +122,10 @@ fn check_loading(
 ) {
     if !loading_queue.queue.is_empty() {
         //filter queue to only include notloaded assets
+        
+        let mut not_loaded_count = 0;
+        
+        
         loading_queue.queue.retain(|h| {
             if let Some((load_state, dep_load_state, rec_load_state)) =
                 asset_server.get_load_states(h.id())
@@ -134,15 +136,25 @@ fn check_loading(
                     || rec_load_state == RecursiveDependencyLoadState::Failed
                     || load_state == LoadState::Failed;
 
+                if load_state == LoadState::NotLoaded {
+                    not_loaded_count += 1;
+                }
+
                 !(is_failed || is_loaded)
             } else {
                 false
             }
         });
 
+
+
         info!("Loading {} assets", loading_queue.queue.len());
 
-        st_next.set(SceneState::Loading);
+        if loading_queue.queue.len() - not_loaded_count == 0 {
+            //not change state
+        } else {
+            st_next.set(SceneState::Loading);
+        }
     } else {
         st_next.set(SceneState::Active);
     }
@@ -191,7 +203,7 @@ pub struct BindPoseGlobal(pub Affine3A);
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
 pub struct InvBindPose(pub Affine3A);
 
-fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
+fn initialize(mut cmd: Commands) {
     // Camera, graphics settings
     let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
@@ -243,7 +255,6 @@ fn spawn_test_bvh(
 fn init_scene_loading(
     mut cmd: Commands,
     mut er: EventReader<LoadSceneEvent>,
-    mut st_next: ResMut<NextState<SceneState>>,
 ) {
     if let Some(id) = er.read().last() {
         info!("Loading scene: {}", id.0);
@@ -259,18 +270,6 @@ fn init_scene_loading(
     }
 }
 
-fn tick_scene_spawning(
-    r_scene_spawner: Res<SceneSpawner>,
-    r_active_scene: Res<ActiveScene>,
-    mut st_next: ResMut<NextState<SceneState>>,
-) {
-    // TODO: The instance is considered "ready" even if shaders still need to be
-    //       compiled, so this event isn't really sufficient for controlling a
-    //       loading screen.
-    if r_scene_spawner.instance_is_ready(**r_active_scene) {
-        st_next.set(SceneState::Active);
-    }
-}
 
 #[derive(Component)]
 pub struct NoMeshElement;
