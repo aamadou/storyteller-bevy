@@ -17,6 +17,7 @@ mod input;
 mod inspector;
 mod interaction;
 mod math;
+mod mixamo;
 mod scene;
 mod skybox;
 mod ui;
@@ -31,6 +32,7 @@ use crate::{
     inspector::InspectorPlugin,
     interaction::InteractionPlugin,
     math::InterpolationPlugin,
+    mixamo::{MixamoImportEvent, MixamoPlugin},
     scene::{LoadSceneEvent, ScenePlugin, TestBvh},
     skybox::{SkyboxId, SkyboxPlugin},
     ui::UiLayerPlugin,
@@ -132,8 +134,13 @@ pub fn start_mixamo_viewer(
         StudioMode::Viewer,
     );
 
-    // TODO
     info!("Mixamo path: '{mixamo_path}'");
+    let mixamo_path = mixamo_path.to_string();
+
+    app.add_plugins(MixamoPlugin);
+    app.add_systems(Startup, move |mut ew: EventWriter<MixamoImportEvent>| {
+        ew.send(MixamoImportEvent(mixamo_path.clone()));
+    });
 
     app.run();
 }

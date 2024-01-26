@@ -208,7 +208,7 @@ export class AppElement extends LitElement {
 				></sts-mixamo-viewer>
 			` : html`
 				<sts-viewer
-					objectId="hip-hop-dancing.gltf"
+					objectId="couch.gltf"
 					skyboxId="test_scene"
 					.mode=${this.mode}
 					@scene-state=${this.onSceneStateChange}
