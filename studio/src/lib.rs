@@ -187,6 +187,36 @@ pub fn start_editor(
     );
 }
 
+
+#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startBvhViewer))]
+pub fn start_bvh_viewer(
+    bvh_path: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+) {
+    let mut app = start_internal(
+        "Mannequin.gltf",
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        StudioMode::Viewer,
+    );
+
+    let bvh_path = bvh_path.to_string();
+
+    app.add_systems(
+        Startup,
+        move |mut cmd: Commands, r_assets: Res<AssetServer>| {
+            cmd.insert_resource(TestBvh(r_assets.load(bvh_path.clone())));
+        },
+    );
+
+    app.run();
+}
+
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn start(
     object_id: &str,
@@ -206,6 +236,8 @@ pub fn start(
     )
     .run();
 }
+
+
 
 // TODO: These `start_` functiions should be refactored to better support the
 //       needs of the "reaodnly viewer" vs "full studio editor" use cases. See
