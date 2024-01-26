@@ -210,7 +210,7 @@ pub fn start_bvh_viewer(
     app.add_systems(
         Startup,
         move |mut cmd: Commands, r_assets: Res<AssetServer>| {
-            cmd.insert_resource(TestBvh(r_assets.load(bvh_path.clone())));
+            cmd.insert_resource(scene::TestBvh(r_assets.load(bvh_path.clone())));
         },
     );
 
