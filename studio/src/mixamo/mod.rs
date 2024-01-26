@@ -86,7 +86,8 @@ fn spawn_mixamo_scene(
             Name::new("Mixamo"),
             MixamoRoot,
             SpatialBundle {
-                visibility: Visibility::Visible,
+                visibility: Visibility::Visible, // TODO: Hidden
+                transform: Transform::from_xyz(0., 0., -1.),
                 ..default()
             },
         ))
@@ -168,10 +169,14 @@ fn retarget_mixamo_anim(
         &q_nodes,
     );
 
-    let mut player = AnimationPlayer::default();
-    player.play(ra_animations.add(tgt_anim)).repeat();
+    let mut tgt_player = AnimationPlayer::default();
+    tgt_player.play(ra_animations.add(tgt_anim)).repeat();
+    cmd.entity(tgt_root).insert(tgt_player);
 
-    cmd.entity(tgt_root).insert(player);
+    // TODO: Just for debug
+    let mut src_player = AnimationPlayer::default();
+    src_player.play(gltf.animations[0].clone_weak()).repeat();
+    cmd.entity(src_root).insert(src_player);
 
     st_next.set(MixamoState::None);
 }
