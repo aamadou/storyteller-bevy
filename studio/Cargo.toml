@@ -24,6 +24,7 @@ parking_lot = "0.12.1"
 serde = { version = "1.0.192", optional = true }
 serde-wasm-bindgen = { version = "0.6.1", optional = true }
 serde_json = { version = "1.0.108", optional = true }
+studio-bvh = { path = "../studio-bvh" }
 wasm-bindgen = "0.2.84"
 web-sys = { version = "0.3.65", optional = true, features = [
 	"CustomEvent",
@@ -44,6 +45,7 @@ wasm = [
 	"dep:web-sys",
 	"bevy_rapier3d/wasm-bindgen",
 ]
+desktop = []
 
 [dependencies.bevy]
 workspace = true

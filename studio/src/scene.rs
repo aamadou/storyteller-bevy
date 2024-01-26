@@ -9,7 +9,7 @@ use bevy::{
     math::vec2,
     pbr::ShadowFilteringMethod,
     prelude::*,
-    render::primitives::Aabb,
+    render::{mesh::skinning::SkinnedMesh, primitives::Aabb, view::NoFrustumCulling},
     scene::InstanceId,
 };
 
@@ -18,6 +18,7 @@ use space_editor::{prelude::PrefabMarker, space_prefab::component::SceneAutoChil
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
+    bvh::{Bvh, CommandsSpawnBvhExt},
     camera_controller::{CameraController, CameraControllerBundle},
     debug::DebugPoint,
     math::{Combinable, Extrema},
@@ -39,6 +40,7 @@ impl Plugin for ScenePlugin {
             .add_systems(
                 Update,
                 (
+                    spawn_test_bvh.run_if(resource_exists::<TestBvh>()), // TODO
                     init_scene_loading,
                     tick_scene_spawning.run_if(in_state(SceneState::Spawning)),
                 )
@@ -172,12 +174,26 @@ pub struct SceneData {
 }
 
 #[derive(Component)]
-pub struct SceneRoot;
+pub struct SkeletalJoint(pub Color);
 
-fn initialize(mut cmd: Commands) {
+pub struct SceneRoot;
+#[derive(Resource, Deref, DerefMut)]
+pub struct TestBvh(pub Handle<Bvh>); // TODO
+
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+pub struct BindPoseLocal(pub Transform);
+
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+pub struct BindPoseGlobal(pub Affine3A);
+
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+pub struct InvBindPose(pub Affine3A);
+
+fn initialize(mut cmd: Commands, r_assets: Res<AssetServer>) {
     // Camera, graphics settings
     let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
+
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
@@ -205,6 +221,23 @@ fn initialize(mut cmd: Commands) {
     ));
 }
 
+// TODO
+fn spawn_test_bvh(
+    mut commands: Commands,
+    mut er_bvh_events: EventReader<AssetEvent<Bvh>>,
+    r_bvh: Res<TestBvh>,
+) {
+    for event in er_bvh_events.read() {
+        if matches!(event, AssetEvent::LoadedWithDependencies { .. }) {
+            commands.spawn_bvh_with_transform(
+                &r_bvh.0,
+                Transform::from_scale(Vec3::splat(0.06))
+                    .with_translation(Vec3::new(0., 1.0, 0.524)),
+            );
+        }
+    }
+}
+
 fn init_scene_loading(
     mut cmd: Commands,
     mut er: EventReader<LoadSceneEvent>,
@@ -212,8 +245,6 @@ fn init_scene_loading(
 ) {
     if let Some(id) = er.read().last() {
         info!("Loading scene: {}", id.0);
-        st_next.set(SceneState::Active);
-
         cmd.spawn((
             SpatialBundle::default(),
             space_editor::prelude::GltfPrefab {
@@ -257,9 +288,27 @@ fn tag_scene_elements(
             Without<SceneElement>,
         ),
     >,
+    q_skinned_meshes: Query<(Entity, &SkinnedMesh), Without<SkeletalJoint>>,
 ) {
     for loaded_part in q_named_non_primitives.iter() {
         cmd.entity(loaded_part).insert(SceneElement);
+    }
+
+    for (ent, skinned_mesh) in q_skinned_meshes.iter()
+    {
+        cmd.entity(ent).insert(NoFrustumCulling);
+
+        for &joint in skinned_mesh.joints.iter() {
+            let global_bind_pose = q_xforms.p0().compute_global_transform(joint).unwrap();
+            let local_bind_pose = *q_xforms.p1().get(joint).unwrap();
+
+            cmd.entity(joint).insert((
+                SkeletalJoint(Color::BLACK),
+                BindPoseLocal(local_bind_pose),
+                BindPoseGlobal(global_bind_pose.affine()),
+                InvBindPose(global_bind_pose.affine().inverse()),
+            ));
+        }
     }
 }
 
