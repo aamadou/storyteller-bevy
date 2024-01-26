@@ -3,9 +3,11 @@
 use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
+use bevy_web_asset::WebAssetPlugin;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+mod bvh;
 mod camera_controller;
 mod debug;
 mod design_system;
@@ -17,10 +19,10 @@ mod persistance;
 mod scene;
 mod skybox;
 mod ui;
-mod viewport;
+pub mod viewport;
 mod world_grid;
 
-use crate::{
+pub use crate::{
     camera_controller::CameraControllerPlugin,
     debug::DebugPlugin,
     input::StudioInputPlugin,
@@ -188,7 +190,7 @@ pub fn start_editor(
 // TODO: These `start_` functiions should be refactored to better support the
 //       needs of the "reaodnly viewer" vs "full studio editor" use cases. See
 //       notes in `studio-web/src/lib/viewer.element.ts` for more info.
-#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = start))]
+
 pub fn start_internal(
     object_id: &str,
     skybox_id: &str,
@@ -196,7 +198,7 @@ pub fn start_internal(
     canvas_alt: &str,
     viewport_size: ViewportSize,
     studio_mode: StudioMode,
-) {
+) -> App {
     #[cfg(feature = "wasm")]
     console_error_panic_hook::set_once();
 
@@ -210,6 +212,7 @@ pub fn start_internal(
     app.add_plugins((
         #[cfg(feature = "wasm")]
         viewport::wasm::ViewportPlugin,
+        WebAssetPlugin,
         DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 resolution: viewport_size.into(),
@@ -222,8 +225,7 @@ pub fn start_internal(
         CommonPlugins,
     ));
 
-    if studio_mode == StudioMode::Editor {
-        info!("Starting in editor mode");
+    if matches!(studio_mode, StudioMode::Editor) {
         app.add_plugins((DefaultPickingPlugins, EditorPlugins));
 
         // Only for registering components for undo
@@ -242,5 +244,5 @@ pub fn start_internal(
     #[cfg(feature = "wasm")]
     wasm::initialize();
 
-    app.run();
+    app
 }

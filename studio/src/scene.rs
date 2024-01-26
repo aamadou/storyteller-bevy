@@ -6,7 +6,7 @@ use bevy::{
         tonemapping::Tonemapping,
     },
     gltf::Gltf,
-    math::vec2,
+    math::{vec2, Affine3A},
     pbr::ShadowFilteringMethod,
     prelude::*,
     render::{mesh::skinning::SkinnedMesh, primitives::Aabb, view::NoFrustumCulling},
@@ -86,6 +86,7 @@ fn minimal_scene_setup(mut cmd: Commands) {
     cmd.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             shadows_enabled: false,
+            illuminance: 20000.0,
             ..default()
         },
         transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
@@ -176,6 +177,7 @@ pub struct SceneData {
 #[derive(Component)]
 pub struct SkeletalJoint(pub Color);
 
+#[derive(Component)]
 pub struct SceneRoot;
 #[derive(Resource, Deref, DerefMut)]
 pub struct TestBvh(pub Handle<Bvh>); // TODO
@@ -248,7 +250,7 @@ fn init_scene_loading(
         cmd.spawn((
             SpatialBundle::default(),
             space_editor::prelude::GltfPrefab {
-                path: format!("gltf/{}.gltf", id.0),
+                path: format!("gltf/{}", id.0),
                 scene: "Scene0".to_string(),
             },
             PrefabMarker,
@@ -270,6 +272,9 @@ fn tick_scene_spawning(
     }
 }
 
+#[derive(Component)]
+pub struct NoMeshElement;
+
 fn tag_scene_elements(
     mut cmd: Commands,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
@@ -280,18 +285,33 @@ fn tag_scene_elements(
     // leafy parts of a plant. Here we only want to tag the elements that a user
     // might want to individually address when arranging or animating a scene.
     q_named_non_primitives: Query<
-        Entity,
+        (Entity,
+        &Children),
         (
             With<SceneAutoChild>,
             With<Name>,
             Without<Handle<Mesh>>,
             Without<SceneElement>,
+            Without<NoMeshElement>
         ),
     >,
     q_skinned_meshes: Query<(Entity, &SkinnedMesh), Without<SkeletalJoint>>,
+    mut q_xforms: ParamSet<(TransformHelper, Query<&Transform>)>,
+    mesh_entities: Query<Entity, With<Handle<Mesh>>>,
 ) {
-    for loaded_part in q_named_non_primitives.iter() {
-        cmd.entity(loaded_part).insert(SceneElement);
+    for (e, children) in q_named_non_primitives.iter() {
+        let mut has_mesh = false;
+        for child in children {
+            if mesh_entities.contains(*child) {
+                has_mesh = true;
+                break;
+            }
+        }
+        if has_mesh {
+            cmd.entity(e).insert(SceneElement);
+        } else {
+            cmd.entity(e).insert(NoMeshElement);
+        }
     }
 
     for (ent, skinned_mesh) in q_skinned_meshes.iter()
