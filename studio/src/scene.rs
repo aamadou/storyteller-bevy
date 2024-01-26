@@ -122,10 +122,9 @@ fn check_loading(
 ) {
     if !loading_queue.queue.is_empty() {
         //filter queue to only include notloaded assets
-        
+
         let mut not_loaded_count = 0;
-        
-        
+
         loading_queue.queue.retain(|h| {
             if let Some((load_state, dep_load_state, rec_load_state)) =
                 asset_server.get_load_states(h.id())
@@ -145,8 +144,6 @@ fn check_loading(
                 false
             }
         });
-
-
 
         info!("Loading {} assets", loading_queue.queue.len());
 
@@ -252,10 +249,7 @@ fn spawn_test_bvh(
     }
 }
 
-fn init_scene_loading(
-    mut cmd: Commands,
-    mut er: EventReader<LoadSceneEvent>,
-) {
+fn init_scene_loading(mut cmd: Commands, mut er: EventReader<LoadSceneEvent>) {
     if let Some(id) = er.read().last() {
         info!("Loading scene: {}", id.0);
         cmd.spawn((
@@ -270,7 +264,6 @@ fn init_scene_loading(
     }
 }
 
-
 #[derive(Component)]
 pub struct NoMeshElement;
 
@@ -284,14 +277,13 @@ fn tag_scene_elements(
     // leafy parts of a plant. Here we only want to tag the elements that a user
     // might want to individually address when arranging or animating a scene.
     q_named_non_primitives: Query<
-        (Entity,
-        &Children),
+        (Entity, &Children),
         (
             With<SceneAutoChild>,
             With<Name>,
             Without<Handle<Mesh>>,
             Without<SceneElement>,
-            Without<NoMeshElement>
+            Without<NoMeshElement>,
         ),
     >,
     q_skinned_meshes: Query<(Entity, &SkinnedMesh), Without<SkeletalJoint>>,
@@ -313,8 +305,7 @@ fn tag_scene_elements(
         }
     }
 
-    for (ent, skinned_mesh) in q_skinned_meshes.iter()
-    {
+    for (ent, skinned_mesh) in q_skinned_meshes.iter() {
         cmd.entity(ent).insert(NoFrustumCulling);
 
         for &joint in skinned_mesh.joints.iter() {
