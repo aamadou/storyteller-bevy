@@ -64,7 +64,10 @@ fn tick_mixamo_import(
 ) {
     for event in er_scene_events.read() {
         if let AssetEvent::LoadedWithDependencies { id } = event {
-            let gltf = ra_gltfs.get(&**r_mixamo_import).unwrap();
+            let Some(gltf) = ra_gltfs.get(&**r_mixamo_import) else {
+                return;
+            };
+
             if gltf.default_scene.is_some() && gltf.default_scene.as_ref().unwrap().id() == *id {
                 st_next.set(MixamoState::Spawning);
                 break;
