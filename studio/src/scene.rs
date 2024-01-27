@@ -6,7 +6,7 @@ use bevy::{
         tonemapping::Tonemapping,
     },
     gltf::Gltf,
-    math::{vec2, vec3, Affine3A},
+    math::{vec2, vec3},
     pbr::ShadowFilteringMethod,
     prelude::*,
     render::{mesh::skinning::SkinnedMesh, primitives::Aabb, view::NoFrustumCulling},
@@ -19,6 +19,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{
     algo,
+    anim::{BindPoseGlobal, BindPoseLocal, InvBindPose, SkeletalJoint, Skeleton},
     bvh::{Bvh, CommandsSpawnBvhExt},
     camera_controller::{CameraController, CameraControllerBundle},
     debug::DebugPoint,
@@ -118,25 +119,10 @@ pub struct LoadSceneEvent(pub String);
 pub struct SceneElement;
 
 #[derive(Component)]
-pub struct SkeletalJoint(pub Color);
-
-#[derive(Component)]
-pub struct Skeleton;
-
-#[derive(Component)]
 pub struct SceneRoot;
 
 #[derive(Resource, Deref, DerefMut)]
 pub struct TestBvh(pub Handle<Bvh>); // TODO
-
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
-pub struct BindPoseLocal(pub Transform);
-
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
-pub struct BindPoseGlobal(pub Affine3A);
-
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
-pub struct InvBindPose(pub Affine3A);
 
 fn initialize(mut cmd: Commands) {
     // Camera, graphics settings

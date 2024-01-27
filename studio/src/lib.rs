@@ -9,6 +9,7 @@ use space_editor::prelude::space_undo::UndoPlugin;
 use wasm_bindgen::prelude::*;
 
 mod algo;
+mod anim;
 mod bvh;
 mod camera_controller;
 mod debug;

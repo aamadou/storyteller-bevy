@@ -5,11 +5,10 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mod_picking::debug::DebugPickingMode;
 
 use crate::{
+    anim::SkeletalJoint,
     camera_controller::{CameraController, CameraMotionSystem},
     input::{Action, InputAction, Lifecycle},
-    is_editor,
-    scene::SkeletalJoint,
-    MainCamera,
+    is_editor, MainCamera,
 };
 
 #[derive(Resource, Deref, DerefMut)]

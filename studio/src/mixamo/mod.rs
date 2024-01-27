@@ -5,7 +5,7 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 
-use crate::scene::Skeleton;
+use crate::anim::Skeleton;
 
 pub struct MixamoPlugin;
 
