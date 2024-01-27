@@ -1,4 +1,9 @@
-use bevy::{gltf::Gltf, prelude::*, scene::InstanceId, utils::HashMap};
+use bevy::{
+    gltf::Gltf,
+    prelude::*,
+    scene::InstanceId,
+    utils::{HashMap, HashSet},
+};
 
 use crate::scene::Skeleton;
 
@@ -155,6 +160,8 @@ fn retarget_mixamo_anim(
     info!("Source root: {src_root_name}");
     info!("Target root: {tgt_root_name}");
 
+    let mut done = HashSet::default();
+
     retarget_node(
         src_anim,
         src_root_name,
@@ -170,6 +177,7 @@ fn retarget_mixamo_anim(
         },
         &r_retarget_map,
         &q_nodes,
+        &mut done,
     );
 
     let mut tgt_player = AnimationPlayer::default();
@@ -184,6 +192,7 @@ fn retarget_mixamo_anim(
     st_next.set(MixamoState::None);
 }
 
+// FIXME: This function is an unworkable mess
 fn retarget_node(
     src_anim: &AnimationClip,
     src_name: &Name,
@@ -195,11 +204,43 @@ fn retarget_node(
     tgt_path: &EntityPath,
     retarget_map: &MixamoRetargetMap,
     q_nodes: &Query<(&Name, Option<&Children>)>,
+    done: &mut HashSet<EntityPath>,
 ) {
     'retarget: {
+        if done.contains(src_path) {
+            break 'retarget;
+        }
+
         if let Some(tn) = retarget_map.get(src_name.as_str()) {
             if tn != tgt_name.as_str() {
-                // TODO: BFS descendants..?
+                let Some(tgt_children) = tgt_children else {
+                    break 'retarget;
+                };
+
+                for (tgt_name, tgt_children) in tgt_children
+                    .iter()
+                    .filter_map(|&child| q_nodes.get(child).ok())
+                {
+                    let mut tgt_path_parts = tgt_path.parts.clone();
+                    tgt_path_parts.push(tgt_name.clone());
+
+                    retarget_node(
+                        src_anim,
+                        src_name,
+                        src_children,
+                        src_path,
+                        tgt_anim,
+                        tgt_name,
+                        tgt_children,
+                        &EntityPath {
+                            parts: tgt_path_parts,
+                        },
+                        retarget_map,
+                        q_nodes,
+                        done,
+                    );
+                }
+
                 break 'retarget;
             }
         }
@@ -212,6 +253,8 @@ fn retarget_node(
             // TODO: Retarget the keyframe values
             tgt_anim.add_curve_to_path(tgt_path.clone(), curve);
         }
+
+        done.insert(src_path.clone());
     }
 
     let Some(src_children) = src_children else {
@@ -228,7 +271,11 @@ fn retarget_node(
         let Some(tn) = retarget_map.get(src_name.as_str()) else {
             continue;
         };
-        let Some((tgt_name, tgt_children)) =
+
+        let mut src_path_parts = src_path.parts.clone();
+        src_path_parts.push(src_name.clone());
+
+        if let Some((tgt_name, tgt_children)) =
             tgt_children.iter().find_map(|&tgt| match q_nodes.get(tgt) {
                 Ok((name, children)) => {
                     if name.as_str() == tn {
@@ -239,35 +286,101 @@ fn retarget_node(
                 }
                 _ => None,
             })
-        else {
-            // TODO: BFS descendants..?
-            continue;
+        {
+            let mut tgt_path_parts = tgt_path.parts.clone();
+            tgt_path_parts.push(tgt_name.clone());
+
+            retarget_node(
+                src_anim,
+                src_name,
+                src_children,
+                &EntityPath {
+                    parts: src_path_parts,
+                },
+                tgt_anim,
+                tgt_name,
+                tgt_children,
+                &EntityPath {
+                    parts: tgt_path_parts,
+                },
+                retarget_map,
+                q_nodes,
+                done,
+            );
+        } else {
+            for (tgt_name, tgt_children) in tgt_children
+                .iter()
+                .filter_map(|&child| q_nodes.get(child).ok())
+            {
+                let mut tgt_path_parts = tgt_path.parts.clone();
+                tgt_path_parts.push(tgt_name.clone());
+
+                retarget_node(
+                    src_anim,
+                    src_name,
+                    src_children,
+                    &EntityPath {
+                        parts: src_path_parts.clone(),
+                    },
+                    tgt_anim,
+                    tgt_name,
+                    tgt_children,
+                    &EntityPath {
+                        parts: tgt_path_parts,
+                    },
+                    retarget_map,
+                    q_nodes,
+                    done,
+                );
+            }
         };
-
-        let mut src_path_parts = src_path.parts.clone();
-        src_path_parts.push(src_name.clone());
-
-        let mut tgt_path_parts = tgt_path.parts.clone();
-        tgt_path_parts.push(tgt_name.clone());
-
-        retarget_node(
-            src_anim,
-            src_name,
-            src_children,
-            &EntityPath {
-                parts: src_path_parts,
-            },
-            tgt_anim,
-            tgt_name,
-            tgt_children,
-            &EntityPath {
-                parts: tgt_path_parts,
-            },
-            retarget_map,
-            q_nodes,
-        );
     }
 }
+
+// fn child_names(
+//     children: Option<&Children>,
+//     q_nodes: &Query<(&Name, Option<&Children>)>,
+// ) -> Vec<Name> {
+//     match children {
+//         Some(children) => children
+//             .iter()
+//             .filter_map(|&child| {
+//                 q_nodes
+//                     .get(child)
+//                     .ok()
+//                     .map(|(child_name, _)| child_name.clone())
+//             })
+//             .collect::<Vec<_>>(),
+//         None => vec![],
+//     }
+// }
+
+// fn bfs_children<'a>(
+//     children: &'a Children,
+//     name: &str,
+//     q_nodes: &'a Query<(&'a Name, Option<&'a Children>)>,
+// ) -> Option<(&'a Name, Option<&'a Children>)> {
+//     if let Some((tgt_name, tgt_children)) =
+//         children.iter().find_map(|&tgt| match q_nodes.get(tgt) {
+//             Ok((n, c)) => {
+//                 if n.as_str() == name {
+//                     Some((n, c))
+//                 } else {
+//                     None
+//                 }
+//             }
+//             _ => None,
+//         })
+//     {
+//         return Some((tgt_name, tgt_children));
+//     }
+
+//     children.iter().find_map(|&tgt| {
+//         q_nodes.get(tgt).ok().and_then(|(_, grandchildren)| {
+//             grandchildren.and_then(|grandchildren| bfs_children(grandchildren, name, q_nodes))
+//         })
+//     })
+// }
 
 impl Default for MixamoRetargetMap {
     fn default() -> Self {
@@ -275,7 +388,8 @@ impl Default for MixamoRetargetMap {
             [
                 // Spine
                 ("mixamorig:Hips", "DEF-spine"),
-                ("mixamorig:Spine", "DEF-spine.002"),
+                ("mixamorig:Spine", "DEF-spine.001"),
+                ("mixamorig:Spine1", "DEF-spine.002"),
                 ("mixamorig:Spine2", "DEF-spine.003"),
                 ("mixamorig:Neck", "DEF-spine.004"),
                 ("mixamorig:Head", "DEF-spine.006"),
