@@ -1,11 +1,12 @@
 use bevy::{
     gltf::Gltf,
     prelude::*,
+    render::mesh::skinning::SkinnedMesh,
     scene::InstanceId,
     utils::{HashMap, HashSet},
 };
 
-use crate::anim::Skeleton;
+use crate::anim::{BindPoseGlobal, BindPoseLocal, InvBindPose, SkeletalJoint, Skeleton};
 
 pub struct MixamoPlugin;
 
@@ -23,7 +24,8 @@ impl Plugin for MixamoPlugin {
                     retarget_mixamo_anim.run_if(in_state(MixamoState::Processing)),
                 ),
             )
-            .add_systems(OnEnter(MixamoState::Spawning), spawn_mixamo_scene);
+            .add_systems(OnEnter(MixamoState::Spawning), spawn_mixamo_scene)
+            .add_systems(OnEnter(MixamoState::Processing), tag_mixamo_elements);
     }
 }
 
@@ -112,6 +114,31 @@ fn tick_scene_spawning(
 ) {
     if r_scene_spawner.instance_is_ready(**r_mixamo_scene) {
         st_next.set(MixamoState::Processing);
+    }
+}
+
+fn tag_mixamo_elements(
+    mut cmd: Commands,
+    r_scene_spawner: Res<SceneSpawner>,
+    r_mixamo_scene: Res<MixamoScene>,
+    q_skinned_meshes: Query<&SkinnedMesh>,
+    mut q_xforms: ParamSet<(TransformHelper, Query<&Transform>)>,
+) {
+    for skinned_mesh in r_scene_spawner
+        .iter_instance_entities(**r_mixamo_scene)
+        .filter_map(|ent| q_skinned_meshes.get(ent).ok())
+    {
+        for &joint in skinned_mesh.joints.iter() {
+            let global_bind_pose = q_xforms.p0().compute_global_transform(joint).unwrap();
+            let local_bind_pose = *q_xforms.p1().get(joint).unwrap();
+
+            cmd.entity(joint).insert((
+                SkeletalJoint(Color::WHITE),
+                BindPoseLocal(local_bind_pose),
+                BindPoseGlobal(global_bind_pose.affine()),
+                InvBindPose(global_bind_pose.affine().inverse()),
+            ));
+        }
     }
 }
 
@@ -336,51 +363,6 @@ fn retarget_node(
         };
     }
 }
-
-// fn child_names(
-//     children: Option<&Children>,
-//     q_nodes: &Query<(&Name, Option<&Children>)>,
-// ) -> Vec<Name> {
-//     match children {
-//         Some(children) => children
-//             .iter()
-//             .filter_map(|&child| {
-//                 q_nodes
-//                     .get(child)
-//                     .ok()
-//                     .map(|(child_name, _)| child_name.clone())
-//             })
-//             .collect::<Vec<_>>(),
-//         None => vec![],
-//     }
-// }
-
-// fn bfs_children<'a>(
-//     children: &'a Children,
-//     name: &str,
-//     q_nodes: &'a Query<(&'a Name, Option<&'a Children>)>,
-// ) -> Option<(&'a Name, Option<&'a Children>)> {
-//     if let Some((tgt_name, tgt_children)) =
-//         children.iter().find_map(|&tgt| match q_nodes.get(tgt) {
-//             Ok((n, c)) => {
-//                 if n.as_str() == name {
-//                     Some((n, c))
-//                 } else {
-//                     None
-//                 }
-//             }
-//             _ => None,
-//         })
-//     {
-//         return Some((tgt_name, tgt_children));
-//     }
-
-//     children.iter().find_map(|&tgt| {
-//         q_nodes.get(tgt).ok().and_then(|(_, grandchildren)| {
-//             grandchildren.and_then(|grandchildren| bfs_children(grandchildren, name, q_nodes))
-//         })
-//     })
-// }
 
 impl Default for MixamoRetargetMap {
     fn default() -> Self {
