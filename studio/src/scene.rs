@@ -321,10 +321,16 @@ fn tag_scene_elements(
 
 fn tag_skeleton(
     mut cmd: Commands,
+    r_active_scene: Res<ActiveScene>,
+    r_scene_spawner: Res<SceneSpawner>,
     q_joints: Query<Entity, With<SkeletalJoint>>,
     q_parents: Query<Option<&Parent>>,
 ) {
-    let joints: Vec<_> = q_joints.iter().collect();
+    let joints = r_scene_spawner
+        .iter_instance_entities(**r_active_scene)
+        .filter(|&ent| q_joints.contains(ent))
+        .collect::<Vec<_>>();
+
     if let Some(root) = algo::nearest_common_ancestor(&joints, &q_parents) {
         cmd.entity(root).insert(Skeleton);
     }
