@@ -1,12 +1,16 @@
 use bevy::{
     gltf::Gltf,
+    math::Mat3A,
     prelude::*,
     render::mesh::skinning::SkinnedMesh,
     scene::InstanceId,
     utils::{HashMap, HashSet},
 };
 
-use crate::anim::{BindPoseGlobal, BindPoseLocal, InvBindPose, SkeletalJoint, Skeleton};
+use crate::{
+    anim::{BindPoseGlobal, BindPoseLocal, InvBindPose, SkeletalJoint, Skeleton},
+    scene::SceneState,
+};
 
 pub struct MixamoPlugin;
 
@@ -21,7 +25,9 @@ impl Plugin for MixamoPlugin {
                     import_mixamo_scene,
                     tick_mixamo_import.run_if(resource_exists::<MixamoImport>()),
                     tick_scene_spawning.run_if(in_state(MixamoState::Spawning)),
-                    retarget_mixamo_anim.run_if(in_state(MixamoState::Processing)),
+                    retarget_mixamo_anim.run_if(
+                        in_state(SceneState::Active).and_then(in_state(MixamoState::Processing)),
+                    ),
                 ),
             )
             .add_systems(OnEnter(MixamoState::Spawning), spawn_mixamo_scene)
@@ -152,6 +158,8 @@ fn retarget_mixamo_anim(
     r_retarget_map: Res<MixamoRetargetMap>,
     q_target: Query<(Entity, &Name, &Children), With<Skeleton>>,
     q_nodes: Query<(&Name, Option<&Children>)>,
+    q_bind_poses: Query<&BindPoseGlobal>,
+    q_inv_bind_poses: Query<&InvBindPose>,
     mut st_next: ResMut<NextState<MixamoState>>,
 ) {
     let gltf = ra_gltfs.get(&**r_mixamo_import).unwrap();
@@ -172,12 +180,12 @@ fn retarget_mixamo_anim(
         error!("Failed to find compatible entity for animation");
         return;
     };
-    let Ok((src_root_name, Some(src_root_children))) = q_nodes.get(src_root) else {
+    let Ok((src_root_name, Some(_))) = q_nodes.get(src_root) else {
         error!("Failed to find source root with children");
         return;
     };
 
-    let Ok((tgt_root, tgt_root_name, tgt_root_children)) = q_target.get_single() else {
+    let Ok((tgt_root, tgt_root_name, _)) = q_target.get_single() else {
         error!("Failed to find target root");
         return;
     };
@@ -190,20 +198,20 @@ fn retarget_mixamo_anim(
     let mut done = HashSet::default();
 
     retarget_node(
+        src_root,
         src_anim,
-        src_root_name,
-        Some(src_root_children),
         &EntityPath {
             parts: vec![src_root_name.clone()],
         },
+        tgt_root,
         &mut tgt_anim,
-        tgt_root_name,
-        Some(tgt_root_children),
         &EntityPath {
             parts: vec![tgt_root_name.clone()],
         },
         &r_retarget_map,
         &q_nodes,
+        &q_bind_poses,
+        &q_inv_bind_poses,
         &mut done,
     );
 
@@ -219,20 +227,25 @@ fn retarget_mixamo_anim(
     st_next.set(MixamoState::None);
 }
 
-// FIXME: This function is an unworkable mess
 fn retarget_node(
+    // Source
+    src: Entity,
     src_anim: &AnimationClip,
-    src_name: &Name,
-    src_children: Option<&Children>,
     src_path: &EntityPath,
+    // Target
+    tgt: Entity,
     tgt_anim: &mut AnimationClip,
-    tgt_name: &Name,
-    tgt_children: Option<&Children>,
     tgt_path: &EntityPath,
+    // System params
     retarget_map: &MixamoRetargetMap,
     q_nodes: &Query<(&Name, Option<&Children>)>,
+    q_bind_poses: &Query<&BindPoseGlobal>,
+    q_inv_bind_poses: &Query<&InvBindPose>,
     done: &mut HashSet<EntityPath>,
 ) {
+    let (src_name, src_children) = q_nodes.get(src).unwrap();
+    let (tgt_name, tgt_children) = q_nodes.get(tgt).unwrap();
+
     'retarget: {
         if done.contains(src_path) {
             break 'retarget;
@@ -244,26 +257,26 @@ fn retarget_node(
                     break 'retarget;
                 };
 
-                for (tgt_name, tgt_children) in tgt_children
-                    .iter()
-                    .filter_map(|&child| q_nodes.get(child).ok())
-                {
+                for &tgt_child in tgt_children.iter() {
+                    let Ok((tgt_name, _)) = q_nodes.get(tgt_child) else {
+                        continue;
+                    };
                     let mut tgt_path_parts = tgt_path.parts.clone();
                     tgt_path_parts.push(tgt_name.clone());
 
                     retarget_node(
+                        src,
                         src_anim,
-                        src_name,
-                        src_children,
                         src_path,
+                        tgt_child,
                         tgt_anim,
-                        tgt_name,
-                        tgt_children,
                         &EntityPath {
                             parts: tgt_path_parts,
                         },
                         retarget_map,
                         q_nodes,
+                        q_bind_poses,
+                        q_inv_bind_poses,
                         done,
                     );
                 }
@@ -276,9 +289,38 @@ fn retarget_node(
             break 'retarget;
         };
 
-        for curve in src_curves.iter().cloned() {
-            // TODO: Retarget the keyframe values
-            tgt_anim.add_curve_to_path(tgt_path.clone(), curve);
+        for src_curve in src_curves.iter() {
+            use Keyframes::*;
+
+            let tgt_bind_pose = q_bind_poses.get(tgt).unwrap();
+            let src_inv_bind_pose = q_inv_bind_poses.get(src).unwrap();
+            let src_to_tgt = (**tgt_bind_pose) * (**src_inv_bind_pose);
+
+            let tgt_curve_keys = match &src_curve.keyframes {
+                Rotation(src_quats) => {
+                    let tgt_quats = src_quats
+                        .iter()
+                        .map(|&q| {
+                            let mat = Mat3A::from_quat(q);
+                            let tgt_mat = src_to_tgt.matrix3 * mat;
+                            Quat::from_mat3a(&tgt_mat)
+                        })
+                        .collect();
+
+                    Rotation(tgt_quats)
+                }
+                Translation(vecs) => Translation(vecs.clone()),
+                Scale(vecs) => Scale(vecs.clone()),
+                Weights(weights) => Weights(weights.clone()),
+            };
+
+            tgt_anim.add_curve_to_path(
+                tgt_path.clone(),
+                VariableCurve {
+                    keyframe_timestamps: src_curve.keyframe_timestamps.clone(),
+                    keyframes: tgt_curve_keys,
+                },
+            );
         }
 
         done.insert(src_path.clone());
@@ -292,7 +334,7 @@ fn retarget_node(
     };
 
     for &src_next in src_children.iter() {
-        let Ok((src_name, src_children)) = q_nodes.get(src_next) else {
+        let Ok((src_name, _)) = q_nodes.get(src_next) else {
             continue;
         };
         let Some(tn) = retarget_map.get(src_name.as_str()) else {
@@ -302,11 +344,11 @@ fn retarget_node(
         let mut src_path_parts = src_path.parts.clone();
         src_path_parts.push(src_name.clone());
 
-        if let Some((tgt_name, tgt_children)) =
+        if let Some((tgt_next, tgt_name)) =
             tgt_children.iter().find_map(|&tgt| match q_nodes.get(tgt) {
-                Ok((name, children)) => {
+                Ok((name, _)) => {
                     if name.as_str() == tn {
-                        Some((name, children))
+                        Some((tgt, name))
                     } else {
                         None
                     }
@@ -318,45 +360,49 @@ fn retarget_node(
             tgt_path_parts.push(tgt_name.clone());
 
             retarget_node(
+                src_next,
                 src_anim,
-                src_name,
-                src_children,
                 &EntityPath {
                     parts: src_path_parts,
                 },
+                tgt_next,
                 tgt_anim,
-                tgt_name,
-                tgt_children,
                 &EntityPath {
                     parts: tgt_path_parts,
                 },
                 retarget_map,
                 q_nodes,
+                q_bind_poses,
+                q_inv_bind_poses,
                 done,
             );
         } else {
-            for (tgt_name, tgt_children) in tgt_children
-                .iter()
-                .filter_map(|&child| q_nodes.get(child).ok())
+            for (tgt_next, tgt_name) in
+                tgt_children
+                    .iter()
+                    .filter_map(|&child| match q_nodes.get(child) {
+                        Ok((name, _)) => Some((child, name)),
+                        _ => None,
+                    })
             {
                 let mut tgt_path_parts = tgt_path.parts.clone();
                 tgt_path_parts.push(tgt_name.clone());
 
                 retarget_node(
+                    src_next,
                     src_anim,
-                    src_name,
-                    src_children,
                     &EntityPath {
                         parts: src_path_parts.clone(),
                     },
+                    tgt_next,
                     tgt_anim,
-                    tgt_name,
-                    tgt_children,
                     &EntityPath {
                         parts: tgt_path_parts,
                     },
                     retarget_map,
                     q_nodes,
+                    q_bind_poses,
+                    q_inv_bind_poses,
                     done,
                 );
             }
