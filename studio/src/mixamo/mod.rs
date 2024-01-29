@@ -1,6 +1,6 @@
 use bevy::{
     gltf::Gltf,
-    math::Mat3A,
+    math::{Affine3A, Mat3A},
     prelude::*,
     render::mesh::skinning::SkinnedMesh,
     scene::InstanceId,
@@ -158,6 +158,7 @@ fn retarget_mixamo_anim(
     r_retarget_map: Res<MixamoRetargetMap>,
     q_target: Query<(Entity, &Name, &Children), With<Skeleton>>,
     q_nodes: Query<(&Name, Option<&Children>)>,
+    q_parents: Query<&Parent>,
     q_bind_poses: Query<&BindPoseGlobal>,
     q_inv_bind_poses: Query<&InvBindPose>,
     mut st_next: ResMut<NextState<MixamoState>>,
@@ -168,13 +169,10 @@ fn retarget_mixamo_anim(
     let Some(src_root) = r_scene_spawner
         .iter_instance_entities(**r_mixamo_scene)
         .find(|&ent| {
-            matches!(
-                q_nodes
-                    .get(ent)
-                    .ok()
-                    .map(|(name, _)| src_anim.compatible_with(name)),
-                Some(true)
-            )
+            let Ok((name, _)) = q_nodes.get(ent) else {
+                return false;
+            };
+            src_anim.compatible_with(name)
         })
     else {
         error!("Failed to find compatible entity for animation");
@@ -210,6 +208,7 @@ fn retarget_mixamo_anim(
         },
         &r_retarget_map,
         &q_nodes,
+        &q_parents,
         &q_bind_poses,
         &q_inv_bind_poses,
         &mut done,
@@ -239,6 +238,7 @@ fn retarget_node(
     // System params
     retarget_map: &MixamoRetargetMap,
     q_nodes: &Query<(&Name, Option<&Children>)>,
+    q_parents: &Query<&Parent>,
     q_bind_poses: &Query<&BindPoseGlobal>,
     q_inv_bind_poses: &Query<&InvBindPose>,
     done: &mut HashSet<EntityPath>,
@@ -275,6 +275,7 @@ fn retarget_node(
                         },
                         retarget_map,
                         q_nodes,
+                        q_parents,
                         q_bind_poses,
                         q_inv_bind_poses,
                         done,
@@ -294,15 +295,23 @@ fn retarget_node(
 
             let tgt_bind_pose = q_bind_poses.get(tgt).unwrap();
             let src_inv_bind_pose = q_inv_bind_poses.get(src).unwrap();
-            let src_to_tgt = (**tgt_bind_pose) * (**src_inv_bind_pose);
+            let tgt_parent_inv_bind_pose = q_parents
+                .get(tgt)
+                .ok()
+                .and_then(|parent| q_inv_bind_poses.get(**parent).ok())
+                .map_or(Affine3A::IDENTITY, |pose| **pose);
 
             let tgt_curve_keys = match &src_curve.keyframes {
                 Rotation(src_quats) => {
                     let tgt_quats = src_quats
                         .iter()
                         .map(|&q| {
-                            let mat = Mat3A::from_quat(q);
-                            let tgt_mat = src_to_tgt.matrix3 * mat;
+                            let src_mat_world = Mat3A::from_quat(q);
+                            let src_mat_local = src_mat_world * src_inv_bind_pose.matrix3;
+                            let tgt_mat = tgt_parent_inv_bind_pose.matrix3
+                                * src_mat_local
+                                * tgt_bind_pose.matrix3;
+
                             Quat::from_mat3a(&tgt_mat)
                         })
                         .collect();
@@ -372,6 +381,7 @@ fn retarget_node(
                 },
                 retarget_map,
                 q_nodes,
+                q_parents,
                 q_bind_poses,
                 q_inv_bind_poses,
                 done,
@@ -401,6 +411,7 @@ fn retarget_node(
                     },
                     retarget_map,
                     q_nodes,
+                    q_parents,
                     q_bind_poses,
                     q_inv_bind_poses,
                     done,
