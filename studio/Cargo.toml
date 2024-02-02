@@ -33,9 +33,14 @@ web-sys = { version = "0.3.65", optional = true, features = [
 	"Document",
 	"HtmlElement",
 	"Window",
+	"Element",
+	"Node",
+	"NodeList"
 ] }
 space_editor = {git = "https://github.com/rewin123/space_editor", rev = "ce83f86dc902787ab16213f3209276a784654df6"}
 anyhow.workspace = true
+dioxus = "0.4.3"
+futures-util = "0.3.30"
 
 [features]
 wasm = [

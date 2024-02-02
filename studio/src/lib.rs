@@ -20,6 +20,8 @@ mod scene;
 mod skybox;
 mod ui;
 pub mod viewport;
+pub mod blocking;
+
 mod world_grid;
 
 pub use crate::{

@@ -6,6 +6,7 @@ import {
 	type EntitySelectEvent,
 	type EntitySpawnEvent,
 	type SceneStateEvent,
+	type InspectorDomChanged,
 	TransformSpace,
 	TransformType,
 	SceneState,
@@ -27,8 +28,10 @@ import "./icon.element";
 import "./toolbar.element";
 import "./transform-toolbar.element";
 import "./tree.element";
+import "./inspector.element";
 
 import "./app.element.scss";
+
 
 interface SceneObject extends Omit<studio.SceneObject, "children"> {
 	children: SceneObject[];
@@ -114,6 +117,8 @@ export class AppElement extends LitElement {
 		});
 	}
 
+
+
 	@on("window:entity-select")
 	onEntitySelectionChange({ detail: entity }: EntitySelectEvent): void {
 		const sceneObject = this.#entityMap.get(entity!);
@@ -189,6 +194,7 @@ export class AppElement extends LitElement {
 			class="app-root"
 			${ref(this.#canvasProvider as any)}
 		>
+
 			${this.bvhPath ? html`
 				<sts-bvh-viewer
 					bvhPath=${this.bvhPath}
@@ -197,7 +203,7 @@ export class AppElement extends LitElement {
 				></sts-bvh-viewer>
 			` : html`
 				<sts-viewer
-					objectId="sample-room.gltf"
+					objectId="base-human-female.gltf"
 					skyboxId="test_scene"
 					.mode=${this.mode}
 					@scene-state=${this.onSceneStateChange}
@@ -224,6 +230,8 @@ export class AppElement extends LitElement {
 					.space=${this.transformSpace}
 					@space-change=${this.onTransformSpaceChange}
 				></sts-transform-toolbar>
+
+				<sts-inspector></sts-inspector>
 
 				<div class="hierarchy v-start h-end">
 					${this.sceneObjects.map(obj => html`
