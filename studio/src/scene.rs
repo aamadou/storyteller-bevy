@@ -13,7 +13,10 @@ use bevy::{
     scene::InstanceId,
 };
 
-use space_editor::{prelude::PrefabMarker, space_prefab::component::SceneAutoChild};
+use space_editor::{
+    prelude::PrefabMarker,
+    space_prefab::{component::SceneAutoChild, editor_registry::EditorRegistryExt},
+};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -67,6 +70,10 @@ impl Plugin for ScenePlugin {
 
         //setup default light
         app.add_systems(Startup, minimal_scene_setup);
+
+        app.editor_registry::<BindPoseLocal>();
+        app.editor_registry::<BindPoseGlobal>();
+        app.editor_registry::<InvBindPose>();
 
         #[cfg(feature = "wasm")]
         app.add_systems(
@@ -191,13 +198,16 @@ pub struct SceneRoot;
 #[derive(Resource, Deref, DerefMut)]
 pub struct TestBvh(pub Handle<Bvh>); // TODO
 
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+#[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
+#[reflect(Component)]
 pub struct BindPoseLocal(pub Transform);
 
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+#[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
+#[reflect(Component)]
 pub struct BindPoseGlobal(pub Affine3A);
 
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut)]
+#[derive(Component, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
+#[reflect(Component)]
 pub struct InvBindPose(pub Affine3A);
 
 fn initialize(mut cmd: Commands) {
