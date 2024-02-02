@@ -267,6 +267,9 @@ fn init_scene_loading(mut cmd: Commands, mut er: EventReader<LoadSceneEvent>) {
 #[derive(Component)]
 pub struct NoMeshElement;
 
+#[derive(Component)]
+pub struct InitedKointSkinnedMesh;
+
 fn tag_scene_elements(
     mut cmd: Commands,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
@@ -286,7 +289,7 @@ fn tag_scene_elements(
             Without<NoMeshElement>,
         ),
     >,
-    q_skinned_meshes: Query<(Entity, &SkinnedMesh), Without<SkeletalJoint>>,
+    q_skinned_meshes: Query<(Entity, &SkinnedMesh), Without<InitedKointSkinnedMesh>>,
     mut q_xforms: ParamSet<(TransformHelper, Query<&Transform>)>,
     mesh_entities: Query<Entity, With<Handle<Mesh>>>,
 ) {
@@ -306,7 +309,9 @@ fn tag_scene_elements(
     }
 
     for (ent, skinned_mesh) in q_skinned_meshes.iter() {
-        cmd.entity(ent).insert(NoFrustumCulling);
+        cmd.entity(ent)
+            .insert(NoFrustumCulling)
+            .insert(InitedKointSkinnedMesh);
 
         for &joint in skinned_mesh.joints.iter() {
             let global_bind_pose = q_xforms.p0().compute_global_transform(joint).unwrap();
