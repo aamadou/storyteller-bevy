@@ -403,21 +403,21 @@ fn frame_scene_in_view(
         f32::atan(pproj.aspect_ratio * f32::tan(pproj.fov / 2.))
     };
 
-    // // TODO:
-    // // According to "I eat babies" at the Ars Technica forums
-    // // (https://arstechnica.com/civis/threads/if-you-have-aspect-ratio-and-vertical-fov-can-you-calc-horizontal-fov.37447/):
-    // //
-    // // tan(fov_v / 2) = y / z
-    // // tan(fov_h / 2) = x / z
-    // //
-    // // Theoretically, this would let us skip some costly tan/atan
-    // // computations, but I must be missing something, because just
-    // // substituting (s / depth) for the divisor below would make the
-    // // whole equation independent of the FOV, which is obviously
-    // // wrong.
-    // //
-    // // Unfortunately I'm embarrassingly bad at algebra, but there
-    // // must be some room for simplification here.
+    // TODO:
+    // According to "I eat babies" at the Ars Technica forums
+    // (https://arstechnica.com/civis/threads/if-you-have-aspect-ratio-and-vertical-fov-can-you-calc-horizontal-fov.37447/):
+    //
+    // tan(fov_v / 2) = y / z
+    // tan(fov_h / 2) = x / z
+    //
+    // Theoretically, this would let us skip some costly tan/atan
+    // computations, but I must be missing something, because just
+    // substituting (s / depth) for the divisor below would make the
+    // whole equation independent of the FOV, which is obviously
+    // wrong.
+    //
+    // Unfortunately I'm embarrassingly bad at algebra, but there
+    // must be some room for simplification here.
     let radius = (s / 2.) / f32::tan(a / 2.);
 
     cam.focus = aabb.center.into();

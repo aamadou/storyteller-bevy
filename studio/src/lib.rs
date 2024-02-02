@@ -4,6 +4,7 @@ use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 use bevy_web_asset::WebAssetPlugin;
+use bvh::BvhPlugin;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -69,6 +70,7 @@ impl PluginGroup for CommonPlugins {
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)
             .add(persistance::PersistancePlugin)
+            .add(BvhPlugin)
     }
 }
 
@@ -105,7 +107,8 @@ pub fn start_viewer(
         canvas_alt,
         viewport_size,
         StudioMode::Viewer,
-    );
+    )
+    .run();
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startEditor))]
@@ -123,7 +126,8 @@ pub fn start_editor(
         canvas_alt,
         viewport_size,
         StudioMode::Editor,
-    );
+    )
+    .run();
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startBvhViewer))]
