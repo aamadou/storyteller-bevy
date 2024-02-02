@@ -6,17 +6,12 @@ use bevy_mod_picking::debug::DebugPickingMode;
 use space_editor::{
     prelude::EditorCameraMarker,
     space_editor_ui::{
-        bottom_menu::BottomMenuPlugin, tools::gizmo::GizmoToolPlugin, EditorDefaultCameraPlugin,
-        EditorPickingPlugin, EditorPluginGroup, EditorUiCore, ShowEditorUi,
+        bottom_menu::BottomMenuPlugin, tools::gizmo::GizmoToolPlugin, EditorDefaultCameraPlugin, EditorGizmoConfigPlugin, EditorPickingPlugin, EditorPluginGroup, EditorUiCore, ShowEditorUi
     },
 };
 
 use crate::{
-    camera_controller::{CameraController, CameraMotionSystem},
-    input::{Action, InputAction, Lifecycle},
-    is_editor,
-    scene::SkeletalJoint,
-    MainCamera,
+    camera_controller::{CameraController, CameraMotionSystem}, input::{Action, InputAction, Lifecycle}, is_editor, scene::SkeletalJoint, MainCamera, StudioMode
 };
 
 #[derive(Resource, Deref, DerefMut)]
@@ -69,6 +64,7 @@ impl Plugin for DebugPlugin {
                 .disable::<EditorDefaultCameraPlugin>()
                 .disable::<BottomMenuPlugin>()
                 .disable::<GizmoToolPlugin>()
+                .disable::<EditorGizmoConfigPlugin>()
                 .set(space_editor::prelude::SelectedPlugin {
                     show_selected_wireframe: false,
                 }),
