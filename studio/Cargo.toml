@@ -13,11 +13,11 @@ name = "studio-standalone"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = { workspace = true }
-bevy-inspector-egui = "0.21.0"
+bevy-inspector-egui = "0.22.0"
 bevy_mod_raycast = "0.16.0"
 bevy_rapier3d = "0.23.0"
 bevy_mod_outline = "0.6.0"
+bevy_web_asset = "0.7.0"
 bitflags = "2.4.0"
 console_error_panic_hook = { version = "0.1.7", optional = true }
 js-sys = { version = "0.3.65", optional = true }
@@ -34,8 +34,8 @@ web-sys = { version = "0.3.65", optional = true, features = [
 	"HtmlElement",
 	"Window",
 ] }
-space_editor = {git = "https://github.com/rewin123/space_editor", rev = "e150ecaf0647de6532d2967928982abf2558bfbc"}
-bevy_web_asset = "0.7.0"
+space_editor = {git = "https://github.com/rewin123/space_editor", rev = "ce83f86dc902787ab16213f3209276a784654df6"}
+anyhow.workspace = true
 
 [features]
 wasm = [

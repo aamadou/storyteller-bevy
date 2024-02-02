@@ -2,9 +2,9 @@
 
 use bevy::{app::PluginGroupBuilder, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
-use bevy_web_asset::WebAssetPlugin;
-use space_editor::prelude::space_undo::UndoPlugin;
 
+use bevy_web_asset::WebAssetPlugin;
+use bvh::BvhPlugin;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -16,27 +16,26 @@ mod input;
 mod inspector;
 mod interaction;
 mod math;
+mod persistance;
 mod scene;
 mod skybox;
 mod ui;
-mod viewport;
+pub mod viewport;
 mod world_grid;
 
-use crate::{
-    bvh::BvhPlugin,
+pub use crate::{
     camera_controller::CameraControllerPlugin,
     debug::DebugPlugin,
     input::StudioInputPlugin,
     inspector::InspectorPlugin,
     interaction::InteractionPlugin,
     math::InterpolationPlugin,
-    scene::{LoadSceneEvent, ScenePlugin, TestBvh},
+    scene::{LoadSceneEvent, ScenePlugin},
     skybox::{SkyboxId, SkyboxPlugin},
     ui::UiLayerPlugin,
+    viewport::ViewportSize,
     world_grid::WorldGridPlugin,
 };
-
-pub use crate::viewport::ViewportSize;
 
 #[cfg(feature = "wasm")]
 mod wasm;
@@ -61,7 +60,6 @@ struct CommonPlugins;
 impl PluginGroup for CommonPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
-            .add(BvhPlugin)
             .add(CameraControllerPlugin)
             .add(DebugPlugin)
             .add(InspectorPlugin)
@@ -71,6 +69,8 @@ impl PluginGroup for CommonPlugins {
             .add(StudioInputPlugin)
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)
+            .add(persistance::PersistancePlugin)
+            .add(BvhPlugin)
     }
 }
 
@@ -79,39 +79,8 @@ impl PluginGroup for CommonPlugins {
 struct EditorPlugins;
 impl PluginGroup for EditorPlugins {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(InteractionPlugin)
-            .add(UndoPlugin)
+        PluginGroupBuilder::start::<Self>().add(InteractionPlugin)
     }
-}
-
-#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startBvhViewer))]
-pub fn start_bvh_viewer(
-    bvh_path: &str,
-    skybox_id: &str,
-    canvas_selector: &str,
-    canvas_alt: &str,
-    viewport_size: ViewportSize,
-) {
-    let mut app = start_internal(
-        "Mannequin.gltf",
-        skybox_id,
-        canvas_selector,
-        canvas_alt,
-        viewport_size,
-        StudioMode::Viewer,
-    );
-
-    let bvh_path = bvh_path.to_string();
-
-    app.add_systems(
-        Startup,
-        move |mut cmd: Commands, r_assets: Res<AssetServer>| {
-            cmd.insert_resource(TestBvh(r_assets.load(bvh_path.clone())));
-        },
-    );
-
-    app.run();
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startViewer))]
@@ -161,9 +130,35 @@ pub fn start_editor(
     .run();
 }
 
-// TODO: These `start_` functiions should be refactored to better support the
-//       needs of the "reaodnly viewer" vs "full studio editor" use cases. See
-//       notes in `studio-web/src/lib/viewer.element.ts` for more info.
+#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startBvhViewer))]
+pub fn start_bvh_viewer(
+    bvh_path: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+) {
+    let mut app = start_internal(
+        "Mannequin.gltf",
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        StudioMode::Viewer,
+    );
+
+    let bvh_path = bvh_path.to_string();
+
+    app.add_systems(
+        Startup,
+        move |mut cmd: Commands, r_assets: Res<AssetServer>| {
+            cmd.insert_resource(scene::TestBvh(r_assets.load(bvh_path.clone())));
+        },
+    );
+
+    app.run();
+}
+
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn start(
     object_id: &str,
@@ -183,6 +178,10 @@ pub fn start(
     )
     .run();
 }
+
+// TODO: These `start_` functiions should be refactored to better support the
+//       needs of the "reaodnly viewer" vs "full studio editor" use cases. See
+//       notes in `studio-web/src/lib/viewer.element.ts` for more info.
 
 pub fn start_internal(
     object_id: &str,
