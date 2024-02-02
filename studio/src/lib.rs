@@ -81,67 +81,6 @@ impl PluginGroup for EditorPlugins {
     }
 }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn init(viewport_size: ViewportSize) {
-    #[cfg(feature = "wasm")]
-    console_error_panic_hook::set_once();
-
-    let mut app = App::new();
-
-    #[cfg(feature = "wasm")]
-    app.add_plugins(viewport::wasm::ViewportPlugin);
-
-    app.add_plugins((
-        DefaultPlugins
-            // TODO: To generate asset .meta files (to prevent 404 errors on the
-            //       web), it's currently necessary to uncomment the following
-            //       block and run the app with this command:
-            //     > cargo run -p studio --features bevy/asset_processor,bevy/tonemapping_luts
-            // .set(AssetPlugin {
-            //     mode: AssetMode::Processed,
-            //     ..default()
-            // })
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    resolution: viewport_size.into(),
-                    title: "Storyteller Studio".into(),
-                    canvas: Some("#studio_canvas".into()),
-                    ..default()
-                }),
-                ..default()
-            }),
-        DefaultPickingPlugins,
-        DebugPlugin,
-        InteractionPlugin,
-        InspectorPlugin,
-        StudioInputPlugin,
-        InterpolationPlugin,
-        CameraControllerPlugin,
-        ScenePlugin,
-        SkyboxPlugin,
-        UiLayerPlugin,
-        WorldGridPlugin,
-        persistance::PersistancePlugin,
-    ))
-    .add_systems(
-        Startup,
-        move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
-            cmd.insert_resource(SkyboxId("gum_trees_4k".to_string()));
-            ew.send(LoadSceneEvent("bookcase".to_string()));
-        },
-    )
-    .insert_resource(StudioMode::Editor);
-
-    // Only for registering components for undo
-    use space_editor::prelude::space_undo::AppAutoUndo;
-    app.auto_reflected_undo::<Transform>();
-
-    #[cfg(feature = "wasm")]
-    wasm::initialize();
-
-    app.run();
-}
-
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startViewer))]
 /// Start the application as a read-only viewer for a single library object.
 ///
