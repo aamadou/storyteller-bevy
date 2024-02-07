@@ -117,9 +117,11 @@ function apply_muts(
                 var many = edit["m"];
 
                 var target_node = nodes[id];
+
+                let append_nodes = element_stack.splice(element_stack.length - many);
+
                 for (var i = 0; i < many; i++) {
-                    var current_element = element_stack.pop();
-                    target_node.appendChild(current_element);
+                    target_node.appendChild(append_nodes[i]);
                 }
             } else if (type == "HydrateText") {
                 // var child_path = edit["path"];
@@ -155,9 +157,14 @@ function apply_muts(
                     var el = element_stack.pop();
                     els.push(el);
                 }
+                els.reverse();
                 var target_node = load_child(element_stack, child_path);
                 target_node.replaceWith(...els); 
                 console.log("")
+            } else if (type == "CreateTextNode") {
+                var text_node : any = document.createTextNode(edit["value"]);
+                nodes[edit["id"]] = text_node;
+                element_stack.push(text_node);
             }
         }
 
@@ -208,6 +215,15 @@ function recursive_render(
     //set id
     if (element.id != undefined) {
         new_element.id = element.id.toString();
+    }
+
+    //set attrs
+    if (element.attrs != undefined) {
+        for (const attr of element.attrs) {
+            var name = attr["name"];
+            var value = attr["value"];
+            new_element.setAttribute(name, value);
+        }
     }
 
     //parent to root

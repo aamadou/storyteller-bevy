@@ -50,7 +50,7 @@ pub struct Selectable;
 pub struct Selected;
 
 #[derive(Resource, Deref, DerefMut, Debug)]
-pub struct Selection(Entity);
+pub struct Selection(pub Entity);
 
 fn sync_editor_selected(
     mut cmd: Commands,
