@@ -4,6 +4,7 @@ use self::fps::FpsCounterPlugin;
 
 mod fps;
 mod inspector;
+mod utils;
 
 pub struct UiLayerPlugin;
 

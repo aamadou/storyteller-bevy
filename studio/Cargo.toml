@@ -41,6 +41,9 @@ space_editor = {git = "https://github.com/rewin123/space_editor", rev = "ce83f86
 anyhow.workspace = true
 dioxus = "0.4.3"
 futures-util = "0.3.30"
+sledgehammer_bindgen = { version = "0.3.1", default-features = false, optional = true }
+sledgehammer_utils = { version = "0.2", optional = true }
+pretty-type-name = "1.0.1"
 
 [features]
 wasm = [
@@ -51,6 +54,8 @@ wasm = [
 	"dep:serde-wasm-bindgen",
 	"dep:web-sys",
 	"bevy_rapier3d/wasm-bindgen",
+	"dep:sledgehammer_bindgen",
+	"dep:sledgehammer_utils",
 ]
 desktop = []
 

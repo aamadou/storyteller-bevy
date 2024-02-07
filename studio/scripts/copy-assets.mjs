@@ -16,6 +16,9 @@ export default async function main() {
 	let count = 0;
 	const start = performance.now();
 
+	//copy inspector.ts to dist
+	fs.copyFileSync(path.join(__dirname, "../inspector.ts"), path.join(__dirname, "../../dist/studio/inspector.ts"));
+
 	try {
 		/** @type string[] */
 		let ignore = [];

@@ -231,16 +231,30 @@ export class AppElement extends LitElement {
 					@space-change=${this.onTransformSpaceChange}
 				></sts-transform-toolbar>
 
-				<sts-inspector></sts-inspector>
+				<style>
+					.vertical-list {
+						display: flex;
+						flex-direction: column;
+						position: absolute;
+						top: 16px;
+						right: 16px;
 
-				<div class="hierarchy v-start h-end">
-					${this.sceneObjects.map(obj => html`
-						<sts-tree class="scene-object"
-							id=${obj.id}
-							.name=${obj.name}
-							.treeChildren=${obj.children}
-						></sts-tree>
-					`)}
+						gap: 16px;
+						width: 290px;
+					}
+				</style>
+
+				<div class="vertical-list">
+					<div class="hierarchy">
+						${this.sceneObjects.map(obj => html`
+							<sts-tree class="scene-object"
+								id=${obj.id}
+								.name=${obj.name}
+								.treeChildren=${obj.children}
+							></sts-tree>
+						`)}
+					</div>
+					<sts-inspector id="inspector"></sts-inspector>
 				</div>
 			` : nothing}
 
