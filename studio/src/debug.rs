@@ -1,6 +1,6 @@
 use std::fmt;
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{math::Affine3A, prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mod_picking::debug::DebugPickingMode;
 
@@ -141,17 +141,35 @@ fn draw_skeletal_joints(
 
 #[rustfmt::skip]
 #[allow(dead_code)]
+pub fn write_vec3(w: &mut impl fmt::Write, v: &Vec3) -> fmt::Result {
+    writeln!(w, "  {:+.3} {:+.3} {:+.3}", v.x, v.y, v.z)
+}
+
+#[rustfmt::skip]
+#[allow(dead_code)]
 pub fn write_mat3(w: &mut impl fmt::Write, m: &Mat3) -> fmt::Result {
-    writeln!(w, "  {:+.3} {:+.3} {:+.3}", m.x_axis.x, m.x_axis.y, m.x_axis.z)?;
-	writeln!(w, "  {:+.3} {:+.3} {:+.3}", m.y_axis.x, m.y_axis.y, m.y_axis.z)?;
-	writeln!(w, "  {:+.3} {:+.3} {:+.3}", m.z_axis.x, m.z_axis.y, m.z_axis.z)?;
-	Ok(())
+    write_vec3(w, &m.x_axis)?;
+    write_vec3(w, &m.y_axis)?;
+    write_vec3(w, &m.z_axis)?;
+    Ok(())
 }
 
 #[allow(dead_code)]
 pub fn print_mat3(m: &Mat3, label: impl fmt::Display) -> fmt::Result {
     let mut s = String::new();
     write_mat3(&mut s, m)?;
+
+    info!("\n{label}\n{}", s.replace('+', " "));
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn print_affine3a(value: &Affine3A, label: impl fmt::Display) -> fmt::Result {
+    let mut s = String::new();
+    write_mat3(&mut s, &Mat3::from(value.matrix3))?;
+    write_vec3(&mut s, &Vec3::from(value.translation))?;
+
     info!("\n{label}\n{}", s.replace('+', " "));
 
     Ok(())
