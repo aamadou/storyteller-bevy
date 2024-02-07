@@ -288,6 +288,7 @@ fn build_retarget_trees(
 }
 
 fn copy_poses(
+    // TODO: Refactor to make this a component-based approach instead of resource-based
     r_retarget_tree: Res<RetargetTree>,
     r_retarget_map: Res<MixamoRetargetMap>,
     q_ent_names: Query<(Entity, &Name), With<SkeletalJoint>>,
@@ -298,11 +299,30 @@ fn copy_poses(
     mut q_xforms: Query<&mut Transform>,
     q_world_xforms: Query<&GlobalTransform>,
 ) {
+    // FIXME:
+    // This is very much not fast, and probably shouldn't be done every frame.
+    // Tentative plan to optimize this without adding too much additional
+    // complexity:
+    //
+    // 1) Add some sort of "AnimationRecorder" component to the target root
+    // 2) Beginning with `src_anim.seek_time == 0.0`, record each local
+    //    rotation and translation performed on the target bones as a new
+    //    keyframe on an `AnimationClip` held by `AnimationRecorder`
+    // 3) When `src_anim.seek_time == src_anim.duration`, finalize the new
+    //    `AnimationClip` and add it to the asset server
+    // 4) Stop running this system and instead start playing the new animation
+    //    with an `AnimationPlayer` component on the target root
     r_retarget_tree.for_each(|node| {
+        // Look up the source bone in the retarget map
         let Some(src_ent) = r_retarget_map
             .tgt_to_src
             .get(node.path.leaf().as_str())
             .and_then(|src_name| {
+                // FIXME: This is a slow O(n) lookup where n = the number of
+                //        named entities in the world. We can make this O(1) on
+                //        subsequent system runs by adding the results to a
+                //        local hashmap as they're found, and checking that map
+                //        before searching by name.
                 q_ent_names.iter().find_map(|(ent, name)| {
                     if name.as_str() == src_name {
                         Some(ent)
@@ -314,18 +334,40 @@ fn copy_poses(
         else {
             return;
         };
+
+        // Get the query data needed to compute the target bone's local rotation
         let Ok(src_inv_bind_pose) = q_inv_bind_poses.get(src_ent) else {
             return;
         };
         let Ok(src_world_xform) = q_world_xforms.get(src_ent) else {
             return;
         };
-        let Ok(tgt_bind_pose) = q_world_bind_poses.get(node.id) else {
+        let Ok(tgt_world_bind_pose) = q_world_bind_poses.get(node.id) else {
             return;
         };
 
-        let mut local_mat = src_world_xform.affine() * (**src_inv_bind_pose);
+        // The math here was adapted from this writeup:
+        // https://wickedengine.net/2022/09/23/animation-retargeting/
+        //
+        // ```pseudocode
+        // // Apply target-local rotation
+        // tgt_working_xform = src_world_xform * src_inv_bind_pose
+        // tgt_working_xform = tgt_inv_parent_xform * local_xform * tgt_world_bind_pose
+        // tgt_xform.rotation = tgt_working_xform.rotation
+        //
+        // // Check if the translation component is animated
+        // if src_local_xform.translation != src_local_bind_pose.translation {
+        //     // Apply target-local translation
+        //     src_world_xlation = src_inv_bind_pose * src_local_xform.translation
+        //     tgt_local_xlation = tgt_inv_parent_xform * src_world_xlation
+        //     tgt_xform.translation = tgt_local_xlation
+        // }
+        // ```
+        let mut tgt_working_xform = src_world_xform.affine() * (**src_inv_bind_pose);
 
+        // The parent bone's world transform must be computed each iteration,
+        // since it will be affected by the rotations applied on the previous
+        // iteration.
         let parent_xform = node
             .parent
             .and_then(|parent| q_xforms.get(parent).ok())
@@ -340,31 +382,33 @@ fn copy_poses(
             }
         }
 
-        let tgt_inv_parent_mat = parent_world_xform.affine().inverse();
-        local_mat = tgt_inv_parent_mat * local_mat * (**tgt_bind_pose);
+        let tgt_inv_parent_xform = parent_world_xform.affine().inverse();
+        tgt_working_xform = tgt_inv_parent_xform * tgt_working_xform * (**tgt_world_bind_pose);
 
-        let src_local_xlation = q_xforms.get(src_ent).map(|xform| xform.translation);
+        // Apply the local rotation
+        if let Ok(mut tgt_xform) = q_xforms.get_mut(node.id) {
+            tgt_xform.rotation = Quat::from_affine3(&tgt_working_xform);
+        }
 
-        let Ok(mut tgt_xform) = q_xforms.get_mut(node.id) else {
-            return;
-        };
-        tgt_xform.rotation = Quat::from_affine3(&local_mat);
-
+        // Get the query data needed to compute the target bone's local translation
         let Ok(src_local_bind_pose) = q_local_bind_poses.get(src_ent) else {
             return;
         };
         let Ok(src_world_bind_pose) = q_world_bind_poses.get(src_ent) else {
             return;
         };
+        let Ok(src_local_xlation) = q_xforms.get(src_ent).map(|xform| xform.translation) else {
+            return;
+        };
 
-        if let Ok(src_local_xlation) = src_local_xlation {
-            if !src_local_xlation.nearly_eq_within(src_local_bind_pose.translation, 1e-3) {
-                let src_world_xlation = src_world_bind_pose.transform_vector3(src_local_xlation);
-                let tgt_local_xlation = parent_world_xform
-                    .affine()
-                    .inverse()
-                    .transform_vector3(src_world_xlation);
+        // If the source bone translation != its bind pose translation,
+        // this translation component is animated (likely root motion)
+        if !src_local_xlation.nearly_eq_within(src_local_bind_pose.translation, 1e-3) {
+            let src_world_xlation = src_world_bind_pose.transform_vector3(src_local_xlation);
+            let tgt_local_xlation = tgt_inv_parent_xform.transform_vector3(src_world_xlation);
 
+            // Apply the local translation
+            if let Ok(mut tgt_xform) = q_xforms.get_mut(node.id) {
                 tgt_xform.translation = tgt_local_xlation;
             }
         }
