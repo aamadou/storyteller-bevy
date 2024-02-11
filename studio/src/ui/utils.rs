@@ -1,14 +1,234 @@
 
-use bevy::prelude::*;
-use dioxus::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
+use ::serde::{Serialize, Deserialize};
+use uuid::*;
 
-#[derive(Props)]
+trait NodeProp : Clone + PartialEq {
+
+}
+
+fn check_predefined(r : &dyn Reflect) -> Option<VNode> {
+    if let Some(name) = r.downcast_ref::<Name>() {
+        Some(VNode::Component(VComponent {
+            tag: "input".to_string(),
+            attributes: vec![
+                ("type".to_string(), "text".to_string()),
+                ("value".to_string(), name.to_string()),
+            ],
+            children: vec![],
+            onchange: None
+        }))
+    } else if let Some(transform) = r.downcast_ref::<Transform>() {
+        Some(VNode::Component(VComponent {
+            tag: "div".to_string(),
+            attributes: vec![],
+            children: vec![
+                VNode::Text("Pos: ".to_string()),
+                show_reflect(&transform.translation).unwrap(),
+                VNode::Text("Rot: ".to_string()),
+                show_reflect(&transform.rotation).unwrap(),
+                VNode::Text("Scale: ".to_string()),
+                show_reflect(&transform.scale).unwrap(),
+            ],
+            onchange: None
+        }))
+    } else if let Some(quat) = r.downcast_ref::<Quat>() {
+        let euler = quat.to_euler(EulerRot::XYZ);
+        Some(VNode::Component(VComponent {
+            tag: "div".to_string(),
+            attributes: vec![],
+            children: vec![
+                VNode::Text("X: ".to_string()),
+                VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), euler.0.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }),
+                VNode::Text("Y: ".to_string()),
+                VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), euler.1.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }),
+                VNode::Text("Z: ".to_string()),
+                VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), euler.2.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                })
+            ],
+            onchange: None
+        }))
+    }
+    else if let Some(vec) = r.downcast_ref::<Vec3>() {
+        Some(VNode::Component(VComponent {
+            tag: "div".to_string(),
+            attributes: vec![],
+            children: vec![
+                VNode::Text("X: ".to_string()),
+                VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), vec.x.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }),
+                VNode::Text("Y: ".to_string()),
+                VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), vec.y.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }),
+                VNode::Text("Z: ".to_string()),
+                VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), vec.z.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                })
+            ],
+            onchange: None
+        }))    
+    
+    } else {
+        None
+    }
+}
+
+pub fn show_reflect(r : &dyn Reflect) -> Option<VNode> {
+
+    if let Some(vnode) = check_predefined(r) {
+        return Some(vnode);
+    }
+
+    match r.reflect_ref() {
+        bevy::reflect::ReflectRef::Struct(v) => {
+            None
+
+        },
+        bevy::reflect::ReflectRef::TupleStruct(_) => {
+            None
+        },
+        bevy::reflect::ReflectRef::Tuple(_) => {
+            None
+        },
+        bevy::reflect::ReflectRef::List(_) => {
+            None
+        },
+        bevy::reflect::ReflectRef::Array(_) => {
+            None
+        },
+        bevy::reflect::ReflectRef::Map(_) => {
+            None
+        },
+        bevy::reflect::ReflectRef::Enum(_) => {
+            None
+        },
+        bevy::reflect::ReflectRef::Value(v) => {
+            if let Some(s) = v.downcast_ref::<String>() {
+                Some(VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "text".to_string()),
+                        ("value".to_string(), s.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }))
+            } else if let Some(b) = v.downcast_ref::<bool>() {
+                Some(VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "checkbox".to_string()),
+                        ("value".to_string(), b.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }))
+            } else if let Some(i) = v.downcast_ref::<i32>() {
+                Some(VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), i.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }))
+            } else if let Some(f) = v.downcast_ref::<f32>() {
+                Some(VNode::Component(VComponent {
+                    tag: "input".to_string(),
+                    attributes: vec![
+                        ("type".to_string(), "number".to_string()),
+                        ("value".to_string(), f.to_string()),
+                    ],
+                    children: vec![],
+                    onchange: None
+                }))
+            } else {
+                Some(VNode::Text(format!("{:?}", v)))
+            }
+        },
+    }
+}
+
+impl<T: Clone + PartialEq> NodeProp for T {}
+
+pub fn show_string(s : &str) -> Option<VNode> {
+    Some(VNode::Text(s.to_string())
+)}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct VComponent {
+    pub tag: String,
+    pub attributes: Vec<(String, String)>,
+    pub children: Vec<VNode>,
+    pub onchange: Option<String> // event name if onchange is set
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub enum VNode {
+    Text(String),
+    Component(VComponent),
+}
+
+struct Element<P: NodeProp> {
+    last_prop: Option<P>,
+    last_elements: Vec<VNode>,
+    prop_event : HashMap<String, Box<dyn FnMut(&mut P, &str)>>, 
+
+}
+
+struct VirtualDom {
+
+}
+
 pub struct InspectedEntity {
     pub id: Option<Entity>,
     pub components: Vec<Box<dyn Reflect>>,
 }
 
-#[derive(Props)]
 pub struct ComponentProp {
     pub component: Box<dyn Reflect>,
 }

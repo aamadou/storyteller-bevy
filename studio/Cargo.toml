@@ -22,7 +22,7 @@ bitflags = "2.4.0"
 console_error_panic_hook = { version = "0.1.7", optional = true }
 js-sys = { version = "0.3.65", optional = true }
 parking_lot = "0.12.1"
-serde = { version = "1.0.192", optional = true }
+serde = { version = "1.0.192", optional = true, features = ["derive"] }
 serde-wasm-bindgen = { version = "0.6.1", optional = true }
 serde_json = { version = "1.0.108", optional = true }
 studio-bvh = { path = "../studio-bvh" }
@@ -39,11 +39,9 @@ web-sys = { version = "0.3.65", optional = true, features = [
 ] }
 space_editor = {git = "https://github.com/rewin123/space_editor", rev = "ce83f86dc902787ab16213f3209276a784654df6"}
 anyhow.workspace = true
-dioxus = "0.4.3"
-futures-util = "0.3.30"
-sledgehammer_bindgen = { version = "0.3.1", default-features = false, optional = true }
-sledgehammer_utils = { version = "0.2", optional = true }
 pretty-type-name = "1.0.1"
+async-channel = "2.2.0"
+uuid = { version = "1.3.0", features = ["v4"] }
 
 [features]
 wasm = [
@@ -54,8 +52,6 @@ wasm = [
 	"dep:serde-wasm-bindgen",
 	"dep:web-sys",
 	"bevy_rapier3d/wasm-bindgen",
-	"dep:sledgehammer_bindgen",
-	"dep:sledgehammer_utils",
 ]
 desktop = []
 
