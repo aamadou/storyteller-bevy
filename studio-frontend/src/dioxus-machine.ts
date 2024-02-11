@@ -1,4 +1,4 @@
-import { type InspectorDomChanged } from "dist/studio/studio";
+import { register_new_change, type InspectorDomChanged } from "@storyteller/studio";
 
 console.log("Hello, World!");
 
@@ -16,6 +16,7 @@ function unpack_vnode(
             var attr = node_data["attributes"][i];
             element.setAttribute(attr[0], attr[1]);
         }
+        element.setAttribute("onchange_id", node_data["onchange"]);
         //apply children
         if (node_data["children"] != undefined) {
             for (var j = 0; j < node_data["children"].length; j++) {
@@ -23,6 +24,17 @@ function unpack_vnode(
                 var child_element = unpack_vnode(child);
                 element.appendChild(child_element);
             }
+        }
+        //add onchange hook if input
+        if (node_data["tag"] == "input") {
+            element.onchange = (event: Event) => {
+                const input = event.target as HTMLInputElement;
+                const id = input.getAttribute("onchange_id");
+                if (id) {
+                    const value = input.value;
+                    register_new_change(id, value);
+                }
+            }            
         }
         return element;
     }
@@ -37,21 +49,31 @@ function apply_muts(
         var lit_root = document.getElementById("inspector");
         var shadowroot = lit_root?.shadowRoot;
         var root = shadowroot?.getElementById("inspector");
-        console.log("root", root);
         if (root) {
             //remove all children
-            while (root.firstChild) {
-                root.removeChild(root.firstChild);
-            }
+            
         } else {
             console.log("root not found");
             return;
         }
 
-        var vdom = JSON.parse(event.detail);
+        var muts = JSON.parse(event.detail);
+
+        if (muts.length > 0) {
+            console.log("muts", muts);
+        }
         
-        var element = unpack_vnode(vdom);
-        root.appendChild(element);
+        for (var i = 0; i < muts.length; i++) {
+            var mut = muts[i];
+            if (mut["ReplaceAll"] != undefined) {
+                var vnode = mut["ReplaceAll"];
+                var element = unpack_vnode(vnode);
+                while (root.firstChild) {
+                    root.removeChild(root.firstChild);
+                }
+                root.appendChild(element);
+            }
+        }
 
     } else {
         console.log('Selection has been cleared.');
@@ -61,7 +83,6 @@ function apply_muts(
 document.addEventListener('inspector-dom-changed', (event: CustomEvent) => {
     // Cast the event to the InspectorDomChanged type to access its details in TypeScript
     const customEvent = event as InspectorDomChanged;
-    console.log(customEvent);
     // Now you can access the detail property, which is either a string or null
     apply_muts(customEvent);
 });

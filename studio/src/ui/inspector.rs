@@ -1,6 +1,6 @@
-use std::{sync::{Arc, Mutex, RwLock}, thread::yield_now};
+use std::{any::Any, sync::{Arc, Mutex, RwLock}, thread::yield_now};
 
-use bevy::{ecs::world::unsafe_world_cell::{UnsafeEntityCell, UnsafeWorldCell}, prelude::*, reflect::TypeData, utils::{hashbrown::HashMap, tracing::field}, window::PrimaryWindow};
+use bevy::{ecs::{component::ComponentId, world::unsafe_world_cell::{UnsafeEntityCell, UnsafeWorldCell}}, prelude::*, reflect::{ReflectFromPtr, TypeData}, utils::{hashbrown::HashMap, tracing::field}, window::PrimaryWindow};
 use serde::{Deserialize, Serialize};
 use space_editor::{prelude::Selected, space_editor_ui::inspector::inspect};
 use wasm_bindgen::JsCast;
@@ -8,7 +8,7 @@ use web_sys::HtmlElement;
 
 use crate::{ui::inspector::wasm::notify_dom_changed, wasm::{StaticBuffer, WasmMessageBuffer}};
 
-use super::utils::{show_reflect, ComponentProp, InspectedEntity, VComponent, VNode};
+use super::utils::{show_reflect, ComponentProp, InspectedEntity, ReflectChange, VComponent, VNode, VirtualDom};
 
 pub struct InspectorPlugin;
 
@@ -58,6 +58,9 @@ impl InspectorFunctions {
 fn show_selected(
     world: &mut World
 ) {
+    if !world.is_resource_added::<VirtualDom>() {
+        world.init_resource::<VirtualDom>();
+    }
     unsafe {
         let cell = world.as_unsafe_world_cell();
         
@@ -69,25 +72,87 @@ fn show_selected(
 
         let mut functions = cell.get_resource_mut::<InspectorFunctions>().unwrap();
 
+        let mut virtial_dom = cell.get_resource_mut::<VirtualDom>().unwrap();
+        let app_type_registry = cell.get_resource::<AppTypeRegistry>().unwrap();
+        let app_type_registry = app_type_registry.read();
+
         let e = cell.get_entity(selected_entity).unwrap();
 
-        let mut cell = InspectedEntity::none();
-        cell.id = Some(e.id());
-        cell.components = functions.get_reflect_copy(&e);
+        if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
+            for (change_id, value) in changes {
+                info!("change: {} : {}", change_id, value);
 
+                let change = serde_json::from_str::<ReflectChange>(&change_id).unwrap();
+                let c_id = ComponentId::new(
+                    change.compoent_id.split('(').nth(1).unwrap().split(')').next().unwrap().parse().unwrap()
+                );
+
+                if let Some(mut c) = e.get_mut_by_id(c_id) {
+
+                    let mut refl = app_type_registry.get_type_data::<ReflectFromPtr>(cell.components().get_info_unchecked(c_id).type_id().unwrap())
+                        .unwrap()
+                        .as_reflect_mut(c.as_mut());
+
+                    if let Ok(refl_value) = refl.reflect_path_mut(change.reflect_path.as_str()) {
+                        if let Some(v) = refl_value.downcast_mut::<String>() {
+                            *v = value;
+                        } else if let Some(v) = refl_value.downcast_mut::<f32>() {
+                            *v = value.parse().unwrap();
+                        } else if let Some(v) = refl_value.downcast_mut::<f64>() {
+                            *v = value.parse().unwrap();
+                        } else if let Some(v) = refl_value.downcast_mut::<bool>() {
+                            *v = value.parse().unwrap();
+                        } else if let Some(v) = refl_value.downcast_mut::<i32>() {
+                            *v = value.parse().unwrap();
+                        } else if let Some(v) = refl_value.downcast_mut::<i64>() {
+                            *v = value.parse().unwrap();
+                        } else if let Some(v) = refl_value.downcast_mut::<u32>() {
+                            *v = value.parse().unwrap();
+                        } else if let Some(v) = refl_value.downcast_mut::<u64>() {
+                            *v = value.parse().unwrap();
+                        }
+                    }
+                        
+                    
+                }
+            }
+        }
+
+
+        let mut inspected = InspectedEntity::none();
+        inspected.id = Some(e.id());
+        inspected.components = functions.get_reflect_copy(&e);
+
+        let id = e.id();
+
+        let components = cell.components().clone();
         let vnode = VNode::Component(VComponent {
             tag: "div".to_string(),
             attributes: vec![
-                
+
             ],
-            children: cell.components.into_iter().map(|c| show_reflect(c.as_ref())).filter_map(|c| c).collect(),
+            children: inspected.components.into_iter().map(|c| {
+                    show_reflect(
+                        c.as_ref(), 
+                        ReflectChange {
+                            entity_id: id.index(),
+                            generation: id.generation(),
+                            reflect_path: "".to_string(),
+                            compoent_id: format!("{:?}", components.get_id(c.get_represented_type_info().unwrap().type_id()).unwrap()),
+                        }
+                    )
+                })
+                .filter_map(|v| v)
+                .collect(),
             ..Default::default()
         });
+
+        let muts = virtial_dom.create_mutations(Some(vnode));
         
 
-        let q_window = world.query_filtered::<&Window, With<PrimaryWindow>>().single(world);
+        let q_window = cell.world_mut().query_filtered::<&Window, With<PrimaryWindow>>().single(cell.world());
 
-        let _ = notify_dom_changed(q_window, serde_json::to_string(&vnode).unwrap());
+        let _ = notify_dom_changed(q_window, serde_json::to_string(&muts).unwrap());
 
     }
 }
@@ -129,12 +194,5 @@ declare global {
         wasm::dispatch_to_js(q_window, "inspector-dom-changed", &msg)
     }
 
-    pub static MUTATION_BUFFER: WasmMessageBuffer<String> = WasmMessageBuffer::new();
-
-    #[wasm_bindgen(js_name = getMutation)]
-    pub fn get_mutation() -> String {
-
-
-        MUTATION_BUFFER.take_message().unwrap_or("{}".to_string())
-    }
+    
 }

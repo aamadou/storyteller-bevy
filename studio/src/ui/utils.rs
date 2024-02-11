@@ -1,4 +1,6 @@
 
+use std::any::Any;
+
 use bevy::{prelude::*, utils::HashMap};
 use ::serde::{Serialize, Deserialize};
 use uuid::*;
@@ -7,7 +9,45 @@ trait NodeProp : Clone + PartialEq {
 
 }
 
-fn check_predefined(r : &dyn Reflect) -> Option<VNode> {
+#[derive(Serialize, Deserialize)]
+pub enum Mutation {
+    ReplaceAll(VNode),
+    RemoveAll
+}
+
+#[derive(Default, Resource)]
+pub struct VirtualDom {
+    last_node : Option<VNode>,
+}
+
+impl VirtualDom {
+    pub fn create_mutations(&mut self, node : Option<VNode>) -> Vec<Mutation> {
+        if self.last_node == node {
+            return vec![]
+        } else {
+            self.last_node = node.clone();
+            return vec![Mutation::ReplaceAll(node.unwrap())]
+        }
+    }
+}
+
+#[cfg(feature = "wasm")]
+pub mod wasm {
+    use wasm_bindgen::prelude::*;
+
+    use crate::wasm::{StaticBuffer, WasmMessageBuffer};
+
+    pub static ONCHAGE_BUFFER: WasmMessageBuffer<Vec<(String, String)>> = WasmMessageBuffer::new();
+
+    #[wasm_bindgen(js_name = register_new_change)]
+    pub fn register_new_change(change : String, value : String) {
+        let mut data = ONCHAGE_BUFFER.take_message().unwrap_or_default();
+        data.push((change, value));
+        ONCHAGE_BUFFER.write_message(data);
+    }
+}
+
+fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode> {
     if let Some(name) = r.downcast_ref::<Name>() {
         Some(VNode::Component(VComponent {
             tag: "input".to_string(),
@@ -16,19 +56,20 @@ fn check_predefined(r : &dyn Reflect) -> Option<VNode> {
                 ("value".to_string(), name.to_string()),
             ],
             children: vec![],
-            onchange: None
+            onchange: Some(onchange.add_path("name").to_string())
         }))
     } else if let Some(transform) = r.downcast_ref::<Transform>() {
+        
         Some(VNode::Component(VComponent {
             tag: "div".to_string(),
             attributes: vec![],
             children: vec![
                 VNode::Text("Pos: ".to_string()),
-                show_reflect(&transform.translation).unwrap(),
+                show_reflect(&transform.translation, onchange.add_path("translation")).unwrap(),
                 VNode::Text("Rot: ".to_string()),
-                show_reflect(&transform.rotation).unwrap(),
+                show_reflect(&transform.rotation, onchange.add_path("rotation")).unwrap(),
                 VNode::Text("Scale: ".to_string()),
-                show_reflect(&transform.scale).unwrap(),
+                show_reflect(&transform.scale, onchange.add_path("scale")).unwrap(),
             ],
             onchange: None
         }))
@@ -116,9 +157,9 @@ fn check_predefined(r : &dyn Reflect) -> Option<VNode> {
     }
 }
 
-pub fn show_reflect(r : &dyn Reflect) -> Option<VNode> {
+pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<VNode> {
 
-    if let Some(vnode) = check_predefined(r) {
+    if let Some(vnode) = check_predefined(r, reflect.clone()) {
         return Some(vnode);
     }
 
@@ -154,7 +195,7 @@ pub fn show_reflect(r : &dyn Reflect) -> Option<VNode> {
                         ("value".to_string(), s.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(reflect.to_string())
                 }))
             } else if let Some(b) = v.downcast_ref::<bool>() {
                 Some(VNode::Component(VComponent {
@@ -164,7 +205,7 @@ pub fn show_reflect(r : &dyn Reflect) -> Option<VNode> {
                         ("value".to_string(), b.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(reflect.to_string())
                 }))
             } else if let Some(i) = v.downcast_ref::<i32>() {
                 Some(VNode::Component(VComponent {
@@ -174,7 +215,7 @@ pub fn show_reflect(r : &dyn Reflect) -> Option<VNode> {
                         ("value".to_string(), i.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(reflect.to_string())
                 }))
             } else if let Some(f) = v.downcast_ref::<f32>() {
                 Some(VNode::Component(VComponent {
@@ -184,7 +225,7 @@ pub fn show_reflect(r : &dyn Reflect) -> Option<VNode> {
                         ("value".to_string(), f.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(reflect.to_string())
                 }))
             } else {
                 Some(VNode::Text(format!("{:?}", v)))
@@ -204,24 +245,13 @@ pub struct VComponent {
     pub tag: String,
     pub attributes: Vec<(String, String)>,
     pub children: Vec<VNode>,
-    pub onchange: Option<String> // event name if onchange is set
+    pub onchange: Option<String> // id for onchange detection 
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum VNode {
     Text(String),
     Component(VComponent),
-}
-
-struct Element<P: NodeProp> {
-    last_prop: Option<P>,
-    last_elements: Vec<VNode>,
-    prop_event : HashMap<String, Box<dyn FnMut(&mut P, &str)>>, 
-
-}
-
-struct VirtualDom {
-
 }
 
 pub struct InspectedEntity {
@@ -238,6 +268,29 @@ impl Clone for ComponentProp {
         Self {
             component: self.component.clone_value()
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ReflectChange {
+    pub entity_id : u32,
+    pub generation : u32,
+    pub reflect_path: String,
+    pub compoent_id: String
+}
+
+impl ReflectChange {
+    pub fn add_path(&self, path : &str) -> ReflectChange {
+        ReflectChange {
+            entity_id : self.entity_id,
+            generation : self.generation,
+            compoent_id : self.compoent_id.clone(),
+            reflect_path : format!("{}.{}", self.reflect_path, path)
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap()
     }
 }
 
