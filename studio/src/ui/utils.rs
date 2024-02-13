@@ -126,7 +126,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode>
                         ("value".to_string(), vec.x.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(onchange.add_path("x").to_string())
                 }),
                 VNode::Text("Y: ".to_string()),
                 VNode::Component(VComponent {
@@ -136,7 +136,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode>
                         ("value".to_string(), vec.y.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(onchange.add_path("y").to_string())
                 }),
                 VNode::Text("Z: ".to_string()),
                 VNode::Component(VComponent {
@@ -146,7 +146,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode>
                         ("value".to_string(), vec.z.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(onchange.add_path("z").to_string())
                 })
             ],
             onchange: None
