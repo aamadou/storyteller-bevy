@@ -16,8 +16,9 @@ function unpack_vnode(
             var attr = node_data["attributes"][i];
             element.setAttribute(attr[0], attr[1]);
         }
-        element.setAttribute("onchange_id", node_data["onchange"]);
-        console.log("onchange", node_data["onchange"]);
+        if (node_data["id"] != undefined) {
+            element.setAttribute("id", node_data["id"]);
+        };
         //apply children
         if (node_data["children"] != undefined) {
             for (var j = 0; j < node_data["children"].length; j++) {
@@ -27,10 +28,10 @@ function unpack_vnode(
             }
         }
         //add onchange hook if input
-        if (node_data["tag"] == "input") {
+        if (node_data["onchange"] == true) {
             element.onchange = (event: Event) => {
                 var input = event.target as HTMLInputElement;
-                const id = input.getAttribute("onchange_id");
+                const id = input.getAttribute("id");
                 if (id != null) {
                     console.log("onchange", id, input.value);
                     const value = input.value;

@@ -8,7 +8,7 @@ use web_sys::HtmlElement;
 
 use crate::{ui::inspector::wasm::notify_dom_changed, wasm::{StaticBuffer, WasmMessageBuffer}};
 
-use super::utils::{show_reflect, ComponentProp, InspectedEntity, ReflectChange, VComponent, VNode, VirtualDom};
+use super::utils::{show_reflect, ComponentProp, Element, InspectedEntity, ReflectChange, VComponent, VNode, VirtualDom};
 
 pub struct InspectorPlugin;
 
@@ -79,41 +79,9 @@ fn show_selected(
         let e = cell.get_entity(selected_entity).unwrap();
 
         if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
-            for (change_id, value) in changes {
-                info!("change: {} : {}", change_id, value);
-
-                if let Ok(change) = serde_json::from_str::<ReflectChange>(&change_id) {
-                    let c_id = ComponentId::new(
-                        change.compoent_id.split('(').nth(1).unwrap().split(')').next().unwrap().parse().unwrap()
-                    );
-
-                    if let Some(mut c) = e.get_mut_by_id(c_id) {
-
-                        let mut refl = app_type_registry.get_type_data::<ReflectFromPtr>(cell.components().get_info_unchecked(c_id).type_id().unwrap())
-                            .unwrap()
-                            .as_reflect_mut(c.as_mut());
-
-                        if let Ok(refl_value) = refl.reflect_path_mut(change.reflect_path.as_str()) {
-                            if let Some(v) = refl_value.downcast_mut::<String>() {
-                                *v = value;
-                            } else if let Some(v) = refl_value.downcast_mut::<f32>() {
-                                *v = value.parse().unwrap();
-                            } else if let Some(v) = refl_value.downcast_mut::<f64>() {
-                                *v = value.parse().unwrap();
-                            } else if let Some(v) = refl_value.downcast_mut::<bool>() {
-                                *v = value.parse().unwrap();
-                            } else if let Some(v) = refl_value.downcast_mut::<i32>() {
-                                *v = value.parse().unwrap();
-                            } else if let Some(v) = refl_value.downcast_mut::<i64>() {
-                                *v = value.parse().unwrap();
-                            } else if let Some(v) = refl_value.downcast_mut::<u32>() {
-                                *v = value.parse().unwrap();
-                            } else if let Some(v) = refl_value.downcast_mut::<u64>() {
-                                *v = value.parse().unwrap();
-                            }
-                        }
-                    }
-                }
+            for (id, value) in changes {
+                info!("change: {} : {}", id, value);
+                virtial_dom.on_change_events.execute(cell.world_mut(), id, value);
             }
         }
 
@@ -125,7 +93,7 @@ fn show_selected(
         let id = e.id();
 
         let components = cell.components().clone();
-        let vnode = VNode::Component(VComponent {
+        let element = Element::Component(super::utils::Component {
             tag: "div".to_string(),
             attributes: vec![
 
@@ -134,8 +102,7 @@ fn show_selected(
                     show_reflect(
                         c.as_ref(), 
                         ReflectChange {
-                            entity_id: id.index(),
-                            generation: id.generation(),
+                            entity_id: id,
                             reflect_path: "".to_string(),
                             compoent_id: format!("{:?}", components.get_id(c.get_represented_type_info().unwrap().type_id()).unwrap()),
                         }
@@ -146,7 +113,7 @@ fn show_selected(
             ..Default::default()
         });
 
-        let muts = virtial_dom.create_mutations(Some(vnode));
+        let muts = virtial_dom.render(Some(element));
         
 
         let q_window = cell.world_mut().query_filtered::<&Window, With<PrimaryWindow>>().single(cell.world());

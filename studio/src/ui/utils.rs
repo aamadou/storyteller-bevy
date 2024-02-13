@@ -1,7 +1,7 @@
 
 use std::any::Any;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{ecs::component::ComponentId, prelude::*, reflect::ReflectFromPtr, utils::HashMap};
 use ::serde::{Serialize, Deserialize};
 use uuid::*;
 
@@ -15,12 +15,86 @@ pub enum Mutation {
     RemoveAll
 }
 
+#[derive(Default)]
+pub struct Component {
+    pub tag : String,
+    pub attributes : Vec<(String, String)>,
+    pub children : Vec<Element>,
+    pub onchange: Option<Box<dyn WebEventExecutor + Send + Sync>>
+}
+
+pub enum Element {
+    Text(String),
+    Component(Component)
+}
+
+pub trait WebEventExecutor {
+    fn execute(&mut self, world: &mut World, data: String); 
+}
+
+#[derive(Default)]
+pub struct WebEventStorage {
+    pub events : HashMap<String, Box<dyn WebEventExecutor + Send + Sync>>,
+}
+
+impl WebEventStorage {
+    pub fn add_event(&mut self, id : String, event : Box<dyn WebEventExecutor + Send + Sync>) {
+        self.events.insert(id, event);
+    }
+
+    pub fn execute(&mut self, world: &mut World, id : String, data : String) {
+        if let Some(event) = self.events.get_mut(&id) {
+            event.execute(world, data);
+        } else {
+            println!("No event found for id: {}", id);
+        }
+    }
+}
+
 #[derive(Default, Resource)]
 pub struct VirtualDom {
     last_node : Option<VNode>,
+    pub on_change_events: WebEventStorage,
 }
 
 impl VirtualDom {
+
+    pub fn render(&mut self, element: Option<Element>) -> Vec<Mutation> {
+        let mut id_counter = 0;
+
+        if let Some(element) = element {
+            let node = self.recursive_unpack_element(&mut id_counter, element);
+            return self.create_mutations(Some(node));
+        } else {
+            return self.create_mutations(None);
+        }
+    }
+
+    fn recursive_unpack_element(&mut self, counter : &mut usize, element : Element) -> VNode {
+        match element {
+            Element::Text(text) => VNode::Text(text),
+            Element::Component(component) => {
+
+                let id = format!("node_{}", *counter);
+                *counter += 1;
+
+                let mut onchange_enabled = false;
+                if let Some(onchange) = component.onchange {
+                    self.on_change_events.add_event(id.clone(), onchange);
+                    onchange_enabled = true;
+                }
+
+                VNode::Component(VComponent {
+                    tag: component.tag,
+                    attributes: component.attributes,
+                    id: Some(id),
+                    onchange: onchange_enabled,
+                    children: component.children.into_iter().map(|e| self.recursive_unpack_element(counter, e)).collect()
+                })
+            },
+        }
+    } 
+
     pub fn create_mutations(&mut self, node : Option<VNode>) -> Vec<Mutation> {
         if self.last_node == node {
             return vec![]
@@ -40,47 +114,100 @@ pub mod wasm {
     pub static ONCHAGE_BUFFER: WasmMessageBuffer<Vec<(String, String)>> = WasmMessageBuffer::new();
 
     #[wasm_bindgen(js_name = register_new_change)]
-    pub fn register_new_change(change : String, value : String) {
+    pub fn register_new_change(id : String, value : String) {
         let mut data = ONCHAGE_BUFFER.take_message().unwrap_or_default();
-        data.push((change, value));
+        data.push((id, value));
         ONCHAGE_BUFFER.write_message(data);
     }
 }
 
-fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode> {
+struct ReflectValueExecutor {
+    change : ReflectChange
+}
+
+impl From<ReflectChange> for ReflectValueExecutor {
+    fn from(change : ReflectChange) -> Self {
+        ReflectValueExecutor { change }
+    }
+}
+
+impl WebEventExecutor for ReflectValueExecutor {
+    fn execute(&mut self, world: &mut World, value: String) {
+        unsafe {
+            let world = world.as_unsafe_world_cell();
+            let app_type_registry: &AppTypeRegistry = world.get_resource::<AppTypeRegistry>().unwrap();
+            let type_registry = app_type_registry.read();
+
+
+            let mut e = world.get_entity(self.change.entity_id).unwrap();
+            let c_id = ComponentId::new(
+                self.change.compoent_id.split('(').nth(1).unwrap().split(')').next().unwrap().parse().unwrap()
+            );
+
+            if let Some(mut c) = e.get_mut_by_id(c_id) {
+
+                let mut refl = type_registry.get_type_data::<ReflectFromPtr>(world.components().get_info_unchecked(c_id).type_id().unwrap())
+                    .unwrap()
+                    .as_reflect_mut(c.as_mut());
+
+                if let Ok(refl_value) = refl.reflect_path_mut(self.change.reflect_path.as_str()) {
+                    if let Some(v) = refl_value.downcast_mut::<String>() {
+                        *v = value;
+                    } else if let Some(v) = refl_value.downcast_mut::<f32>() {
+                        *v = value.parse().unwrap();
+                    } else if let Some(v) = refl_value.downcast_mut::<f64>() {
+                        *v = value.parse().unwrap();
+                    } else if let Some(v) = refl_value.downcast_mut::<bool>() {
+                        *v = value.parse().unwrap();
+                    } else if let Some(v) = refl_value.downcast_mut::<i32>() {
+                        *v = value.parse().unwrap();
+                    } else if let Some(v) = refl_value.downcast_mut::<i64>() {
+                        *v = value.parse().unwrap();
+                    } else if let Some(v) = refl_value.downcast_mut::<u32>() {
+                        *v = value.parse().unwrap();
+                    } else if let Some(v) = refl_value.downcast_mut::<u64>() {
+                        *v = value.parse().unwrap();
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Element> {
     if let Some(name) = r.downcast_ref::<Name>() {
-        Some(VNode::Component(VComponent {
+        Some(Element::Component(Component {
             tag: "input".to_string(),
             attributes: vec![
                 ("type".to_string(), "text".to_string()),
                 ("value".to_string(), name.to_string()),
             ],
             children: vec![],
-            onchange: Some(onchange.add_path("name").to_string())
+            onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("name"))))
         }))
     } else if let Some(transform) = r.downcast_ref::<Transform>() {
         
-        Some(VNode::Component(VComponent {
+        Some(Element::Component(Component {
             tag: "div".to_string(),
             attributes: vec![],
             children: vec![
-                VNode::Text("Pos: ".to_string()),
+                Element::Text("Pos: ".to_string()),
                 show_reflect(&transform.translation, onchange.add_path("translation")).unwrap(),
-                VNode::Text("Rot: ".to_string()),
+                Element::Text("Rot: ".to_string()),
                 show_reflect(&transform.rotation, onchange.add_path("rotation")).unwrap(),
-                VNode::Text("Scale: ".to_string()),
+                Element::Text("Scale: ".to_string()),
                 show_reflect(&transform.scale, onchange.add_path("scale")).unwrap(),
             ],
             onchange: None
         }))
     } else if let Some(quat) = r.downcast_ref::<Quat>() {
         let euler = quat.to_euler(EulerRot::XYZ);
-        Some(VNode::Component(VComponent {
+        Some(Element::Component(Component {
             tag: "div".to_string(),
             attributes: vec![],
             children: vec![
-                VNode::Text("X: ".to_string()),
-                VNode::Component(VComponent {
+                Element::Text("X: ".to_string()),
+                Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
@@ -89,8 +216,8 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode>
                     children: vec![],
                     onchange: None
                 }),
-                VNode::Text("Y: ".to_string()),
-                VNode::Component(VComponent {
+                Element::Text("Y: ".to_string()),
+                Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
@@ -99,8 +226,8 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode>
                     children: vec![],
                     onchange: None
                 }),
-                VNode::Text("Z: ".to_string()),
-                VNode::Component(VComponent {
+                Element::Text("Z: ".to_string()),
+                Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
@@ -114,39 +241,39 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode>
         }))
     }
     else if let Some(vec) = r.downcast_ref::<Vec3>() {
-        Some(VNode::Component(VComponent {
+        Some(Element::Component(Component {
             tag: "div".to_string(),
             attributes: vec![],
             children: vec![
-                VNode::Text("X: ".to_string()),
-                VNode::Component(VComponent {
+                Element::Text("X: ".to_string()),
+                Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
                         ("value".to_string(), vec.x.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(onchange.add_path("x").to_string())
+                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("x"))))
                 }),
-                VNode::Text("Y: ".to_string()),
-                VNode::Component(VComponent {
+                Element::Text("Y: ".to_string()),
+                Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
                         ("value".to_string(), vec.y.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(onchange.add_path("y").to_string())
+                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("y"))))
                 }),
-                VNode::Text("Z: ".to_string()),
-                VNode::Component(VComponent {
+                Element::Text("Z: ".to_string()),
+                Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
                         ("value".to_string(), vec.z.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(onchange.add_path("z").to_string())
+                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("z"))))
                 })
             ],
             onchange: None
@@ -157,7 +284,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<VNode>
     }
 }
 
-pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<VNode> {
+pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<Element> {
 
     if let Some(vnode) = check_predefined(r, reflect.clone()) {
         return Some(vnode);
@@ -188,47 +315,47 @@ pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<VNode> {
         },
         bevy::reflect::ReflectRef::Value(v) => {
             if let Some(s) = v.downcast_ref::<String>() {
-                Some(VNode::Component(VComponent {
+                Some(Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "text".to_string()),
                         ("value".to_string(), s.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(reflect.to_string())
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
                 }))
             } else if let Some(b) = v.downcast_ref::<bool>() {
-                Some(VNode::Component(VComponent {
+                Some(Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "checkbox".to_string()),
                         ("value".to_string(), b.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(reflect.to_string())
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
                 }))
             } else if let Some(i) = v.downcast_ref::<i32>() {
-                Some(VNode::Component(VComponent {
+                Some(Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
                         ("value".to_string(), i.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(reflect.to_string())
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
                 }))
             } else if let Some(f) = v.downcast_ref::<f32>() {
-                Some(VNode::Component(VComponent {
+                Some(Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
                         ("value".to_string(), f.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(reflect.to_string())
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
                 }))
             } else {
-                Some(VNode::Text(format!("{:?}", v)))
+                Some(Element::Text(format!("{:?}", v)))
             }
         },
     }
@@ -245,7 +372,8 @@ pub struct VComponent {
     pub tag: String,
     pub attributes: Vec<(String, String)>,
     pub children: Vec<VNode>,
-    pub onchange: Option<String> // id for onchange detection 
+    pub id: Option<String>,
+    pub onchange: bool,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -273,8 +401,7 @@ impl Clone for ComponentProp {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ReflectChange {
-    pub entity_id : u32,
-    pub generation : u32,
+    pub entity_id : Entity,
     pub reflect_path: String,
     pub compoent_id: String
 }
@@ -283,7 +410,6 @@ impl ReflectChange {
     pub fn add_path(&self, path : &str) -> ReflectChange {
         ReflectChange {
             entity_id : self.entity_id,
-            generation : self.generation,
             compoent_id : self.compoent_id.clone(),
             reflect_path : format!("{}.{}", self.reflect_path, path)
         }
