@@ -82,38 +82,37 @@ fn show_selected(
             for (change_id, value) in changes {
                 info!("change: {} : {}", change_id, value);
 
-                let change = serde_json::from_str::<ReflectChange>(&change_id).unwrap();
-                let c_id = ComponentId::new(
-                    change.compoent_id.split('(').nth(1).unwrap().split(')').next().unwrap().parse().unwrap()
-                );
+                if let Ok(change) = serde_json::from_str::<ReflectChange>(&change_id) {
+                    let c_id = ComponentId::new(
+                        change.compoent_id.split('(').nth(1).unwrap().split(')').next().unwrap().parse().unwrap()
+                    );
 
-                if let Some(mut c) = e.get_mut_by_id(c_id) {
+                    if let Some(mut c) = e.get_mut_by_id(c_id) {
 
-                    let mut refl = app_type_registry.get_type_data::<ReflectFromPtr>(cell.components().get_info_unchecked(c_id).type_id().unwrap())
-                        .unwrap()
-                        .as_reflect_mut(c.as_mut());
+                        let mut refl = app_type_registry.get_type_data::<ReflectFromPtr>(cell.components().get_info_unchecked(c_id).type_id().unwrap())
+                            .unwrap()
+                            .as_reflect_mut(c.as_mut());
 
-                    if let Ok(refl_value) = refl.reflect_path_mut(change.reflect_path.as_str()) {
-                        if let Some(v) = refl_value.downcast_mut::<String>() {
-                            *v = value;
-                        } else if let Some(v) = refl_value.downcast_mut::<f32>() {
-                            *v = value.parse().unwrap();
-                        } else if let Some(v) = refl_value.downcast_mut::<f64>() {
-                            *v = value.parse().unwrap();
-                        } else if let Some(v) = refl_value.downcast_mut::<bool>() {
-                            *v = value.parse().unwrap();
-                        } else if let Some(v) = refl_value.downcast_mut::<i32>() {
-                            *v = value.parse().unwrap();
-                        } else if let Some(v) = refl_value.downcast_mut::<i64>() {
-                            *v = value.parse().unwrap();
-                        } else if let Some(v) = refl_value.downcast_mut::<u32>() {
-                            *v = value.parse().unwrap();
-                        } else if let Some(v) = refl_value.downcast_mut::<u64>() {
-                            *v = value.parse().unwrap();
+                        if let Ok(refl_value) = refl.reflect_path_mut(change.reflect_path.as_str()) {
+                            if let Some(v) = refl_value.downcast_mut::<String>() {
+                                *v = value;
+                            } else if let Some(v) = refl_value.downcast_mut::<f32>() {
+                                *v = value.parse().unwrap();
+                            } else if let Some(v) = refl_value.downcast_mut::<f64>() {
+                                *v = value.parse().unwrap();
+                            } else if let Some(v) = refl_value.downcast_mut::<bool>() {
+                                *v = value.parse().unwrap();
+                            } else if let Some(v) = refl_value.downcast_mut::<i32>() {
+                                *v = value.parse().unwrap();
+                            } else if let Some(v) = refl_value.downcast_mut::<i64>() {
+                                *v = value.parse().unwrap();
+                            } else if let Some(v) = refl_value.downcast_mut::<u32>() {
+                                *v = value.parse().unwrap();
+                            } else if let Some(v) = refl_value.downcast_mut::<u64>() {
+                                *v = value.parse().unwrap();
+                            }
                         }
                     }
-                        
-                    
                 }
             }
         }
