@@ -66,6 +66,9 @@ export class AppElement extends LitElement {
                             }
                         }
                     }
+
+                    font-family: "Fira Sans", sans-serif;
+                    font-size: 14px;
                 }
             </style>
 

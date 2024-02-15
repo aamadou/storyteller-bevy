@@ -209,19 +209,22 @@ impl EntityChangeExecutor {
 fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Element> {
     if let Some(name) = r.downcast_ref::<Name>() {
         Some(Element::Component(Component {
-            tag: "input".to_string(),
+            tag: "div".to_string(),
             attributes: vec![
-                ("type".to_string(), "text".to_string()),
-                ("value".to_string(), name.to_string()),
+                ("style".to_string(), "font-weight: bold".to_string()),
             ],
-            children: vec![],
-            onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("name"))))
+            children: vec![
+                Element::Text(format!("{}", &name)),
+            ],
+            onchange: None
         }))
     } else if let Some(transform) = r.downcast_ref::<Transform>() {
         
         Some(Element::Component(Component {
             tag: "div".to_string(),
-            attributes: vec![],
+            attributes: vec![
+                ("style".to_string(), "display: flex; flex-direction: column".to_string()),
+            ],
             children: vec![
                 Element::Text("Pos: ".to_string()),
                 show_reflect(&transform.translation, onchange.add_path("translation")).unwrap(),
@@ -236,7 +239,9 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
         let euler = quat.to_euler(EulerRot::XYZ);
         Some(Element::Component(Component {
             tag: "div".to_string(),
-            attributes: vec![],
+            attributes: vec![
+                ("class".to_string(), "struct-grid".to_string()),
+            ],
             children: vec![
                 Element::Text("X: ".to_string()),
                 Element::Component(Component {
@@ -283,7 +288,9 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
     else if let Some(vec) = r.downcast_ref::<Vec3>() {
         Some(Element::Component(Component {
             tag: "div".to_string(),
-            attributes: vec![],
+            attributes: vec![
+                ("class".to_string(), "struct-grid".to_string()),
+            ],
             children: vec![
                 Element::Text("X: ".to_string()),
                 Element::Component(Component {
@@ -291,6 +298,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
                         ("value".to_string(), vec.x.to_string()),
+                        
                     ],
                     children: vec![],
                     onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("x"))))

@@ -94,7 +94,7 @@ fn show_selected(
         let element = Element::Component(super::utils::Component {
             tag: "div".to_string(),
             attributes: vec![
-
+                ("style".to_string(), "display: flex; flex-direction: column; height: 100%; overflow: auto;".to_string())
             ],
             children: inspected.components.into_iter().map(|c| {
                     show_reflect(
