@@ -74,8 +74,6 @@ fn show_selected(
 
         let mut virtial_dom = cell.get_resource_mut::<VirtualDom>().unwrap();
         let app_type_registry = cell.get_resource::<AppTypeRegistry>().unwrap();
-        let app_type_registry = app_type_registry.read();
-
         let e = cell.get_entity(selected_entity).unwrap();
 
         if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
@@ -92,7 +90,7 @@ fn show_selected(
 
         let id = e.id();
 
-        let components = cell.components().clone();
+        let components = cell.components();
         let element = Element::Component(super::utils::Component {
             tag: "div".to_string(),
             attributes: vec![

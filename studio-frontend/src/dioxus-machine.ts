@@ -2,6 +2,7 @@ import { register_new_change, type InspectorDomChanged } from "@storyteller/stud
 
 console.log("Hello, World!");
 
+
 function unpack_vnode(
     vnode: any
 ) {
@@ -29,7 +30,7 @@ function unpack_vnode(
         }
         //add onchange hook if input
         if (node_data["onchange"] == true) {
-            element.onchange = (event: Event) => {
+            element.oninput = (event: Event) => {
                 var input = event.target as HTMLInputElement;
                 const id = input.getAttribute("id");
                 if (id != null) {
@@ -75,6 +76,35 @@ function apply_muts(
                     root.removeChild(root.firstChild);
                 }
                 root.appendChild(element);
+            } else if (mut["SetAttibute"] != undefined) {
+                let m = mut["SetAttibute"];
+                let id = m["id"];
+                let value = m["value"];
+                let attribute = m["attribute"];
+                let element = shadowroot?.getElementById(id);
+                if (!element) {
+                    console.log("element not found", id);
+                } else {
+                    if (attribute == "value") {
+                        var input = element as HTMLInputElement;
+                        if (input) {
+                            input.value = value;
+                            //update input value
+                            // Create a new 'input' event
+                            const event = new Event('input', {
+                                bubbles: true,
+                                cancelable: true,
+                            });
+
+                            // Dispatch the event
+                            input.dispatchEvent(event);
+
+                            console.log("input value updated", value);
+                            continue;
+                        }
+                    }
+                    element.setAttribute(attribute, value);
+                }
             }
         }
 

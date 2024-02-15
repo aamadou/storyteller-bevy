@@ -11,6 +11,7 @@ trait NodeProp : Clone + PartialEq {
 
 #[derive(Serialize, Deserialize)]
 pub enum Mutation {
+    SetAttibute{id : String, attribute : String, value : String},
     ReplaceAll(VNode),
     RemoveAll
 }
@@ -64,9 +65,9 @@ impl VirtualDom {
 
         if let Some(element) = element {
             let node = self.recursive_unpack_element(&mut id_counter, element);
-            return self.create_mutations(Some(node));
+            return self.create_mutations(node);
         } else {
-            return self.create_mutations(None);
+            return self.create_mutations(VNode::Text("".to_string()));
         }
     }
 
@@ -86,7 +87,7 @@ impl VirtualDom {
 
                 VNode::Component(VComponent {
                     tag: component.tag,
-                    attributes: component.attributes,
+                    attributes: component.attributes.into_iter().collect(),
                     id: Some(id),
                     onchange: onchange_enabled,
                     children: component.children.into_iter().map(|e| self.recursive_unpack_element(counter, e)).collect()
@@ -95,12 +96,22 @@ impl VirtualDom {
         }
     } 
 
-    pub fn create_mutations(&mut self, node : Option<VNode>) -> Vec<Mutation> {
-        if self.last_node == node {
+    pub fn create_mutations(&mut self, node : VNode) -> Vec<Mutation> {
+        if self.last_node == Some(node.clone()) {
             return vec![]
         } else {
-            self.last_node = node.clone();
-            return vec![Mutation::ReplaceAll(node.unwrap())]
+
+            if let Some(last_node) = &self.last_node {
+                if last_node.is_same_structure(&node) {
+
+                    let muts = node.get_same_structure_muts(&last_node);
+                    self.last_node = Some(node.clone());
+                    return muts;
+                }
+            }
+
+            self.last_node = Some(node.clone());
+            return vec![Mutation::ReplaceAll(node)]
         }
     }
 }
@@ -174,6 +185,27 @@ impl WebEventExecutor for ReflectValueExecutor {
     }
 }
 
+struct EntityChangeExecutor {
+    entity : Entity,
+    func : Box<dyn Fn(&mut World, Entity, String) + Send + Sync>,
+}
+
+impl WebEventExecutor for EntityChangeExecutor {
+    fn execute(&mut self, world: &mut World, value: String) {
+        (self.func)(world, self.entity, value);
+    }
+}
+
+impl EntityChangeExecutor {
+    fn new(entity : Entity, func : impl Fn(&mut World, Entity, String) + Send + Sync + 'static) -> Self {
+        EntityChangeExecutor { entity, func : Box::new(func) }
+    }
+
+    fn new_boxed(entity : Entity, func : impl Fn(&mut World, Entity, String) + Send + Sync + 'static) -> Box<Self> {
+        Box::new(EntityChangeExecutor::new(entity, func))
+    }
+}
+
 fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Element> {
     if let Some(name) = r.downcast_ref::<Name>() {
         Some(Element::Component(Component {
@@ -214,7 +246,15 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                         ("value".to_string(), euler.0.to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(EntityChangeExecutor::new_boxed(
+                        onchange.entity_id,
+                        |world : &mut World, entity, value : String| {
+                            let mut e = world.get_entity_mut(entity).unwrap();
+                            let mut transform = e.get_mut::<Transform>().unwrap();
+                            let euler = transform.rotation.to_euler(EulerRot::XYZ);
+                            transform.rotation = Quat::from_euler(EulerRot::XYZ, value.parse().unwrap(), euler.1, euler.2);
+                        }
+                    ))
                 }),
                 Element::Text("Y: ".to_string()),
                 Element::Component(Component {
@@ -380,6 +420,60 @@ pub struct VComponent {
 pub enum VNode {
     Text(String),
     Component(VComponent),
+}
+
+impl VNode {
+    pub fn is_same_structure(&self, other : &VNode) -> bool {
+        match (self, other) {
+            (VNode::Text(s1), VNode::Text(s2)) => s1 == s2,
+            (VNode::Text(_), VNode::Component(_)) => false,
+            (VNode::Component(_), VNode::Text(_)) => false,
+            (VNode::Component(c1), VNode::Component(c2)) => {
+                if c1.tag != c2.tag {
+                    return false
+                } else if c1.children.len() != c2.children.len() {
+                    return false
+                } else {
+                    for i in 0..c1.children.len() {
+                        if !c1.children[i].is_same_structure(&c2.children[i]) {
+                            return false
+                        }
+                    }
+                    return true
+                }
+            },
+        }
+    }
+
+    pub fn get_same_structure_muts(&self, older : &VNode) -> Vec<Mutation> {
+        let mut res = vec![];
+        match (self, older) {
+            (VNode::Text(s1), VNode::Text(s2)) => {
+                res
+            }
+            (VNode::Text(_), VNode::Component(_)) => {
+                res
+            }
+            (VNode::Component(_), VNode::Text(_)) => {
+                res
+            }
+            (VNode::Component(new), VNode::Component(old)) => {
+                for idx in 0..new.attributes.len() {
+                    if new.attributes.get(idx) != old.attributes.get(idx) {
+                        res.push(Mutation::SetAttibute {
+                            id: old.id.as_ref().unwrap().clone(),
+                            attribute: new.attributes[idx].0.clone(),
+                            value: new.attributes[idx].1.clone()
+                        });
+                    }
+                }
+                for i in 0..new.children.len() {
+                    res.append(&mut new.children[i].get_same_structure_muts(&old.children[i]));
+                }
+                res
+            }
+        }
+    }
 }
 
 pub struct InspectedEntity {
