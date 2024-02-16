@@ -148,7 +148,12 @@ function create_float_input(element : HTMLInputElement) {
     const onMouseMove = (e: MouseEvent) => {
         if (isMouseDown) {
             const dx = e.clientX - startX;
-            element.value = (value + dx / 10).toString(); // Изменение на 1 за каждые 5 пикселей движения мыши
+            startX = e.clientX;
+            var float_value = parseFloat(element.value);
+            if (float_value == null) {
+                return;
+            }
+            element.value = (float_value + dx / 10.0).toString(); // Изменение на 1 за каждые 5 пикселей движения мыши
             //dispatch update event
             const event = new Event('input', {
                 bubbles: true,
@@ -164,11 +169,11 @@ function create_float_input(element : HTMLInputElement) {
         document.removeEventListener('mouseup', onMouseUp);
     };
 
-    element.addEventListener('keydown', (e: KeyboardEvent) => {
-        if (!e.key.match(/^[0-9]$/)) {
-            e.preventDefault(); // Предотвратить ввод нечисловых символов
-        }
-    });
+    // element.addEventListener('keydown', (e: KeyboardEvent) => {
+    //     if (!e.key.match(/^[0-9]$/)) {
+    //         e.preventDefault(); // Предотвратить ввод нечисловых символов
+    //     }
+    // });
 };
 
 function append_style(parent : HTMLElement) {
@@ -205,11 +210,13 @@ function append_style(parent : HTMLElement) {
     .struct-grid {
         display: grid;
         grid-template-columns: min-content 1fr;
-        gap: 8px;
+        column-gap: 8px;
+        row-gap: 4px;
         align-items: center;
     }
 
     `;
+
 
     parent.appendChild(style);
 }

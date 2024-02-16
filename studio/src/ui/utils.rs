@@ -165,19 +165,33 @@ impl WebEventExecutor for ReflectValueExecutor {
                     if let Some(v) = refl_value.downcast_mut::<String>() {
                         *v = value;
                     } else if let Some(v) = refl_value.downcast_mut::<f32>() {
-                        *v = value.parse().unwrap();
+                        if let Ok(value) = value.parse::<f32>() {
+                            *v = value;
+                        }
                     } else if let Some(v) = refl_value.downcast_mut::<f64>() {
-                        *v = value.parse().unwrap();
+                        if let Ok(value) = value.parse::<f64>() {
+                            *v = value;
+                        }
                     } else if let Some(v) = refl_value.downcast_mut::<bool>() {
-                        *v = value.parse().unwrap();
+                        if let Ok(value) = value.parse::<bool>() {
+                            *v = value;
+                        }
                     } else if let Some(v) = refl_value.downcast_mut::<i32>() {
-                        *v = value.parse().unwrap();
+                        if let Ok(value) = value.parse::<i32>() {
+                            *v = value;
+                        }
                     } else if let Some(v) = refl_value.downcast_mut::<i64>() {
-                        *v = value.parse().unwrap();
+                        if let Ok(value) = value.parse::<i64>() {
+                            *v = value;
+                        }
                     } else if let Some(v) = refl_value.downcast_mut::<u32>() {
-                        *v = value.parse().unwrap();
+                        if let Ok(value) = value.parse::<u32>() {
+                            *v = value;
+                        }
                     } else if let Some(v) = refl_value.downcast_mut::<u64>() {
-                        *v = value.parse().unwrap();
+                        if let Ok(value) = value.parse::<u64>() {
+                            *v = value;
+                        }
                     }
                 }
             }
@@ -206,12 +220,28 @@ impl EntityChangeExecutor {
     }
 }
 
+fn euler_to_degrees(euler : (f32, f32, f32)) -> (f32, f32, f32) {
+    (
+        euler.0.to_degrees(),
+        euler.1.to_degrees(),
+        euler.2.to_degrees()
+    )
+}
+
+fn degrees_to_euler(degrees : (f32, f32, f32)) -> (f32, f32, f32) {
+    (
+        degrees.0.to_radians(),
+        degrees.1.to_radians(),
+        degrees.2.to_radians()
+    )
+}
+
 fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Element> {
     if let Some(name) = r.downcast_ref::<Name>() {
         Some(Element::Component(Component {
             tag: "div".to_string(),
             attributes: vec![
-                ("style".to_string(), "font-weight: bold".to_string()),
+                ("style".to_string(), "font-weight: bold; font-size: 24px".to_string()),
             ],
             children: vec![
                 Element::Text(format!("{}", &name)),
@@ -237,6 +267,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
         }))
     } else if let Some(quat) = r.downcast_ref::<Quat>() {
         let euler = quat.to_euler(EulerRot::XYZ);
+        let degrees = euler_to_degrees(euler);
         Some(Element::Component(Component {
             tag: "div".to_string(),
             attributes: vec![
@@ -248,16 +279,23 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), euler.0.to_string()),
+                        ("value".to_string(), format!("{:.2}",degrees.0)),
+                        ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
                     onchange: Some(EntityChangeExecutor::new_boxed(
                         onchange.entity_id,
                         |world : &mut World, entity, value : String| {
+                            let Some(value) = value.parse::<f32>().ok() else { return; };
+                            let value = value.to_radians();
                             let mut e = world.get_entity_mut(entity).unwrap();
+                            
                             let mut transform = e.get_mut::<Transform>().unwrap();
+                            if transform.is_changed() {
+                                return;
+                            }
                             let euler = transform.rotation.to_euler(EulerRot::XYZ);
-                            transform.rotation = Quat::from_euler(EulerRot::XYZ, value.parse().unwrap(), euler.1, euler.2);
+                            transform.rotation = Quat::from_euler(EulerRot::XYZ, value, euler.1, euler.2);
                         }
                     ))
                 }),
@@ -266,20 +304,48 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), euler.1.to_string()),
+                        ("value".to_string(), format!("{:.2}",degrees.1)),
+                        ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(EntityChangeExecutor::new_boxed(
+                        onchange.entity_id,
+                        |world : &mut World, entity, value : String| {
+                            let Some(mut value) = value.parse::<f32>().ok() else { return; };
+                            let mut e = world.get_entity_mut(entity).unwrap();
+                            let mut transform = e.get_mut::<Transform>().unwrap();
+                            if transform.is_changed() {
+                                return;
+                            }
+                            let value = value.to_radians();
+                            let euler = transform.rotation.to_euler(EulerRot::XYZ);
+                            transform.rotation = transform.rotation * Quat::from_axis_angle(Vec3::Y, value - euler.1);
+                        }
+                    ))
                 }),
                 Element::Text("Z: ".to_string()),
                 Element::Component(Component {
-                    tag: "input".to_string(),
+                    tag: "input".to_string(),                  
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), euler.2.to_string()),
+                        ("value".to_string(), format!("{:.2}",degrees.2)),
+                        ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
-                    onchange: None
+                    onchange: Some(EntityChangeExecutor::new_boxed(
+                        onchange.entity_id,
+                        |world : &mut World, entity, value : String| {
+                            let Some(value) = value.parse::<f32>().ok() else { return; };
+                            let value = value.to_radians();
+                            let mut e = world.get_entity_mut(entity).unwrap();
+                            let mut transform = e.get_mut::<Transform>().unwrap();
+                            if transform.is_changed() {
+                                return;
+                            }
+                            let euler = transform.rotation.to_euler(EulerRot::XYZ);
+                            transform.rotation = Quat::from_euler(EulerRot::XYZ, euler.0, euler.1, value);
+                        }
+                    ))
                 })
             ],
             onchange: None
@@ -297,7 +363,8 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), vec.x.to_string()),
+                        ("value".to_string(), format!("{:.2}", vec.x)),
+                        ("step".to_string(), "0.01".to_string()),
                         
                     ],
                     children: vec![],
@@ -308,7 +375,8 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), vec.y.to_string()),
+                        ("value".to_string(), format!("{:.2}", vec.y)),
+                        ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
                     onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("y"))))
@@ -318,7 +386,8 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), vec.z.to_string()),
+                        ("value".to_string(), format!("{:.2}", vec.z)),
+                        ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
                     onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("z"))))
