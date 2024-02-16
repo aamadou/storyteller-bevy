@@ -286,7 +286,8 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     onchange: Some(EntityChangeExecutor::new_boxed(
                         onchange.entity_id,
                         |world : &mut World, entity, value : String| {
-                            let Some(value) = value.parse::<f32>().ok() else { return; };
+                            let Some(mut value) = value.parse::<f32>().ok() else { return; };
+                            if value == -180.0 { value = 180.0; }
                             let value = value.to_radians();
                             let mut e = world.get_entity_mut(entity).unwrap();
                             
@@ -312,6 +313,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                         onchange.entity_id,
                         |world : &mut World, entity, value : String| {
                             let Some(mut value) = value.parse::<f32>().ok() else { return; };
+                            if value == -180.0 { value = 180.0; }
                             let mut e = world.get_entity_mut(entity).unwrap();
                             let mut transform = e.get_mut::<Transform>().unwrap();
                             if transform.is_changed() {
@@ -335,7 +337,8 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                     onchange: Some(EntityChangeExecutor::new_boxed(
                         onchange.entity_id,
                         |world : &mut World, entity, value : String| {
-                            let Some(value) = value.parse::<f32>().ok() else { return; };
+                            let Some(mut value) = value.parse::<f32>().ok() else { return; };
+                            if value == -180.0 { value = 180.0; }
                             let value = value.to_radians();
                             let mut e = world.get_entity_mut(entity).unwrap();
                             let mut transform = e.get_mut::<Transform>().unwrap();

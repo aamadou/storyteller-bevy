@@ -136,19 +136,28 @@ function create_float_input(element : HTMLInputElement) {
     let value = 0; // Начальное значение
     let isMouseDown = false;
     let startX = 0;
+    let isSelected = false;
+    let max_dx = 0;
+
+    //if focus is lost set isSelected to false
+    element.addEventListener('focusout', () => {
+        isSelected = false;
+    });
 
     element.addEventListener('mousedown', (e: MouseEvent) => {
         isMouseDown = true;
         startX = e.clientX;
+        max_dx = 0;
         value = parseInt(element.value, 10);
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
     });
 
     const onMouseMove = (e: MouseEvent) => {
-        if (isMouseDown) {
+        if (isMouseDown && !isSelected) {
             const dx = e.clientX - startX;
             startX = e.clientX;
+            max_dx = Math.max(max_dx, dx);
             var float_value = parseFloat(element.value);
             if (float_value == null) {
                 return;
@@ -165,6 +174,9 @@ function create_float_input(element : HTMLInputElement) {
 
     const onMouseUp = () => {
         isMouseDown = false;
+        if (Math.abs(max_dx) < 1) {
+            isSelected = true;
+        }
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
     };
