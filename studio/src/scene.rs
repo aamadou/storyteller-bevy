@@ -175,11 +175,6 @@ pub struct SceneData {
     pub scene_path: String,
 }
 
-#[derive(Component)]
-pub struct SceneData {
-    pub scene_path: String,
-}
-
 pub struct SkeletalJoint(pub Color);
 
 #[derive(Component)]
