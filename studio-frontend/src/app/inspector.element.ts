@@ -72,7 +72,7 @@ export class AppElement extends LitElement {
                 }
             </style>
 
-            <div id="inspector" class="inspector"></div>
+            <div id="inspector"></div>
         `
 
         //convert string vdom to json object

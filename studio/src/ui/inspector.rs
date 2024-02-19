@@ -63,8 +63,16 @@ fn show_selected(
     }
     unsafe {
         let cell = world.as_unsafe_world_cell();
+        let mut virtial_dom = cell.get_resource_mut::<VirtualDom>().unwrap();
         
         let Some(selection) = cell.get_resource::<crate::interaction::Selection>() else {
+
+
+
+            let muts = virtial_dom.render(None);
+            let q_window = cell.world_mut().query_filtered::<&Window, With<PrimaryWindow>>().single(cell.world());
+            let _ = notify_dom_changed(q_window, serde_json::to_string(&muts).unwrap());
+
             return;
         };
 
@@ -72,7 +80,6 @@ fn show_selected(
 
         let mut functions = cell.get_resource_mut::<InspectorFunctions>().unwrap();
 
-        let mut virtial_dom = cell.get_resource_mut::<VirtualDom>().unwrap();
         let app_type_registry = cell.get_resource::<AppTypeRegistry>().unwrap();
         let e = cell.get_entity(selected_entity).unwrap();
 
@@ -94,7 +101,8 @@ fn show_selected(
         let element = Element::Component(super::utils::Component {
             tag: "div".to_string(),
             attributes: vec![
-                ("style".to_string(), "display: flex; flex-direction: column; height: 100%; overflow: auto;".to_string())
+                ("style".to_string(), "display: flex; flex-direction: column; height: 100%; overflow: auto;".to_string()),
+                ("class".to_string(), "inspector".to_string())
             ],
             children: inspected.components.into_iter().map(|c| {
                     show_reflect(
