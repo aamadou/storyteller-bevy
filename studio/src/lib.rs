@@ -15,9 +15,7 @@ mod debug;
 mod design_system;
 mod hierarchy;
 mod input;
-#[cfg(feature = "wasm")]
 mod inspector;
-
 mod interaction;
 pub mod math;
 mod mixamo;
