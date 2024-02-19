@@ -1,7 +1,5 @@
 import { register_new_change, type InspectorDomChanged } from "@storyteller/studio";
 
-console.log("Hello, World!");
-
 
 function unpack_vnode(
     vnode: any

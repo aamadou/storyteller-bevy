@@ -1,2 +1,2 @@
 import "./app/app.element";
-import "./dioxus-machine";
+import "./rust-machine";
