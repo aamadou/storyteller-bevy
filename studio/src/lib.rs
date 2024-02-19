@@ -1,11 +1,20 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
-use bevy::{app::PluginGroupBuilder, prelude::*};
+use std::time::Duration;
+
+use bevy::{
+    app::{AppExit, PluginGroupBuilder, ScheduleRunnerPlugin},
+    prelude::*,
+};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_web_asset::WebAssetPlugin;
+use bvh::{BvhAnimCompleteEvent, TestBvh};
+use screenshot::{ScreenCapture, ScreenShotPlugin};
+use space_editor::prelude::{EditorEvent, EditorPrefabPath};
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
+use wgpu::Extent3d;
 
 mod anim;
 mod bvh;
@@ -20,6 +29,7 @@ pub mod math;
 mod mixamo;
 mod persistance;
 mod scene;
+pub mod screenshot;
 mod skybox;
 mod ui;
 pub mod viewport;
@@ -53,6 +63,7 @@ pub(crate) struct MainCamera;
 #[derive(Resource, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StudioMode {
     Editor,
+    Headless,
     Viewer,
 }
 
@@ -62,7 +73,7 @@ pub(crate) fn is_editor(r_studio_mode: Res<StudioMode>) -> bool {
 
 /// The collection of plugins that should be loaded for both viewer-mode and
 /// editor-mode instances of the app.
-struct CommonPlugins;
+pub struct CommonPlugins;
 impl PluginGroup for CommonPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
@@ -271,4 +282,110 @@ pub fn start_internal(
     wasm::initialize();
 
     app
+}
+
+pub enum HeadlessMode {
+    Bvh(String, String),
+    Scene(String, String),
+}
+
+pub fn start_headless(
+    mode: HeadlessMode,
+    fps: u32,
+    outout_dir: &str,
+    frames_to_capture: u32,
+    image_res: Extent3d,
+) -> App {
+    let mut app = App::new();
+
+    app.insert_resource(StudioMode::Headless);
+    app.insert_resource(HeadlessSettings {
+        frames_to_capture,
+        output_dims: image_res,
+        output_dir: outout_dir.to_string(),
+    });
+
+    app.add_plugins((
+        ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / fps as f64)),
+        DefaultPlugins.set(WindowPlugin {
+            primary_window: None,
+            exit_condition: bevy::window::ExitCondition::DontExit,
+            close_when_requested: true,
+        }),
+        ScreenShotPlugin,
+        CommonPlugins,
+    ));
+
+    match mode {
+        HeadlessMode::Bvh(bvh_dir, skybox) => {
+            app.add_plugins(BvhPlugin);
+            app.add_systems(
+                Startup,
+                move |mut cmd: Commands,
+                      asset_server: Res<AssetServer>,
+                      mut ew: EventWriter<LoadSceneEvent>| {
+                    cmd.insert_resource(SkyboxId(skybox.clone()));
+                    cmd.insert_resource(TestBvh(asset_server.load(bvh_dir.clone())));
+
+                    ew.send(LoadSceneEvent("Mannequin.gltf".to_string()));
+                },
+            );
+
+            app.add_systems(PostUpdate, check_for_capture_complete);
+        }
+        HeadlessMode::Scene(scene, skybox) => {
+            app.add_systems(
+                Startup,
+                move |mut cmd: Commands, mut ew: EventWriter<EditorEvent>| {
+                    cmd.insert_resource(SkyboxId(skybox.clone()));
+                    ew.send(EditorEvent::Load(EditorPrefabPath::File(scene.clone())))
+                },
+            );
+        }
+    }
+
+    app
+}
+
+pub fn is_headless(studio_state: Res<StudioMode>) -> bool {
+    *studio_state == StudioMode::Headless
+}
+
+pub fn is_not_headless(studio_state: Res<StudioMode>) -> bool {
+    *studio_state != StudioMode::Headless
+}
+
+#[derive(Resource)]
+pub struct HeadlessSettings {
+    pub output_dims: Extent3d,
+    pub output_dir: String,
+    pub frames_to_capture: u32,
+}
+
+impl Default for HeadlessSettings {
+    fn default() -> Self {
+        HeadlessSettings {
+            output_dims: Extent3d {
+                width: 1280,
+                height: 720,
+                depth_or_array_layers: 1,
+            },
+            output_dir: "./screen_shots/".to_string(),
+            frames_to_capture: 1,
+        }
+    }
+}
+
+fn check_for_capture_complete(
+    main_camera: Query<&ScreenCapture, With<MainCamera>>,
+    mut close_app: EventWriter<AppExit>,
+    bvh_event_reader: EventReader<BvhAnimCompleteEvent>,
+) {
+    let Ok(screen_capture) = main_camera.get_single() else {
+        return;
+    };
+
+    if screen_capture.is_complete() || !bvh_event_reader.is_empty() {
+        close_app.send(AppExit);
+    }
 }
