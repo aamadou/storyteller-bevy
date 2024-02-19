@@ -20,6 +20,7 @@ pub struct Component {
     pub attributes: Vec<(String, String)>,
     pub children: Vec<Element>,
     pub onchange: Option<Box<dyn WebEventExecutor + Send + Sync>>,
+    pub onclick: Option<Box<dyn WebEventExecutor + Send + Sync>>,
 }
 
 pub enum Element {
@@ -54,6 +55,7 @@ impl WebEventStorage {
 pub struct VirtualDom {
     last_node: Option<VNode>,
     pub on_change_events: WebEventStorage,
+    pub on_click_events: WebEventStorage,
 }
 
 impl VirtualDom {
@@ -120,12 +122,12 @@ pub mod wasm {
 
     use crate::wasm::{StaticBuffer, WasmMessageBuffer};
 
-    pub static ONCHAGE_BUFFER: WasmMessageBuffer<Vec<(String, String)>> = WasmMessageBuffer::new();
+    pub static ONCHAGE_BUFFER: WasmMessageBuffer<Vec<(String, String, String)>> = WasmMessageBuffer::new();
 
     #[wasm_bindgen(js_name = register_new_change)]
-    pub fn register_new_change(id: String, value: String) {
+    pub fn register_new_change(id: String, kind: String, value: String) {
         let mut data = ONCHAGE_BUFFER.take_message().unwrap_or_default();
-        data.push((id, value));
+        data.push((id, kind, value));
         ONCHAGE_BUFFER.write_message(data);
     }
 }
@@ -259,7 +261,7 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                 "font-weight: bold; font-size: 24px".to_string(),
             )],
             children: vec![Element::Text(format!("{}", &name))],
-            onchange: None,
+            ..default()
         }))
     } else if let Some(transform) = r.downcast_ref::<Transform>() {
         Some(Element::Component(Component {
@@ -276,7 +278,7 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                 Element::Text("Scale: ".to_string()),
                 show_reflect(&transform.scale, onchange.add_path("scale")).unwrap(),
             ],
-            onchange: None,
+            ..default()
         }))
     } else if let Some(quat) = r.downcast_ref::<Quat>() {
         let euler = quat.to_euler(EulerRot::XYZ);
@@ -315,6 +317,7 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                                 Quat::from_euler(EulerRot::XYZ, value, euler.1, euler.2);
                         },
                     )),
+                    ..default()
                 }),
                 Element::Text("Y: ".to_string()),
                 Element::Component(Component {
@@ -344,6 +347,7 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                             transform.rotation *= Quat::from_axis_angle(Vec3::Y, value - euler.1);
                         },
                     )),
+                    ..default()
                 }),
                 Element::Text("Z: ".to_string()),
                 Element::Component(Component {
@@ -374,9 +378,10 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                                 Quat::from_euler(EulerRot::XYZ, euler.0, euler.1, value);
                         },
                     )),
+                    ..default()
                 }),
             ],
-            onchange: None,
+            ..default()
         }))
     } else {
         r.downcast_ref::<Vec3>().map(|vec| {
@@ -396,6 +401,7 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                         onchange: Some(Box::new(ReflectValueExecutor::from(
                             onchange.add_path("x"),
                         ))),
+                        ..default()
                     }),
                     Element::Text("Y: ".to_string()),
                     Element::Component(Component {
@@ -409,6 +415,7 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                         onchange: Some(Box::new(ReflectValueExecutor::from(
                             onchange.add_path("y"),
                         ))),
+                        ..default()
                     }),
                     Element::Text("Z: ".to_string()),
                     Element::Component(Component {
@@ -422,9 +429,10 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                         onchange: Some(Box::new(ReflectValueExecutor::from(
                             onchange.add_path("z"),
                         ))),
+                        ..default()
                     }),
                 ],
-                onchange: None,
+                ..default()
             })
         })
     }
@@ -453,6 +461,7 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
                     ],
                     children: vec![],
                     onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
+                    ..default()
                 }))
             } else if let Some(b) = v.downcast_ref::<bool>() {
                 Some(Element::Component(Component {
@@ -463,6 +472,7 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
                     ],
                     children: vec![],
                     onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
+                    ..default()
                 }))
             } else if let Some(i) = v.downcast_ref::<i32>() {
                 Some(Element::Component(Component {
@@ -473,6 +483,7 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
                     ],
                     children: vec![],
                     onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
+                    ..default()
                 }))
             } else if let Some(f) = v.downcast_ref::<f32>() {
                 Some(Element::Component(Component {
@@ -483,6 +494,7 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
                     ],
                     children: vec![],
                     onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
+                    ..default()
                 }))
             } else {
                 Some(Element::Text(format!("{:?}", v)))

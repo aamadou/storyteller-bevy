@@ -88,11 +88,13 @@ fn show_selected(world: &mut World) {
         let e = cell.get_entity(selected_entity).unwrap();
 
         if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
-            for (id, value) in changes {
-                info!("change: {} : {}", id, value);
-                virtial_dom
-                    .on_change_events
-                    .execute(cell.world_mut(), id, value);
+            for (id, kind, value) in changes {
+                if kind == "onchange" {
+                    info!("change: {} : {}", id, value);
+                    virtial_dom
+                        .on_change_events
+                        .execute(cell.world_mut(), id, value);
+                }
             }
         }
 
