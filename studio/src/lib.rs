@@ -68,7 +68,7 @@ pub(crate) fn is_editor(r_studio_mode: Res<StudioMode>) -> bool {
 struct CommonPlugins;
 impl PluginGroup for CommonPlugins {
     fn build(self) -> PluginGroupBuilder {
-        let group = PluginGroupBuilder::start::<Self>()
+        PluginGroupBuilder::start::<Self>()
             .add(CameraControllerPlugin)
             .add(DebugPlugin)
             .add(InterpolationPlugin)
@@ -78,12 +78,8 @@ impl PluginGroup for CommonPlugins {
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)
             .add(PersistancePlugin)
-            .add(AnimPlugin);
-
-        #[cfg(feature = "wasm")]
-        let group = { group.add(inspector::InspectorPlugin) };
-
-        group
+            .add(inspector::InspectorPlugin)
+            .add(AnimPlugin)
     }
 }
 
