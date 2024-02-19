@@ -240,8 +240,9 @@ pub(super) fn on_rotate(
 ) {
     // Components from the gizmo root (the entity being transformed)
     let Ok((mut xform, parent, init_xform, init_point, mut last_point, mut last_rotation)) =
-        q_root.get_single_mut() else {
-            return;
+        q_root.get_single_mut()
+    else {
+        return;
     };
 
     let gizmo_xform = q_gizmo.single();
