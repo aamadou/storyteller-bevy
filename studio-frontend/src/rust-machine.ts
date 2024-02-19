@@ -120,7 +120,7 @@ function apply_muts(
     }
 }
 
-document.addEventListener('inspector-dom-changed', (event: CustomEvent) => {
+document.addEventListener('inspector-dom-changed', (event) => {
     // Cast the event to the InspectorDomChanged type to access its details in TypeScript
     const customEvent = event as InspectorDomChanged;
     // Now you can access the detail property, which is either a string or null
