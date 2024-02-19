@@ -7,14 +7,17 @@ use bevy_web_asset::WebAssetPlugin;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+mod anim;
 mod bvh;
 mod camera_controller;
 mod debug;
 mod design_system;
+mod hierarchy;
 mod input;
 mod inspector;
 mod interaction;
-mod math;
+pub mod math;
+mod mixamo;
 mod persistance;
 mod scene;
 mod skybox;
@@ -25,12 +28,16 @@ pub mod blocking;
 mod world_grid;
 
 pub use crate::{
+    anim::AnimPlugin,
+    bvh::BvhPlugin,
     camera_controller::CameraControllerPlugin,
     debug::DebugPlugin,
     input::StudioInputPlugin,
     inspector::InspectorPlugin,
     interaction::InteractionPlugin,
     math::InterpolationPlugin,
+    mixamo::{MixamoImportEvent, MixamoPlugin},
+    persistance::PersistancePlugin,
     scene::{LoadSceneEvent, ScenePlugin},
     skybox::{SkyboxId, SkyboxPlugin},
     ui::UiLayerPlugin,
@@ -70,7 +77,8 @@ impl PluginGroup for CommonPlugins {
             .add(StudioInputPlugin)
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)
-            .add(persistance::PersistancePlugin)
+            .add(PersistancePlugin)
+            .add(AnimPlugin)
     }
 }
 
@@ -81,67 +89,6 @@ impl PluginGroup for EditorPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>().add(InteractionPlugin)
     }
-}
-
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
-pub fn init(viewport_size: ViewportSize) {
-    #[cfg(feature = "wasm")]
-    console_error_panic_hook::set_once();
-
-    let mut app = App::new();
-
-    #[cfg(feature = "wasm")]
-    app.add_plugins(viewport::wasm::ViewportPlugin);
-
-    app.add_plugins((
-        DefaultPlugins
-            // TODO: To generate asset .meta files (to prevent 404 errors on the
-            //       web), it's currently necessary to uncomment the following
-            //       block and run the app with this command:
-            //     > cargo run -p studio --features bevy/asset_processor,bevy/tonemapping_luts
-            // .set(AssetPlugin {
-            //     mode: AssetMode::Processed,
-            //     ..default()
-            // })
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    resolution: viewport_size.into(),
-                    title: "Storyteller Studio".into(),
-                    canvas: Some("#studio_canvas".into()),
-                    ..default()
-                }),
-                ..default()
-            }),
-        DefaultPickingPlugins,
-        DebugPlugin,
-        InteractionPlugin,
-        InspectorPlugin,
-        StudioInputPlugin,
-        InterpolationPlugin,
-        CameraControllerPlugin,
-        ScenePlugin,
-        SkyboxPlugin,
-        UiLayerPlugin,
-        WorldGridPlugin,
-        persistance::PersistancePlugin,
-    ))
-    .add_systems(
-        Startup,
-        move |mut cmd: Commands, mut ew: EventWriter<LoadSceneEvent>| {
-            cmd.insert_resource(SkyboxId("gum_trees_4k".to_string()));
-            ew.send(LoadSceneEvent("bookcase".to_string()));
-        },
-    )
-    .insert_resource(StudioMode::Editor);
-
-    // Only for registering components for undo
-    use space_editor::prelude::space_undo::AppAutoUndo;
-    app.auto_reflected_undo::<Transform>();
-
-    #[cfg(feature = "wasm")]
-    wasm::initialize();
-
-    app.run();
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startViewer))]
@@ -208,12 +155,40 @@ pub fn start_bvh_viewer(
 
     let bvh_path = bvh_path.to_string();
 
+    app.add_plugins(BvhPlugin);
     app.add_systems(
         Startup,
         move |mut cmd: Commands, r_assets: Res<AssetServer>| {
-            cmd.insert_resource(scene::TestBvh(r_assets.load(bvh_path.clone())));
+            cmd.insert_resource(bvh::TestBvh(r_assets.load(bvh_path.clone())));
         },
     );
+
+    app.run();
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen(js_name = startMixamoViewer))]
+pub fn start_mixamo_viewer(
+    mixamo_path: &str,
+    skybox_id: &str,
+    canvas_selector: &str,
+    canvas_alt: &str,
+    viewport_size: ViewportSize,
+) {
+    let mut app = start_internal(
+        "Mannequin.gltf",
+        skybox_id,
+        canvas_selector,
+        canvas_alt,
+        viewport_size,
+        StudioMode::Viewer,
+    );
+
+    let mixamo_path = mixamo_path.to_string();
+
+    app.add_plugins(MixamoPlugin);
+    app.add_systems(Startup, move |mut ew: EventWriter<MixamoImportEvent>| {
+        ew.send(MixamoImportEvent(mixamo_path.clone()));
+    });
 
     app.run();
 }

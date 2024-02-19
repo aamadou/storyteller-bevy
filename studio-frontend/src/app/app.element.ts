@@ -22,6 +22,7 @@ import { Ref, createRef, ref } from "lit-html/directives/ref.js";
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/viewer";
 import "@storyteller/studio-web/bvh-viewer";
+import "@storyteller/studio-web/mixamo-viewer";
 import "./button.element";
 import "./help.element";
 import "./icon.element";
@@ -49,6 +50,7 @@ export class AppElement extends LitElement {
 	@state() selection?: string | null;
 
 	@state() bvhPath?: string;
+	@state() mixamoPath?: string;
 	@state() mode?: StudioMode;
 
 	#sceneObjects: studio.SceneObject[] = [];
@@ -69,6 +71,9 @@ export class AppElement extends LitElement {
 
 		if (params.has("bvh"))
 			this.bvhPath = params.get("bvh")!;
+
+		if (params.has("mixamo"))
+			this.mixamoPath = params.get("mixamo")!;
 
 		this.mode = match (params.get("mode"), {
 			"studio": () => StudioMode.Editor,
@@ -201,6 +206,12 @@ export class AppElement extends LitElement {
 					skyboxId="test_scene"
 					@scene-state=${this.onSceneStateChange}
 				></sts-bvh-viewer>
+			` : this.mixamoPath ? html`
+				<sts-mixamo-viewer
+					mixamoPath=${this.mixamoPath}
+					skyboxId="test_scene"
+					@scene-state=${this.onSceneStateChange}
+				></sts-mixamo-viewer>
 			` : html`
 				<sts-viewer
 					objectId="base-human-female.gltf"
