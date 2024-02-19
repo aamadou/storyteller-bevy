@@ -1,8 +1,9 @@
 use bevy::{ecs::world::unsafe_world_cell::UnsafeEntityCell, prelude::*, window::PrimaryWindow};
+use space_editor::space_prefab::component::MeshPrimitivePrefab;
 
 use crate::{ui::inspector::wasm::notify_dom_changed, wasm::StaticBuffer};
 
-use super::utils::{show_reflect, Element, InspectedEntity, ReflectChange, VirtualDom};
+use super::utils::{blocking_component, show_reflect, Element, InspectedEntity, ReflectChange, VirtualDom};
 
 pub struct InspectorPlugin;
 
@@ -18,6 +19,10 @@ impl Plugin for InspectorPlugin {
         app.world
             .resource_mut::<InspectorFunctions>()
             .add_simple::<Transform>();
+
+        app.world
+            .resource_mut::<InspectorFunctions>()
+            .add_simple::<MeshPrimitivePrefab>();
     }
 }
 
@@ -69,8 +74,28 @@ fn show_selected(world: &mut World) {
         let cell = world.as_unsafe_world_cell();
         let mut virtial_dom = cell.get_resource_mut::<VirtualDom>().unwrap();
 
+        //Process events from real DOM
+        if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
+            for (id, kind, value) in changes {
+                info!("change: {} {} {}", id, kind, value);
+                if kind == "onchange" {
+                    info!("change: {} : {}", id, value);
+                    virtial_dom
+                        .on_change_events
+                        .execute(cell.world_mut(), id, value);
+                } else if kind == "onclick" {
+                    info!("click: {} : {}", id, value);
+                    virtial_dom
+                        .on_click_events
+                        .execute(cell.world_mut(), id, value);
+                }
+            }
+        }
+
+        let blocking_element = blocking_component();
+
         let Some(selection) = cell.get_resource::<crate::interaction::Selection>() else {
-            let muts = virtial_dom.render(None);
+            let muts = virtial_dom.render(blocking_element);
             let q_window = cell
                 .world_mut()
                 .query_filtered::<&Window, With<PrimaryWindow>>()
@@ -87,16 +112,7 @@ fn show_selected(world: &mut World) {
         let _app_type_registry = cell.get_resource::<AppTypeRegistry>().unwrap();
         let e = cell.get_entity(selected_entity).unwrap();
 
-        if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
-            for (id, kind, value) in changes {
-                if kind == "onchange" {
-                    info!("change: {} : {}", id, value);
-                    virtial_dom
-                        .on_change_events
-                        .execute(cell.world_mut(), id, value);
-                }
-            }
-        }
+        
 
         let mut inspected = InspectedEntity::none();
         inspected.id = Some(e.id());
@@ -137,7 +153,17 @@ fn show_selected(world: &mut World) {
             ..Default::default()
         });
 
-        let muts = virtial_dom.render(Some(element));
+        let super_root = Element::Component(super::utils::Component {
+            tag: "div".to_string(),
+            attributes: vec![
+                ("style".to_string(), "height: 100%; display: flex; flex-direction: column".to_string()),
+            ],
+            children: vec![blocking_element.unwrap(), element],
+            ..default()
+        });
+
+
+        let muts = virtial_dom.render(Some(super_root));
 
         let q_window = cell
             .world_mut()

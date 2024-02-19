@@ -41,9 +41,19 @@ function unpack_vnode(
                 if (id != null) {
                     console.log("onchange", id, input.value);
                     const value = input.value;
-                    register_new_change(id, value);
+                    register_new_change(id, "onchange", value);
                 }
             }            
+        }
+        if (node_data["onclick"] == true) {
+            element.onclick = (event: Event) => {
+                var input = event.target as HTMLInputElement;
+                const id = input.getAttribute("id");
+                if (id != null) {
+                    console.log("onclick", id);
+                    register_new_change(id, "onclick", "");
+                }
+            }
         }
         return element;
     }
@@ -223,6 +233,20 @@ function append_style(parent : HTMLElement) {
         column-gap: 8px;
         row-gap: 4px;
         align-items: center;
+    }
+
+    .blocking-button {
+        background-color: #3333336e; /* Темный фон */
+        color: #fff; /* Светлый текст */
+        border: none; /* Убрать стандартную рамку */
+        border-radius: 7px; /* Закругленные границы */
+        padding: 5px; /* Внутренний отступ */
+        outline: none; /* Убрать контур при фокусе */
+    }
+
+    .blocking-button:hover {
+        border: 2px solid #555; /* Стиль границы при фокусе */
+        background-color: #222; /* Немного темнее фон при фокусе */
     }
 
     `;

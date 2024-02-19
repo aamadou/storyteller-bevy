@@ -1,5 +1,8 @@
 use ::serde::{Deserialize, Serialize};
-use bevy::{ecs::component::ComponentId, prelude::*, reflect::ReflectFromPtr, utils::HashMap};
+use bevy::{ecs::component::ComponentId, prelude::*, reflect::{DynamicEnum, DynamicStruct, DynamicVariant, ReflectFromPtr, TypeInfo, VariantInfo}, utils::HashMap};
+use space_editor::{prelude::PrefabMarker, space_prefab::component::*};
+
+use crate::scene::SceneElement;
 
 trait NodeProp: Clone + PartialEq {}
 
@@ -83,11 +86,18 @@ impl VirtualDom {
                     onchange_enabled = true;
                 }
 
+                let mut onclick_enabled = false;
+                if let Some(onclick) = component.onclick {
+                    self.on_click_events.add_event(id.clone(), onclick);
+                    onclick_enabled = true;
+                }
+
                 VNode::Component(VComponent {
                     tag: component.tag,
                     attributes: component.attributes.into_iter().collect(),
                     id: Some(id),
                     onchange: onchange_enabled,
+                    onclick: onclick_enabled,
                     children: component
                         .children
                         .into_iter()
@@ -114,6 +124,40 @@ impl VirtualDom {
             vec![Mutation::ReplaceAll(node)]
         }
     }
+}
+
+
+pub fn blocking_component() -> Option<Element> {
+    Some(Element::Component(Component {
+        tag: "div".to_string(),
+        attributes: vec![
+            ("style".to_string(), "padding: 10px;".to_string()),
+            ("class".to_string(), "inspector".to_string()),
+        ],
+        children: vec![
+            Element::Component(Component {
+                tag: "button".to_string(),
+                attributes: vec![
+                    ("class".to_string(), "blocking-button".to_string()),
+                ],
+                onclick: Some(Box::new(WorldCommandExecutor {
+                    func: Box::new(|world| {
+                        world.spawn((
+                            MeshPrimitivePrefab::Cube(1.0),
+                            SpatialBundle::default(),
+                            SceneElement,
+                            PrefabMarker
+                        ));
+                    })
+                })),
+                children: vec![
+                    Element::Text("Add blocking mesh".to_string())
+                ],
+                ..default()
+            })
+        ],
+        ..default()
+    }))
 }
 
 #[cfg(feature = "wasm")]
@@ -211,6 +255,16 @@ impl WebEventExecutor for ReflectValueExecutor {
                 }
             }
         }
+    }
+}
+
+struct WorldCommandExecutor {
+    func: Box<dyn Fn(&mut World) + Send + Sync>,
+}
+
+impl WebEventExecutor for WorldCommandExecutor {
+    fn execute(&mut self, world: &mut World, _value: String) {
+        (self.func)(world);
     }
 }
 
@@ -450,7 +504,103 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
         bevy::reflect::ReflectRef::List(_) => None,
         bevy::reflect::ReflectRef::Array(_) => None,
         bevy::reflect::ReflectRef::Map(_) => None,
-        bevy::reflect::ReflectRef::Enum(_) => None,
+        bevy::reflect::ReflectRef::Enum(v) => {
+            let Some(type_info) = v.get_represented_type_info() else {
+                error!("invalid reflect impl: type info mismatch");
+                return None;
+            };
+            let type_info = match type_info {
+                TypeInfo::Enum(info) => info,
+                _ => unreachable!("invalid reflect impl: type info mismatch"),
+            };
+
+
+            Some(Element::Component(Component {
+                tag: "div".to_string(),
+                attributes: vec![
+                    ("style".to_string(), "display: flex; flex-direction: column".to_string()),
+                ],
+                children: vec![
+                    Element::Component(Component {
+                        tag: "select".to_string(),
+                        attributes: vec![],
+                        children: type_info.iter().enumerate().map(|(i, variant)| {
+                            let mut attributes = vec![
+                                ("value".to_string(), variant.name().to_string()),
+                            ];
+
+                            let is_active_variant = i == v.variant_index();
+                            if is_active_variant {
+                                attributes.push(("selected".to_string(), "".to_string()));
+                            }
+
+                            Element::Component(Component {
+                                tag: "option".to_string(),
+                                attributes,
+                                children: vec![Element::Text(variant.name().to_string())],
+                                ..default()
+                            })
+                        }).collect(),
+                        onchange: Some(
+                            EntityChangeExecutor::new_boxed(
+                                reflect.entity_id,
+                                |world, entity, value : String| {
+                                    info!("MeshPrimitivePrefab change: {:?} {}", entity, value);
+
+                                    let Some(mut e) = world.get_entity_mut(entity) else {
+                                        return;
+                                    };
+
+                                    let Some(mut variant) = e.get_mut::<MeshPrimitivePrefab>() else {
+                                        return;
+                                    };
+
+                                    // pub enum MeshPrimitivePrefab {
+                                    //     Cube(f32),
+                                    //     Box(BoxPrefab),
+                                    //     Sphere(SpherePrefab),
+                                    //     Quad(QuadPrefab),
+                                    //     Capsule(CapsulePrefab),
+                                    //     Circle(CirclePrefab),
+                                    //     Cylinder(CylinderPrefab),
+                                    //     Icosphere(IcospherePrefab),
+                                    //     Plane(PlanePrefab),
+                                    //     RegularPolygon(RegularPolygonPrefab),
+                                    //     Torus(TorusPrefab),
+                                    // }
+
+                                    if value == "Cube" {
+                                        *variant = MeshPrimitivePrefab::Cube(1.0);
+                                    } else if value == "Box" {
+                                        *variant = MeshPrimitivePrefab::Box(BoxPrefab::default());
+                                    } else if value == "Sphere" {
+                                        *variant = MeshPrimitivePrefab::Sphere(SpherePrefab::default());
+                                    } else if value == "Quad" {
+                                        *variant = MeshPrimitivePrefab::Quad(QuadPrefab::default());
+                                    } else if value == "Capsule" {
+                                        *variant = MeshPrimitivePrefab::Capsule(CapsulePrefab::default());
+                                    } else if value == "Circle" {
+                                        *variant = MeshPrimitivePrefab::Circle(CirclePrefab::default());
+                                    } else if value == "Cylinder" {
+                                        *variant = MeshPrimitivePrefab::Cylinder(CylinderPrefab::default());
+                                    } else if value == "Icosphere" {
+                                        *variant = MeshPrimitivePrefab::Icosphere(IcospherePrefab::default());
+                                    } else if value == "Plane" {
+                                        *variant = MeshPrimitivePrefab::Plane(PlanePrefab::default());
+                                    } else if value == "RegularPolygon" {
+                                        *variant = MeshPrimitivePrefab::RegularPolygon(RegularPolygonPrefab::default());
+                                    } else if value == "Torus" {
+                                        *variant = MeshPrimitivePrefab::Torus(TorusPrefab::default());
+                                    }
+                                }
+                            )
+                        ),
+                        ..default()  
+                    })
+                ],
+                ..default()
+            }))
+        },
         bevy::reflect::ReflectRef::Value(v) => {
             if let Some(s) = v.downcast_ref::<String>() {
                 Some(Element::Component(Component {
@@ -512,6 +662,7 @@ pub struct VComponent {
     pub children: Vec<VNode>,
     pub id: Option<String>,
     pub onchange: bool,
+    pub onclick: bool,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
