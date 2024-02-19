@@ -15,7 +15,9 @@ mod debug;
 mod design_system;
 mod hierarchy;
 mod input;
+#[cfg(feature = "wasm")]
 mod inspector;
+
 mod interaction;
 pub mod math;
 mod mixamo;
@@ -33,7 +35,6 @@ pub use crate::{
     camera_controller::CameraControllerPlugin,
     debug::DebugPlugin,
     input::StudioInputPlugin,
-    inspector::InspectorPlugin,
     interaction::InteractionPlugin,
     math::InterpolationPlugin,
     mixamo::{MixamoImportEvent, MixamoPlugin},
@@ -67,10 +68,11 @@ pub(crate) fn is_editor(r_studio_mode: Res<StudioMode>) -> bool {
 struct CommonPlugins;
 impl PluginGroup for CommonPlugins {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
+        let group = PluginGroupBuilder::start::<Self>()
             .add(CameraControllerPlugin)
             .add(DebugPlugin)
-            .add(InspectorPlugin)
+            
+
             .add(InterpolationPlugin)
             .add(ScenePlugin)
             .add(SkyboxPlugin)
@@ -78,7 +80,15 @@ impl PluginGroup for CommonPlugins {
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)
             .add(PersistancePlugin)
-            .add(AnimPlugin)
+            .add(AnimPlugin);
+
+        #[cfg(feature = "wasm")]
+        let group = {
+            group
+                .add(inspector::InspectorPlugin)
+        };
+
+        group
     }
 }
 
