@@ -71,8 +71,6 @@ impl PluginGroup for CommonPlugins {
         let group = PluginGroupBuilder::start::<Self>()
             .add(CameraControllerPlugin)
             .add(DebugPlugin)
-            
-
             .add(InterpolationPlugin)
             .add(ScenePlugin)
             .add(SkyboxPlugin)
@@ -83,10 +81,7 @@ impl PluginGroup for CommonPlugins {
             .add(AnimPlugin);
 
         #[cfg(feature = "wasm")]
-        let group = {
-            group
-                .add(inspector::InspectorPlugin)
-        };
+        let group = { group.add(inspector::InspectorPlugin) };
 
         group
     }
