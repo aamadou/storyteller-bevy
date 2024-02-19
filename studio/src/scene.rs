@@ -6,7 +6,7 @@ use bevy::{
         tonemapping::Tonemapping,
     },
     gltf::Gltf,
-    math::{vec2, Affine3A},
+    math::vec2,
     pbr::ShadowFilteringMethod,
     prelude::*,
     render::primitives::Aabb,
@@ -174,8 +174,6 @@ pub struct SceneElement;
 pub struct SceneData {
     pub scene_path: String,
 }
-
-pub struct SkeletalJoint(pub Color);
 
 #[derive(Component)]
 pub struct SceneRoot;

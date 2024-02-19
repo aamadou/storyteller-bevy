@@ -1,8 +1,5 @@
-use std::any::Any;
-
 use ::serde::{Deserialize, Serialize};
 use bevy::{ecs::component::ComponentId, prelude::*, reflect::ReflectFromPtr, utils::HashMap};
-use uuid::*;
 
 trait NodeProp: Clone + PartialEq {}
 
@@ -65,9 +62,9 @@ impl VirtualDom {
 
         if let Some(element) = element {
             let node = self.recursive_unpack_element(&mut id_counter, element);
-            return self.create_mutations(node);
+            self.create_mutations(node)
         } else {
-            return self.create_mutations(VNode::Text("".to_string()));
+            self.create_mutations(VNode::Text("".to_string()))
         }
     }
 
@@ -101,18 +98,18 @@ impl VirtualDom {
 
     pub fn create_mutations(&mut self, node: VNode) -> Vec<Mutation> {
         if self.last_node == Some(node.clone()) {
-            return vec![];
+            vec![]
         } else {
             if let Some(last_node) = &self.last_node {
                 if last_node.is_same_structure(&node) {
-                    let muts = node.get_same_structure_muts(&last_node);
+                    let muts = node.get_same_structure_muts(last_node);
                     self.last_node = Some(node.clone());
                     return muts;
                 }
             }
 
             self.last_node = Some(node.clone());
-            return vec![Mutation::ReplaceAll(node)];
+            vec![Mutation::ReplaceAll(node)]
         }
     }
 }
@@ -151,7 +148,7 @@ impl WebEventExecutor for ReflectValueExecutor {
                 world.get_resource::<AppTypeRegistry>().unwrap();
             let type_registry = app_type_registry.read();
 
-            let mut e = world.get_entity(self.change.entity_id).unwrap();
+            let e = world.get_entity(self.change.entity_id).unwrap();
             let c_id = ComponentId::new(
                 self.change
                     .compoent_id
@@ -166,7 +163,7 @@ impl WebEventExecutor for ReflectValueExecutor {
             );
 
             if let Some(mut c) = e.get_mut_by_id(c_id) {
-                let mut refl = type_registry
+                let refl = type_registry
                     .get_type_data::<ReflectFromPtr>(
                         world
                             .components()
@@ -250,14 +247,6 @@ fn euler_to_degrees(euler: (f32, f32, f32)) -> (f32, f32, f32) {
         euler.0.to_degrees(),
         euler.1.to_degrees(),
         euler.2.to_degrees(),
-    )
-}
-
-fn degrees_to_euler(degrees: (f32, f32, f32)) -> (f32, f32, f32) {
-    (
-        degrees.0.to_radians(),
-        degrees.1.to_radians(),
-        degrees.2.to_radians(),
     )
 }
 
@@ -352,8 +341,7 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
                             }
                             let value = value.to_radians();
                             let euler = transform.rotation.to_euler(EulerRot::XYZ);
-                            transform.rotation = transform.rotation
-                                * Quat::from_axis_angle(Vec3::Y, value - euler.1);
+                            transform.rotation *= Quat::from_axis_angle(Vec3::Y, value - euler.1);
                         },
                     )),
                 }),
@@ -390,49 +378,55 @@ fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element>
             ],
             onchange: None,
         }))
-    } else if let Some(vec) = r.downcast_ref::<Vec3>() {
-        Some(Element::Component(Component {
-            tag: "div".to_string(),
-            attributes: vec![("class".to_string(), "struct-grid".to_string())],
-            children: vec![
-                Element::Text("X: ".to_string()),
-                Element::Component(Component {
-                    tag: "input".to_string(),
-                    attributes: vec![
-                        ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), format!("{:.2}", vec.x)),
-                        ("step".to_string(), "0.01".to_string()),
-                    ],
-                    children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("x")))),
-                }),
-                Element::Text("Y: ".to_string()),
-                Element::Component(Component {
-                    tag: "input".to_string(),
-                    attributes: vec![
-                        ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), format!("{:.2}", vec.y)),
-                        ("step".to_string(), "0.01".to_string()),
-                    ],
-                    children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("y")))),
-                }),
-                Element::Text("Z: ".to_string()),
-                Element::Component(Component {
-                    tag: "input".to_string(),
-                    attributes: vec![
-                        ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), format!("{:.2}", vec.z)),
-                        ("step".to_string(), "0.01".to_string()),
-                    ],
-                    children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("z")))),
-                }),
-            ],
-            onchange: None,
-        }))
     } else {
-        None
+        r.downcast_ref::<Vec3>().map(|vec| {
+            Element::Component(Component {
+                tag: "div".to_string(),
+                attributes: vec![("class".to_string(), "struct-grid".to_string())],
+                children: vec![
+                    Element::Text("X: ".to_string()),
+                    Element::Component(Component {
+                        tag: "input".to_string(),
+                        attributes: vec![
+                            ("type".to_string(), "number".to_string()),
+                            ("value".to_string(), format!("{:.2}", vec.x)),
+                            ("step".to_string(), "0.01".to_string()),
+                        ],
+                        children: vec![],
+                        onchange: Some(Box::new(ReflectValueExecutor::from(
+                            onchange.add_path("x"),
+                        ))),
+                    }),
+                    Element::Text("Y: ".to_string()),
+                    Element::Component(Component {
+                        tag: "input".to_string(),
+                        attributes: vec![
+                            ("type".to_string(), "number".to_string()),
+                            ("value".to_string(), format!("{:.2}", vec.y)),
+                            ("step".to_string(), "0.01".to_string()),
+                        ],
+                        children: vec![],
+                        onchange: Some(Box::new(ReflectValueExecutor::from(
+                            onchange.add_path("y"),
+                        ))),
+                    }),
+                    Element::Text("Z: ".to_string()),
+                    Element::Component(Component {
+                        tag: "input".to_string(),
+                        attributes: vec![
+                            ("type".to_string(), "number".to_string()),
+                            ("value".to_string(), format!("{:.2}", vec.z)),
+                            ("step".to_string(), "0.01".to_string()),
+                        ],
+                        children: vec![],
+                        onchange: Some(Box::new(ReflectValueExecutor::from(
+                            onchange.add_path("z"),
+                        ))),
+                    }),
+                ],
+                onchange: None,
+            })
+        })
     }
 }
 
@@ -442,7 +436,7 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
     }
 
     match r.reflect_ref() {
-        bevy::reflect::ReflectRef::Struct(v) => None,
+        bevy::reflect::ReflectRef::Struct(_v) => None,
         bevy::reflect::ReflectRef::TupleStruct(_) => None,
         bevy::reflect::ReflectRef::Tuple(_) => None,
         bevy::reflect::ReflectRef::List(_) => None,
@@ -499,10 +493,6 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
 
 impl<T: Clone + PartialEq> NodeProp for T {}
 
-pub fn show_string(s: &str) -> Option<VNode> {
-    Some(VNode::Text(s.to_string()))
-}
-
 #[derive(Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct VComponent {
     pub tag: String,
@@ -526,7 +516,7 @@ impl VNode {
             (VNode::Component(_), VNode::Text(_)) => false,
             (VNode::Component(c1), VNode::Component(c2)) => {
                 if c1.tag != c2.tag {
-                    return false;
+                    false
                 } else if c1.children.len() != c2.children.len() {
                     return false;
                 } else {
@@ -544,7 +534,7 @@ impl VNode {
     pub fn get_same_structure_muts(&self, older: &VNode) -> Vec<Mutation> {
         let mut res = vec![];
         match (self, older) {
-            (VNode::Text(s1), VNode::Text(s2)) => res,
+            (VNode::Text(_s1), VNode::Text(_s2)) => res,
             (VNode::Text(_), VNode::Component(_)) => res,
             (VNode::Component(_), VNode::Text(_)) => res,
             (VNode::Component(new), VNode::Component(old)) => {
@@ -598,13 +588,9 @@ impl ReflectChange {
             reflect_path: format!("{}.{}", self.reflect_path, path),
         }
     }
-
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
 }
 
-impl<'a> PartialEq for ComponentProp {
+impl PartialEq for ComponentProp {
     fn eq(&self, other: &Self) -> bool {
         recursive_reflect_eq(self.component.as_ref(), other.component.as_ref())
     }
@@ -612,7 +598,7 @@ impl<'a> PartialEq for ComponentProp {
 
 pub fn recursive_reflect_eq(a: &dyn Reflect, b: &dyn Reflect) -> bool {
     let ref_a = a.reflect_ref();
-    let ref_b = b.reflect_ref();
+    let _ref_b = b.reflect_ref();
 
     match ref_a {
         bevy::reflect::ReflectRef::Struct(a) => {

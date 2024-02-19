@@ -1,33 +1,8 @@
-use std::{
-    any::Any,
-    sync::{Arc, Mutex, RwLock},
-    thread::yield_now,
-};
+use bevy::{ecs::world::unsafe_world_cell::UnsafeEntityCell, prelude::*, window::PrimaryWindow};
 
-use bevy::{
-    ecs::{
-        component::ComponentId,
-        world::unsafe_world_cell::{UnsafeEntityCell, UnsafeWorldCell},
-    },
-    prelude::*,
-    reflect::{ReflectFromPtr, TypeData},
-    utils::{hashbrown::HashMap, tracing::field},
-    window::PrimaryWindow,
-};
-use serde::{Deserialize, Serialize};
-use space_editor::{prelude::Selected, space_editor_ui::inspector::inspect};
-use wasm_bindgen::JsCast;
-use web_sys::HtmlElement;
+use crate::{ui::inspector::wasm::notify_dom_changed, wasm::StaticBuffer};
 
-use crate::{
-    ui::inspector::wasm::notify_dom_changed,
-    wasm::{StaticBuffer, WasmMessageBuffer},
-};
-
-use super::utils::{
-    show_reflect, ComponentProp, Element, InspectedEntity, ReflectChange, VComponent, VNode,
-    VirtualDom,
-};
+use super::utils::{show_reflect, Element, InspectedEntity, ReflectChange, VirtualDom};
 
 pub struct InspectorPlugin;
 
@@ -81,8 +56,7 @@ impl InspectorFunctions {
     fn get_reflect_copy(&mut self, cell: &UnsafeEntityCell<'_>) -> Vec<Box<dyn Reflect>> {
         self.get_reflects
             .iter_mut()
-            .map(|f| (*f)(cell))
-            .flatten()
+            .filter_map(|f| (*f)(cell))
             .collect()
     }
 }
@@ -110,7 +84,7 @@ fn show_selected(world: &mut World) {
 
         let mut functions = cell.get_resource_mut::<InspectorFunctions>().unwrap();
 
-        let app_type_registry = cell.get_resource::<AppTypeRegistry>().unwrap();
+        let _app_type_registry = cell.get_resource::<AppTypeRegistry>().unwrap();
         let e = cell.get_entity(selected_entity).unwrap();
 
         if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
@@ -142,7 +116,7 @@ fn show_selected(world: &mut World) {
             children: inspected
                 .components
                 .into_iter()
-                .map(|c| {
+                .filter_map(|c| {
                     show_reflect(
                         c.as_ref(),
                         ReflectChange {
@@ -157,7 +131,6 @@ fn show_selected(world: &mut World) {
                         },
                     )
                 })
-                .filter_map(|v| v)
                 .collect(),
             ..Default::default()
         });
@@ -176,8 +149,8 @@ fn show_selected(world: &mut World) {
 #[cfg(feature = "wasm")]
 mod wasm {
     use crate::wasm::*;
-    use bevy::{prelude::*, window::PrimaryWindow};
-    use serde_json::json;
+    use bevy::prelude::*;
+
     use wasm_bindgen::prelude::*;
 
     use super::*;
