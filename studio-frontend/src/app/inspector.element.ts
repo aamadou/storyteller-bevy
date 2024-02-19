@@ -9,7 +9,6 @@ import { property } from "lodash";
 export class AppElement extends LitElement {
     @state() vdom?: string | null;
     @state() generation = 0;
-    @state() vdom_elements?: VdomElement[] | null;
 
     protected override render() { 
 
