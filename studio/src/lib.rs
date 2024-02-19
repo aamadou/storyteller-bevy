@@ -8,6 +8,7 @@ use bevy_web_asset::WebAssetPlugin;
 use wasm_bindgen::prelude::*;
 
 mod anim;
+pub mod blocking;
 mod bvh;
 mod camera_controller;
 mod debug;
@@ -23,7 +24,6 @@ mod scene;
 mod skybox;
 mod ui;
 pub mod viewport;
-pub mod blocking;
 
 mod world_grid;
 

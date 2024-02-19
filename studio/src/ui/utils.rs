@@ -1,49 +1,50 @@
-
 use std::any::Any;
 
+use ::serde::{Deserialize, Serialize};
 use bevy::{ecs::component::ComponentId, prelude::*, reflect::ReflectFromPtr, utils::HashMap};
-use ::serde::{Serialize, Deserialize};
 use uuid::*;
 
-trait NodeProp : Clone + PartialEq {
-
-}
+trait NodeProp: Clone + PartialEq {}
 
 #[derive(Serialize, Deserialize)]
 pub enum Mutation {
-    SetAttibute{id : String, attribute : String, value : String},
+    SetAttibute {
+        id: String,
+        attribute: String,
+        value: String,
+    },
     ReplaceAll(VNode),
-    RemoveAll
+    RemoveAll,
 }
 
 #[derive(Default)]
 pub struct Component {
-    pub tag : String,
-    pub attributes : Vec<(String, String)>,
-    pub children : Vec<Element>,
-    pub onchange: Option<Box<dyn WebEventExecutor + Send + Sync>>
+    pub tag: String,
+    pub attributes: Vec<(String, String)>,
+    pub children: Vec<Element>,
+    pub onchange: Option<Box<dyn WebEventExecutor + Send + Sync>>,
 }
 
 pub enum Element {
     Text(String),
-    Component(Component)
+    Component(Component),
 }
 
 pub trait WebEventExecutor {
-    fn execute(&mut self, world: &mut World, data: String); 
+    fn execute(&mut self, world: &mut World, data: String);
 }
 
 #[derive(Default)]
 pub struct WebEventStorage {
-    pub events : HashMap<String, Box<dyn WebEventExecutor + Send + Sync>>,
+    pub events: HashMap<String, Box<dyn WebEventExecutor + Send + Sync>>,
 }
 
 impl WebEventStorage {
-    pub fn add_event(&mut self, id : String, event : Box<dyn WebEventExecutor + Send + Sync>) {
+    pub fn add_event(&mut self, id: String, event: Box<dyn WebEventExecutor + Send + Sync>) {
         self.events.insert(id, event);
     }
 
-    pub fn execute(&mut self, world: &mut World, id : String, data : String) {
+    pub fn execute(&mut self, world: &mut World, id: String, data: String) {
         if let Some(event) = self.events.get_mut(&id) {
             event.execute(world, data);
         } else {
@@ -54,12 +55,11 @@ impl WebEventStorage {
 
 #[derive(Default, Resource)]
 pub struct VirtualDom {
-    last_node : Option<VNode>,
+    last_node: Option<VNode>,
     pub on_change_events: WebEventStorage,
 }
 
 impl VirtualDom {
-
     pub fn render(&mut self, element: Option<Element>) -> Vec<Mutation> {
         let mut id_counter = 0;
 
@@ -71,11 +71,10 @@ impl VirtualDom {
         }
     }
 
-    fn recursive_unpack_element(&mut self, counter : &mut usize, element : Element) -> VNode {
+    fn recursive_unpack_element(&mut self, counter: &mut usize, element: Element) -> VNode {
         match element {
             Element::Text(text) => VNode::Text(text),
             Element::Component(component) => {
-
                 let id = format!("node_{}", *counter);
                 *counter += 1;
 
@@ -90,20 +89,22 @@ impl VirtualDom {
                     attributes: component.attributes.into_iter().collect(),
                     id: Some(id),
                     onchange: onchange_enabled,
-                    children: component.children.into_iter().map(|e| self.recursive_unpack_element(counter, e)).collect()
+                    children: component
+                        .children
+                        .into_iter()
+                        .map(|e| self.recursive_unpack_element(counter, e))
+                        .collect(),
                 })
-            },
+            }
         }
-    } 
+    }
 
-    pub fn create_mutations(&mut self, node : VNode) -> Vec<Mutation> {
+    pub fn create_mutations(&mut self, node: VNode) -> Vec<Mutation> {
         if self.last_node == Some(node.clone()) {
-            return vec![]
+            return vec![];
         } else {
-
             if let Some(last_node) = &self.last_node {
                 if last_node.is_same_structure(&node) {
-
                     let muts = node.get_same_structure_muts(&last_node);
                     self.last_node = Some(node.clone());
                     return muts;
@@ -111,7 +112,7 @@ impl VirtualDom {
             }
 
             self.last_node = Some(node.clone());
-            return vec![Mutation::ReplaceAll(node)]
+            return vec![Mutation::ReplaceAll(node)];
         }
     }
 }
@@ -125,7 +126,7 @@ pub mod wasm {
     pub static ONCHAGE_BUFFER: WasmMessageBuffer<Vec<(String, String)>> = WasmMessageBuffer::new();
 
     #[wasm_bindgen(js_name = register_new_change)]
-    pub fn register_new_change(id : String, value : String) {
+    pub fn register_new_change(id: String, value: String) {
         let mut data = ONCHAGE_BUFFER.take_message().unwrap_or_default();
         data.push((id, value));
         ONCHAGE_BUFFER.write_message(data);
@@ -133,11 +134,11 @@ pub mod wasm {
 }
 
 struct ReflectValueExecutor {
-    change : ReflectChange
+    change: ReflectChange,
 }
 
 impl From<ReflectChange> for ReflectValueExecutor {
-    fn from(change : ReflectChange) -> Self {
+    fn from(change: ReflectChange) -> Self {
         ReflectValueExecutor { change }
     }
 }
@@ -146,18 +147,33 @@ impl WebEventExecutor for ReflectValueExecutor {
     fn execute(&mut self, world: &mut World, value: String) {
         unsafe {
             let world = world.as_unsafe_world_cell();
-            let app_type_registry: &AppTypeRegistry = world.get_resource::<AppTypeRegistry>().unwrap();
+            let app_type_registry: &AppTypeRegistry =
+                world.get_resource::<AppTypeRegistry>().unwrap();
             let type_registry = app_type_registry.read();
-
 
             let mut e = world.get_entity(self.change.entity_id).unwrap();
             let c_id = ComponentId::new(
-                self.change.compoent_id.split('(').nth(1).unwrap().split(')').next().unwrap().parse().unwrap()
+                self.change
+                    .compoent_id
+                    .split('(')
+                    .nth(1)
+                    .unwrap()
+                    .split(')')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .unwrap(),
             );
 
             if let Some(mut c) = e.get_mut_by_id(c_id) {
-
-                let mut refl = type_registry.get_type_data::<ReflectFromPtr>(world.components().get_info_unchecked(c_id).type_id().unwrap())
+                let mut refl = type_registry
+                    .get_type_data::<ReflectFromPtr>(
+                        world
+                            .components()
+                            .get_info_unchecked(c_id)
+                            .type_id()
+                            .unwrap(),
+                    )
                     .unwrap()
                     .as_reflect_mut(c.as_mut());
 
@@ -200,8 +216,8 @@ impl WebEventExecutor for ReflectValueExecutor {
 }
 
 struct EntityChangeExecutor {
-    entity : Entity,
-    func : Box<dyn Fn(&mut World, Entity, String) + Send + Sync>,
+    entity: Entity,
+    func: Box<dyn Fn(&mut World, Entity, String) + Send + Sync>,
 }
 
 impl WebEventExecutor for EntityChangeExecutor {
@@ -211,50 +227,58 @@ impl WebEventExecutor for EntityChangeExecutor {
 }
 
 impl EntityChangeExecutor {
-    fn new(entity : Entity, func : impl Fn(&mut World, Entity, String) + Send + Sync + 'static) -> Self {
-        EntityChangeExecutor { entity, func : Box::new(func) }
+    fn new(
+        entity: Entity,
+        func: impl Fn(&mut World, Entity, String) + Send + Sync + 'static,
+    ) -> Self {
+        EntityChangeExecutor {
+            entity,
+            func: Box::new(func),
+        }
     }
 
-    fn new_boxed(entity : Entity, func : impl Fn(&mut World, Entity, String) + Send + Sync + 'static) -> Box<Self> {
+    fn new_boxed(
+        entity: Entity,
+        func: impl Fn(&mut World, Entity, String) + Send + Sync + 'static,
+    ) -> Box<Self> {
         Box::new(EntityChangeExecutor::new(entity, func))
     }
 }
 
-fn euler_to_degrees(euler : (f32, f32, f32)) -> (f32, f32, f32) {
+fn euler_to_degrees(euler: (f32, f32, f32)) -> (f32, f32, f32) {
     (
         euler.0.to_degrees(),
         euler.1.to_degrees(),
-        euler.2.to_degrees()
+        euler.2.to_degrees(),
     )
 }
 
-fn degrees_to_euler(degrees : (f32, f32, f32)) -> (f32, f32, f32) {
+fn degrees_to_euler(degrees: (f32, f32, f32)) -> (f32, f32, f32) {
     (
         degrees.0.to_radians(),
         degrees.1.to_radians(),
-        degrees.2.to_radians()
+        degrees.2.to_radians(),
     )
 }
 
-fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Element> {
+fn check_predefined(r: &dyn Reflect, onchange: ReflectChange) -> Option<Element> {
     if let Some(name) = r.downcast_ref::<Name>() {
         Some(Element::Component(Component {
             tag: "div".to_string(),
-            attributes: vec![
-                ("style".to_string(), "font-weight: bold; font-size: 24px".to_string()),
-            ],
-            children: vec![
-                Element::Text(format!("{}", &name)),
-            ],
-            onchange: None
+            attributes: vec![(
+                "style".to_string(),
+                "font-weight: bold; font-size: 24px".to_string(),
+            )],
+            children: vec![Element::Text(format!("{}", &name))],
+            onchange: None,
         }))
     } else if let Some(transform) = r.downcast_ref::<Transform>() {
-        
         Some(Element::Component(Component {
             tag: "div".to_string(),
-            attributes: vec![
-                ("style".to_string(), "display: flex; flex-direction: column".to_string()),
-            ],
+            attributes: vec![(
+                "style".to_string(),
+                "display: flex; flex-direction: column".to_string(),
+            )],
             children: vec![
                 Element::Text("Pos: ".to_string()),
                 show_reflect(&transform.translation, onchange.add_path("translation")).unwrap(),
@@ -263,57 +287,64 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                 Element::Text("Scale: ".to_string()),
                 show_reflect(&transform.scale, onchange.add_path("scale")).unwrap(),
             ],
-            onchange: None
+            onchange: None,
         }))
     } else if let Some(quat) = r.downcast_ref::<Quat>() {
         let euler = quat.to_euler(EulerRot::XYZ);
         let degrees = euler_to_degrees(euler);
         Some(Element::Component(Component {
             tag: "div".to_string(),
-            attributes: vec![
-                ("class".to_string(), "struct-grid".to_string()),
-            ],
+            attributes: vec![("class".to_string(), "struct-grid".to_string())],
             children: vec![
                 Element::Text("X: ".to_string()),
                 Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), format!("{:.2}",degrees.0)),
+                        ("value".to_string(), format!("{:.2}", degrees.0)),
                         ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
                     onchange: Some(EntityChangeExecutor::new_boxed(
                         onchange.entity_id,
-                        |world : &mut World, entity, value : String| {
-                            let Some(mut value) = value.parse::<f32>().ok() else { return; };
-                            if value == -180.0 { value = 180.0; }
+                        |world: &mut World, entity, value: String| {
+                            let Some(mut value) = value.parse::<f32>().ok() else {
+                                return;
+                            };
+                            if value == -180.0 {
+                                value = 180.0;
+                            }
                             let value = value.to_radians();
                             let mut e = world.get_entity_mut(entity).unwrap();
-                            
+
                             let mut transform = e.get_mut::<Transform>().unwrap();
                             if transform.is_changed() {
                                 return;
                             }
                             let euler = transform.rotation.to_euler(EulerRot::XYZ);
-                            transform.rotation = Quat::from_euler(EulerRot::XYZ, value, euler.1, euler.2);
-                        }
-                    ))
+                            transform.rotation =
+                                Quat::from_euler(EulerRot::XYZ, value, euler.1, euler.2);
+                        },
+                    )),
                 }),
                 Element::Text("Y: ".to_string()),
                 Element::Component(Component {
                     tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), format!("{:.2}",degrees.1)),
+                        ("value".to_string(), format!("{:.2}", degrees.1)),
                         ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
                     onchange: Some(EntityChangeExecutor::new_boxed(
                         onchange.entity_id,
-                        |world : &mut World, entity, value : String| {
-                            let Some(mut value) = value.parse::<f32>().ok() else { return; };
-                            if value == -180.0 { value = 180.0; }
+                        |world: &mut World, entity, value: String| {
+                            let Some(mut value) = value.parse::<f32>().ok() else {
+                                return;
+                            };
+                            if value == -180.0 {
+                                value = 180.0;
+                            }
                             let mut e = world.get_entity_mut(entity).unwrap();
                             let mut transform = e.get_mut::<Transform>().unwrap();
                             if transform.is_changed() {
@@ -321,24 +352,29 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                             }
                             let value = value.to_radians();
                             let euler = transform.rotation.to_euler(EulerRot::XYZ);
-                            transform.rotation = transform.rotation * Quat::from_axis_angle(Vec3::Y, value - euler.1);
-                        }
-                    ))
+                            transform.rotation = transform.rotation
+                                * Quat::from_axis_angle(Vec3::Y, value - euler.1);
+                        },
+                    )),
                 }),
                 Element::Text("Z: ".to_string()),
                 Element::Component(Component {
-                    tag: "input".to_string(),                  
+                    tag: "input".to_string(),
                     attributes: vec![
                         ("type".to_string(), "number".to_string()),
-                        ("value".to_string(), format!("{:.2}",degrees.2)),
+                        ("value".to_string(), format!("{:.2}", degrees.2)),
                         ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
                     onchange: Some(EntityChangeExecutor::new_boxed(
                         onchange.entity_id,
-                        |world : &mut World, entity, value : String| {
-                            let Some(mut value) = value.parse::<f32>().ok() else { return; };
-                            if value == -180.0 { value = 180.0; }
+                        |world: &mut World, entity, value: String| {
+                            let Some(mut value) = value.parse::<f32>().ok() else {
+                                return;
+                            };
+                            if value == -180.0 {
+                                value = 180.0;
+                            }
                             let value = value.to_radians();
                             let mut e = world.get_entity_mut(entity).unwrap();
                             let mut transform = e.get_mut::<Transform>().unwrap();
@@ -346,20 +382,18 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                                 return;
                             }
                             let euler = transform.rotation.to_euler(EulerRot::XYZ);
-                            transform.rotation = Quat::from_euler(EulerRot::XYZ, euler.0, euler.1, value);
-                        }
-                    ))
-                })
+                            transform.rotation =
+                                Quat::from_euler(EulerRot::XYZ, euler.0, euler.1, value);
+                        },
+                    )),
+                }),
             ],
-            onchange: None
+            onchange: None,
         }))
-    }
-    else if let Some(vec) = r.downcast_ref::<Vec3>() {
+    } else if let Some(vec) = r.downcast_ref::<Vec3>() {
         Some(Element::Component(Component {
             tag: "div".to_string(),
-            attributes: vec![
-                ("class".to_string(), "struct-grid".to_string()),
-            ],
+            attributes: vec![("class".to_string(), "struct-grid".to_string())],
             children: vec![
                 Element::Text("X: ".to_string()),
                 Element::Component(Component {
@@ -368,10 +402,9 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                         ("type".to_string(), "number".to_string()),
                         ("value".to_string(), format!("{:.2}", vec.x)),
                         ("step".to_string(), "0.01".to_string()),
-                        
                     ],
                     children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("x"))))
+                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("x")))),
                 }),
                 Element::Text("Y: ".to_string()),
                 Element::Component(Component {
@@ -382,7 +415,7 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                         ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("y"))))
+                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("y")))),
                 }),
                 Element::Text("Z: ".to_string()),
                 Element::Component(Component {
@@ -393,46 +426,29 @@ fn check_predefined(r : &dyn Reflect, onchange : ReflectChange) -> Option<Elemen
                         ("step".to_string(), "0.01".to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("z"))))
-                })
+                    onchange: Some(Box::new(ReflectValueExecutor::from(onchange.add_path("z")))),
+                }),
             ],
-            onchange: None
-        }))    
-    
+            onchange: None,
+        }))
     } else {
         None
     }
 }
 
-pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<Element> {
-
+pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> {
     if let Some(vnode) = check_predefined(r, reflect.clone()) {
         return Some(vnode);
     }
 
     match r.reflect_ref() {
-        bevy::reflect::ReflectRef::Struct(v) => {
-            None
-
-        },
-        bevy::reflect::ReflectRef::TupleStruct(_) => {
-            None
-        },
-        bevy::reflect::ReflectRef::Tuple(_) => {
-            None
-        },
-        bevy::reflect::ReflectRef::List(_) => {
-            None
-        },
-        bevy::reflect::ReflectRef::Array(_) => {
-            None
-        },
-        bevy::reflect::ReflectRef::Map(_) => {
-            None
-        },
-        bevy::reflect::ReflectRef::Enum(_) => {
-            None
-        },
+        bevy::reflect::ReflectRef::Struct(v) => None,
+        bevy::reflect::ReflectRef::TupleStruct(_) => None,
+        bevy::reflect::ReflectRef::Tuple(_) => None,
+        bevy::reflect::ReflectRef::List(_) => None,
+        bevy::reflect::ReflectRef::Array(_) => None,
+        bevy::reflect::ReflectRef::Map(_) => None,
+        bevy::reflect::ReflectRef::Enum(_) => None,
         bevy::reflect::ReflectRef::Value(v) => {
             if let Some(s) = v.downcast_ref::<String>() {
                 Some(Element::Component(Component {
@@ -442,7 +458,7 @@ pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<Element>
                         ("value".to_string(), s.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
                 }))
             } else if let Some(b) = v.downcast_ref::<bool>() {
                 Some(Element::Component(Component {
@@ -452,7 +468,7 @@ pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<Element>
                         ("value".to_string(), b.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
                 }))
             } else if let Some(i) = v.downcast_ref::<i32>() {
                 Some(Element::Component(Component {
@@ -462,7 +478,7 @@ pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<Element>
                         ("value".to_string(), i.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
                 }))
             } else if let Some(f) = v.downcast_ref::<f32>() {
                 Some(Element::Component(Component {
@@ -472,20 +488,20 @@ pub fn show_reflect(r : &dyn Reflect, reflect: ReflectChange) -> Option<Element>
                         ("value".to_string(), f.to_string()),
                     ],
                     children: vec![],
-                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect)))
+                    onchange: Some(Box::new(ReflectValueExecutor::from(reflect))),
                 }))
             } else {
                 Some(Element::Text(format!("{:?}", v)))
             }
-        },
+        }
     }
 }
 
 impl<T: Clone + PartialEq> NodeProp for T {}
 
-pub fn show_string(s : &str) -> Option<VNode> {
-    Some(VNode::Text(s.to_string())
-)}
+pub fn show_string(s: &str) -> Option<VNode> {
+    Some(VNode::Text(s.to_string()))
+}
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct VComponent {
@@ -503,47 +519,41 @@ pub enum VNode {
 }
 
 impl VNode {
-    pub fn is_same_structure(&self, other : &VNode) -> bool {
+    pub fn is_same_structure(&self, other: &VNode) -> bool {
         match (self, other) {
             (VNode::Text(s1), VNode::Text(s2)) => s1 == s2,
             (VNode::Text(_), VNode::Component(_)) => false,
             (VNode::Component(_), VNode::Text(_)) => false,
             (VNode::Component(c1), VNode::Component(c2)) => {
                 if c1.tag != c2.tag {
-                    return false
+                    return false;
                 } else if c1.children.len() != c2.children.len() {
-                    return false
+                    return false;
                 } else {
                     for i in 0..c1.children.len() {
                         if !c1.children[i].is_same_structure(&c2.children[i]) {
-                            return false
+                            return false;
                         }
                     }
-                    return true
+                    return true;
                 }
-            },
+            }
         }
     }
 
-    pub fn get_same_structure_muts(&self, older : &VNode) -> Vec<Mutation> {
+    pub fn get_same_structure_muts(&self, older: &VNode) -> Vec<Mutation> {
         let mut res = vec![];
         match (self, older) {
-            (VNode::Text(s1), VNode::Text(s2)) => {
-                res
-            }
-            (VNode::Text(_), VNode::Component(_)) => {
-                res
-            }
-            (VNode::Component(_), VNode::Text(_)) => {
-                res
-            }
+            (VNode::Text(s1), VNode::Text(s2)) => res,
+            (VNode::Text(_), VNode::Component(_)) => res,
+            (VNode::Component(_), VNode::Text(_)) => res,
             (VNode::Component(new), VNode::Component(old)) => {
                 for idx in 0..new.attributes.len() {
                     if new.attributes.get(idx) != old.attributes.get(idx) {
                         res.push(Mutation::SetAttibute {
                             id: old.id.as_ref().unwrap().clone(),
                             attribute: new.attributes[idx].0.clone(),
-                            value: new.attributes[idx].1.clone()
+                            value: new.attributes[idx].1.clone(),
                         });
                     }
                 }
@@ -568,24 +578,24 @@ pub struct ComponentProp {
 impl Clone for ComponentProp {
     fn clone(&self) -> Self {
         Self {
-            component: self.component.clone_value()
+            component: self.component.clone_value(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ReflectChange {
-    pub entity_id : Entity,
+    pub entity_id: Entity,
     pub reflect_path: String,
-    pub compoent_id: String
+    pub compoent_id: String,
 }
 
 impl ReflectChange {
-    pub fn add_path(&self, path : &str) -> ReflectChange {
+    pub fn add_path(&self, path: &str) -> ReflectChange {
         ReflectChange {
-            entity_id : self.entity_id,
-            compoent_id : self.compoent_id.clone(),
-            reflect_path : format!("{}.{}", self.reflect_path, path)
+            entity_id: self.entity_id,
+            compoent_id: self.compoent_id.clone(),
+            reflect_path: format!("{}.{}", self.reflect_path, path),
         }
     }
 
@@ -600,7 +610,7 @@ impl<'a> PartialEq for ComponentProp {
     }
 }
 
-pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
+pub fn recursive_reflect_eq(a: &dyn Reflect, b: &dyn Reflect) -> bool {
     let ref_a = a.reflect_ref();
     let ref_b = b.reflect_ref();
 
@@ -619,7 +629,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
                     return false;
                 }
             }
-        },
+        }
         bevy::reflect::ReflectRef::TupleStruct(a) => {
             let bevy::reflect::ReflectRef::TupleStruct(b) = b.reflect_ref() else {
                 return false;
@@ -634,7 +644,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
                     return false;
                 }
             }
-        },
+        }
         bevy::reflect::ReflectRef::Tuple(a) => {
             let bevy::reflect::ReflectRef::Tuple(b) = b.reflect_ref() else {
                 return false;
@@ -649,7 +659,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
                     return false;
                 }
             }
-        },
+        }
         bevy::reflect::ReflectRef::List(a) => {
             let bevy::reflect::ReflectRef::List(b) = b.reflect_ref() else {
                 return false;
@@ -664,7 +674,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
                     return false;
                 }
             }
-        },
+        }
         bevy::reflect::ReflectRef::Array(a) => {
             let bevy::reflect::ReflectRef::Array(b) = b.reflect_ref() else {
                 return false;
@@ -679,7 +689,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
                     return false;
                 }
             }
-        },
+        }
         bevy::reflect::ReflectRef::Map(a) => {
             let bevy::reflect::ReflectRef::Map(b) = b.reflect_ref() else {
                 return false;
@@ -699,7 +709,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
                     return false;
                 }
             }
-        },
+        }
         bevy::reflect::ReflectRef::Enum(a) => {
             let bevy::reflect::ReflectRef::Enum(b) = b.reflect_ref() else {
                 return false;
@@ -718,7 +728,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
                     return false;
                 }
             }
-        },
+        }
         bevy::reflect::ReflectRef::Value(a) => {
             let bevy::reflect::ReflectRef::Value(b) = b.reflect_ref() else {
                 return false;
@@ -729,7 +739,7 @@ pub fn recursive_reflect_eq(a : &dyn Reflect, b : &dyn Reflect) -> bool {
             } else {
                 return false;
             }
-        },
+        }
     }
 
     false
@@ -746,7 +756,6 @@ impl PartialEq for InspectedEntity {
         }
 
         for i in 0..self.components.len() {
-            
             if !recursive_reflect_eq(self.components[i].as_ref(), other.components[i].as_ref()) {
                 return false;
             }

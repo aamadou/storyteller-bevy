@@ -1,76 +1,106 @@
-use std::{any::Any, sync::{Arc, Mutex, RwLock}, thread::yield_now};
+use std::{
+    any::Any,
+    sync::{Arc, Mutex, RwLock},
+    thread::yield_now,
+};
 
-use bevy::{ecs::{component::ComponentId, world::unsafe_world_cell::{UnsafeEntityCell, UnsafeWorldCell}}, prelude::*, reflect::{ReflectFromPtr, TypeData}, utils::{hashbrown::HashMap, tracing::field}, window::PrimaryWindow};
+use bevy::{
+    ecs::{
+        component::ComponentId,
+        world::unsafe_world_cell::{UnsafeEntityCell, UnsafeWorldCell},
+    },
+    prelude::*,
+    reflect::{ReflectFromPtr, TypeData},
+    utils::{hashbrown::HashMap, tracing::field},
+    window::PrimaryWindow,
+};
 use serde::{Deserialize, Serialize};
 use space_editor::{prelude::Selected, space_editor_ui::inspector::inspect};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlElement;
 
-use crate::{ui::inspector::wasm::notify_dom_changed, wasm::{StaticBuffer, WasmMessageBuffer}};
+use crate::{
+    ui::inspector::wasm::notify_dom_changed,
+    wasm::{StaticBuffer, WasmMessageBuffer},
+};
 
-use super::utils::{show_reflect, ComponentProp, Element, InspectedEntity, ReflectChange, VComponent, VNode, VirtualDom};
+use super::utils::{
+    show_reflect, ComponentProp, Element, InspectedEntity, ReflectChange, VComponent, VNode,
+    VirtualDom,
+};
 
 pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
-
         app.init_resource::<InspectorFunctions>();
 
         app.add_systems(Update, show_selected);
 
-        app.world.resource_mut::<InspectorFunctions>().add_simple::<Name>();
-        app.world.resource_mut::<InspectorFunctions>().add_simple::<Transform>();
+        app.world
+            .resource_mut::<InspectorFunctions>()
+            .add_simple::<Name>();
+        app.world
+            .resource_mut::<InspectorFunctions>()
+            .add_simple::<Transform>();
     }
 }
 
 #[derive(Resource, Default)]
 struct InspectorFunctions {
-    get_reflects: Vec<Box<dyn FnMut(&UnsafeEntityCell<'_>) -> Option<Box<dyn Reflect>> + Send + Sync>>
+    get_reflects:
+        Vec<Box<dyn FnMut(&UnsafeEntityCell<'_>) -> Option<Box<dyn Reflect>> + Send + Sync>>,
 }
 
 impl InspectorFunctions {
-    fn add_getter<F: FnMut(&UnsafeEntityCell<'_>) -> Option<Box<dyn Reflect>> + Send + Sync + 'static>(&mut self, f: F) {
+    fn add_getter<
+        F: FnMut(&UnsafeEntityCell<'_>) -> Option<Box<dyn Reflect>> + Send + Sync + 'static,
+    >(
+        &mut self,
+        f: F,
+    ) {
         self.get_reflects.push(Box::new(f));
     }
 
-    fn add_simple<T>(&mut self) where T: bevy::prelude::Component + Reflect + FromReflect + 'static {
-
+    fn add_simple<T>(&mut self)
+    where
+        T: bevy::prelude::Component + Reflect + FromReflect + 'static,
+    {
         unsafe {
-            self.add_getter(
-                |cell| {
-                    if let Some(val) = cell.get::<T>() {
-                        Some(Box::new(<T as FromReflect>::from_reflect(val).unwrap()) as Box<dyn Reflect>)
-                    } else {
-                        None
-                    }
+            self.add_getter(|cell| {
+                if let Some(val) = cell.get::<T>() {
+                    Some(Box::new(<T as FromReflect>::from_reflect(val).unwrap())
+                        as Box<dyn Reflect>)
+                } else {
+                    None
                 }
-            )
+            })
         }
     }
 
     fn get_reflect_copy(&mut self, cell: &UnsafeEntityCell<'_>) -> Vec<Box<dyn Reflect>> {
-        self.get_reflects.iter_mut().map(|f| (*f)(cell)).flatten().collect()
+        self.get_reflects
+            .iter_mut()
+            .map(|f| (*f)(cell))
+            .flatten()
+            .collect()
     }
 }
 
-
-fn show_selected(
-    world: &mut World
-) {
+fn show_selected(world: &mut World) {
     if !world.is_resource_added::<VirtualDom>() {
         world.init_resource::<VirtualDom>();
     }
     unsafe {
         let cell = world.as_unsafe_world_cell();
         let mut virtial_dom = cell.get_resource_mut::<VirtualDom>().unwrap();
-        
+
         let Some(selection) = cell.get_resource::<crate::interaction::Selection>() else {
-
-
-
             let muts = virtial_dom.render(None);
-            let q_window = cell.world_mut().query_filtered::<&Window, With<PrimaryWindow>>().single(cell.world());
+            let q_window = cell
+                .world_mut()
+                .query_filtered::<&Window, With<PrimaryWindow>>()
+                .single(cell.world());
             let _ = notify_dom_changed(q_window, serde_json::to_string(&muts).unwrap());
 
             return;
@@ -86,10 +116,11 @@ fn show_selected(
         if let Some(changes) = super::utils::wasm::ONCHAGE_BUFFER.take_message() {
             for (id, value) in changes {
                 info!("change: {} : {}", id, value);
-                virtial_dom.on_change_events.execute(cell.world_mut(), id, value);
+                virtial_dom
+                    .on_change_events
+                    .execute(cell.world_mut(), id, value);
             }
         }
-
 
         let mut inspected = InspectedEntity::none();
         inspected.id = Some(e.id());
@@ -101,17 +132,29 @@ fn show_selected(
         let element = Element::Component(super::utils::Component {
             tag: "div".to_string(),
             attributes: vec![
-                ("style".to_string(), "display: flex; flex-direction: column; height: 100%; overflow: auto;".to_string()),
-                ("class".to_string(), "inspector".to_string())
+                (
+                    "style".to_string(),
+                    "display: flex; flex-direction: column; height: 100%; overflow: auto;"
+                        .to_string(),
+                ),
+                ("class".to_string(), "inspector".to_string()),
             ],
-            children: inspected.components.into_iter().map(|c| {
+            children: inspected
+                .components
+                .into_iter()
+                .map(|c| {
                     show_reflect(
-                        c.as_ref(), 
+                        c.as_ref(),
                         ReflectChange {
                             entity_id: id,
                             reflect_path: "".to_string(),
-                            compoent_id: format!("{:?}", components.get_id(c.get_represented_type_info().unwrap().type_id()).unwrap()),
-                        }
+                            compoent_id: format!(
+                                "{:?}",
+                                components
+                                    .get_id(c.get_represented_type_info().unwrap().type_id())
+                                    .unwrap()
+                            ),
+                        },
                     )
                 })
                 .filter_map(|v| v)
@@ -120,23 +163,22 @@ fn show_selected(
         });
 
         let muts = virtial_dom.render(Some(element));
-        
 
-        let q_window = cell.world_mut().query_filtered::<&Window, With<PrimaryWindow>>().single(cell.world());
+        let q_window = cell
+            .world_mut()
+            .query_filtered::<&Window, With<PrimaryWindow>>()
+            .single(cell.world());
 
         let _ = notify_dom_changed(q_window, serde_json::to_string(&muts).unwrap());
-
     }
 }
 
-
-
 #[cfg(feature = "wasm")]
 mod wasm {
+    use crate::wasm::*;
     use bevy::{prelude::*, window::PrimaryWindow};
     use serde_json::json;
     use wasm_bindgen::prelude::*;
-    use crate::wasm::*;
 
     use super::*;
 
@@ -158,13 +200,7 @@ declare global {
 }
     "#;
 
-    pub(super) fn notify_dom_changed(
-        q_window: &Window,
-        msg : String,
-    ) -> Result<(), String> {
-        
+    pub(super) fn notify_dom_changed(q_window: &Window, msg: String) -> Result<(), String> {
         wasm::dispatch_to_js(q_window, "inspector-dom-changed", &msg)
     }
-
-    
 }

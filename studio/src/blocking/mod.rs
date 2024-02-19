@@ -6,9 +6,7 @@ use wasm_bindgen::prelude::*;
 pub struct BlockingPlugin;
 
 impl Plugin for BlockingPlugin {
-    fn build(&self, app: &mut App) {
-
-    }
+    fn build(&self, app: &mut App) {}
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen(js_name = test_blocking))]
