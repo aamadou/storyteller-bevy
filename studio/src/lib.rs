@@ -376,7 +376,7 @@ impl Default for HeadlessSettings {
 }
 
 fn check_for_capture_complete(
-    mut commands : Commands,
+    mut commands: Commands,
     mut close_app: EventWriter<AppExit>,
     main_camera: Query<(Entity, &ScreenCapture), With<MainCamera>>,
     bvh_event_reader: EventReader<BvhAnimCompleteEvent>,
