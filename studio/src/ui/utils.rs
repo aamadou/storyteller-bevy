@@ -529,7 +529,7 @@ pub fn show_reflect(r: &dyn Reflect, reflect: ReflectChange) -> Option<Element> 
                                 ("value".to_string(), variant.name().to_string()),
                             ];
 
-                            let is_active_variant = i == v.variant_index();
+                            let is_active_variant = (i == v.variant_index());
                             if is_active_variant {
                                 attributes.push(("selected".to_string(), "".to_string()));
                             }
