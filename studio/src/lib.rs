@@ -326,7 +326,6 @@ pub fn start_headless(
                       mut ew: EventWriter<LoadSceneEvent>| {
                     cmd.insert_resource(SkyboxId(skybox.clone()));
                     cmd.insert_resource(TestBvh(asset_server.load(bvh_dir.clone())));
-
                     ew.send(LoadSceneEvent("Mannequin.gltf".to_string()));
                 },
             );

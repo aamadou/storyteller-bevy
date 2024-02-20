@@ -330,7 +330,7 @@ fn frame_scene_in_view(
     mut cmd: Commands,
     q_aabbs: Query<(&Aabb, &GlobalTransform), With<SceneAutoChild>>,
     mut q_camera: Query<(&mut CameraController, &mut Transform, &Projection)>,
-) {
+) {    
     let Ok((mut cam, mut cam_xform, cam_proj)) = q_camera.get_single_mut() else {
         error!("Failed to get camera controller");
         return;
