@@ -313,7 +313,7 @@ pub fn start_headless(
             close_when_requested: true,
         }),
         ScreenShotPlugin,
-        CommonPlugins,
+        CommonPlugins.build().disable::<WorldGridPlugin>(),
     ));
 
     match mode {
@@ -377,15 +377,17 @@ impl Default for HeadlessSettings {
 }
 
 fn check_for_capture_complete(
-    main_camera: Query<&ScreenCapture, With<MainCamera>>,
+    mut commands : Commands,
     mut close_app: EventWriter<AppExit>,
+    main_camera: Query<(Entity, &ScreenCapture), With<MainCamera>>,
     bvh_event_reader: EventReader<BvhAnimCompleteEvent>,
 ) {
-    let Ok(screen_capture) = main_camera.get_single() else {
+    let Ok((entity, screen_capture)) = main_camera.get_single() else {
         return;
     };
 
     if screen_capture.is_complete() || !bvh_event_reader.is_empty() {
+        commands.entity(entity).remove::<ScreenCapture>();
         close_app.send(AppExit);
     }
 }
