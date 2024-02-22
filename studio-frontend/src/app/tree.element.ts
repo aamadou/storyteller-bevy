@@ -4,6 +4,7 @@ import { type EntitySelectEvent } from "@storyteller/studio";
 import { LitElement, html, nothing, unsafeCSS } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
+import { ifDefined } from "lit/directives/if-defined.js";
 
 import "./icon.element";
 
@@ -20,8 +21,9 @@ export class TreeElement extends LitElement {
 	static override styles = unsafeCSS(styles);
 
 	@property() name = "";
-	@property() treeChildren?: Tree[];
-	@property() expanded = false;
+	@property() icon?: string;
+	@property({ attribute: false }) treeChildren?: Tree[];
+	@property({ type: Boolean }) expanded = false;
 
 	@state() selected = false;
 
@@ -35,12 +37,18 @@ export class TreeElement extends LitElement {
 	}
 
 	selectEntity(): void {
-		studio.select(this.id);
+		if (this.id)
+			studio.select(this.id);
 	}
 
 	// TODO: A11y
 	protected override render = () => html`
-		<header class=${classMap({ selected: this.selected })}>
+		<header
+			class=${classMap({
+				selected: this.selected,
+				selectable: !!this.id,
+			})}
+		>
 			${this.treeChildren?.length ? html`
 				<button class="toggle-expanded"
 					@click=${this.toggleExpanded}
@@ -55,9 +63,12 @@ export class TreeElement extends LitElement {
 					></sts-icon>
 				</button>
 			` : nothing}
-			<span class="name"
+			<span class="label"
 				@click=${this.selectEntity}
 			>
+				${this.icon ? html`
+					<sts-icon icon=${this.icon}></sts-icon>
+				` : nothing}
 				${this.name}
 			</span>
 		</header>
@@ -66,7 +77,7 @@ export class TreeElement extends LitElement {
 			<div class="children">
 				${this.treeChildren?.map(tree => html`
 					<sts-tree
-						id=${tree.id}
+						id=${ifDefined(tree.id)}
 						.name=${tree.name}
 						.treeChildren=${tree.children}
 					></sts-tree>

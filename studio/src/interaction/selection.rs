@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use bevy::{prelude::*, render::mesh::skinning::SkinnedMesh};
 use bevy_mod_outline::{
     AutoGenerateOutlineNormalsPlugin, OutlineBundle, OutlinePlugin, OutlineVolume,
 };
 use bevy_mod_picking::{prelude::Pointer, selection::Select, PickableBundle};
+use space_editor::prelude::space_undo::{self, NewChange, RemovedEntity};
 
 use crate::{
     input::{self, Action, InputAction, Lifecycle},
@@ -13,7 +16,13 @@ pub struct SelectionPlugin;
 impl Plugin for SelectionPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((OutlinePlugin, AutoGenerateOutlineNormalsPlugin))
-            .add_systems(Update, update_selection)
+            .add_systems(
+                Update,
+                (
+                    update_selection,
+                    process_delete_inputs.run_if(resource_exists::<Selection>()),
+                ),
+            )
             .add_systems(
                 PostUpdate,
                 draw_selection_outline.run_if(resource_changed_or_removed::<Selection>()),
@@ -149,6 +158,28 @@ fn update_selection(
     }
 }
 
+fn process_delete_inputs(
+    mut cmd: Commands,
+    mut er_input: EventReader<InputAction>,
+    mut ew_changes: EventWriter<space_undo::NewChange>,
+    r_selection: Res<Selection>,
+) {
+    if er_input.read().any(|action| {
+        matches!(
+            action,
+            InputAction(Lifecycle::Stop, Action::Selection(input::Selection::Delete))
+        )
+    }) {
+        let entity = **r_selection;
+
+        cmd.entity(entity).despawn_recursive();
+        cmd.remove_resource::<Selection>();
+        ew_changes.send(NewChange {
+            change: Arc::new(RemovedEntity { entity }),
+        });
+    }
+}
+
 fn draw_selection_outline(
     mut cmd: Commands,
     q_selected: Query<&Children, With<Selected>>,
@@ -193,7 +224,7 @@ mod wasm {
     use wasm_bindgen::prelude::*;
 
     use super::{Selected, Selection};
-    use crate::wasm::{self, StaticBuffer, WasmMessageBuffer};
+    use crate::wasm::{self, FromStr, StaticBuffer, WasmMessageBuffer};
 
     #[wasm_bindgen(typescript_custom_section)]
     const EVENT_DECLARATION: &str = r#"
@@ -207,7 +238,7 @@ export interface EntitySelectEvent extends CustomEvent {
 }
 
 declare global {
-    export interface HTMLElementEventMap {
+    export interface GlobalEventHandlersEventMap {
         "entity-select": EntitySelectEvent;
     }
 }
@@ -225,12 +256,7 @@ declare global {
 
     #[wasm_bindgen]
     pub fn select(entity: &str) {
-        let mut split = entity.split('v');
-        let index = split.next().unwrap().parse::<u32>().unwrap();
-        let generation = split.next().unwrap().parse::<u32>().unwrap();
-        let bits = (generation as u64) << 32 | index as u64;
-
-        let entity = Entity::from_bits(bits);
+        let entity = Entity::from_str(entity).unwrap();
         SELECTION_REQUEST.write_message(entity);
     }
 

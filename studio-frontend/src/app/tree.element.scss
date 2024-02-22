@@ -1,3 +1,5 @@
+$item-height: 24px;
+
 :host, .children {
 	display: flex;
 	flex-direction: column;
@@ -31,7 +33,7 @@ header {
 		timing-function: linear;
 	}
 
-	&:hover:not(:has(.toggle-expanded:hover)) {
+	&.selectable:hover:not(:has(.toggle-expanded:hover)) {
 		background: #0000001F;
 	}
 
@@ -52,7 +54,7 @@ header {
 	justify-content: center;
 	flex: 0 0 auto;
 	width: 16px;
-	height: 24px;
+	height: $item-height;
 	margin-block: -5px;
 	padding-inline-start: 4px;
 
@@ -72,12 +74,13 @@ header {
 	transform: rotate(90deg);
 }
 
-.name {
+.label {
+	display: flex;
 	flex: 1 0 0;
-	padding: {
-		block: 5px;
-		inline: 5px 10px;
-	}
+	height: $item-height;
+	align-items: center;
+	gap: 8px;
+	padding-inline-start: 5px;
 }
 
 .children {

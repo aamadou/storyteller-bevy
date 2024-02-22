@@ -22,6 +22,7 @@ import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/viewer";
 import "@storyteller/studio-web/bvh-viewer";
 import "@storyteller/studio-web/mixamo-viewer";
+import "./anim-editor.element";
 import "./button.element";
 import "./help.element";
 import "./icon.element";
@@ -77,6 +78,8 @@ export class AppElement extends LitElement {
 			"viewer": () => StudioMode.Viewer,
 			_: () => StudioMode.Viewer,
 		});
+
+		this.#redirectBodyFocus();
 	}
 
 	protected override createRenderRoot(): Element | ShadowRoot {
@@ -189,6 +192,20 @@ export class AppElement extends LitElement {
 		console.log("Hierarchy:", this.sceneObjects);
 	}
 
+	#redirectBodyFocus(): void {
+		// If user focus lands on the `document.body`, neither the frontend app
+		// nor the Bevy app will properly handle keyboard events. Thie function
+		// runs every tick to ensure that user focus never becomes "stranded" in
+		// this way.
+		if (document.activeElement === document.body) {
+			const canvasId = this.#canvasProvider.value?.canvasId;
+			if (canvasId)
+				document.getElementById(canvasId)?.focus();
+		}
+
+		requestAnimationFrame(() => this.#redirectBodyFocus());
+	}
+
 	protected override render = () => html`
 		<sts-canvas-provider
 			class="app-root"
@@ -245,6 +262,10 @@ export class AppElement extends LitElement {
 						></sts-tree>
 					`)}
 				</div>
+			` : nothing}
+
+			${this.mode === StudioMode.Editor ? html`
+				<sts-anim-editor class="timeline v-end h-start h-before-hierarchy"></sts-anim-editor>
 			` : nothing}
 
 			${this.showHelp ? html`
