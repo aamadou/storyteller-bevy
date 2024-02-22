@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[derive(Resource, Deref, DerefMut)]
-pub struct DebugMode(bool);
+pub struct DebugMode(pub bool);
 
 #[derive(Component, Clone, Copy, Debug)]
 pub struct DebugPoint {

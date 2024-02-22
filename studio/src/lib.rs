@@ -39,7 +39,7 @@ pub use crate::{
     anim::AnimPlugin,
     bvh::BvhPlugin,
     camera_controller::CameraControllerPlugin,
-    debug::DebugPlugin,
+    debug::{DebugMode, DebugPlugin},
     input::StudioInputPlugin,
     inspector::InspectorPlugin,
     interaction::InteractionPlugin,

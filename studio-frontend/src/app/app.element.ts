@@ -111,8 +111,6 @@ export class AppElement extends LitElement {
 	}
 
 	onSceneStateChange({ detail: state }: SceneStateEvent): void {
-		console.log("scene state change:", SceneState[state]);
-
 		this.loading = match (state, {
 			[SceneState.Active]: () => false,
 			_: () => true,

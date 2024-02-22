@@ -1,6 +1,6 @@
 use bevy::render::render_resource::Extent3d;
 use clap::{Args, Parser, Subcommand};
-use studio::{start_headless, HeadlessMode};
+use studio::{start_headless, DebugMode, HeadlessMode};
 
 #[derive(Parser)]
 #[command(name = "StorytellerStudioHeadless")]
@@ -13,6 +13,9 @@ use studio::{start_headless, HeadlessMode};
 struct StudioArgs {
     #[command(subcommand)]
     subcommand: Subcommands,
+    /// Render with debug visualizations enabled
+    #[arg(long, short)]
+    debug: bool,
 }
 
 #[derive(Subcommand)]
@@ -103,6 +106,11 @@ fn main() {
             )
         }
     };
+
+    if args.debug {
+        println!("Starting in debug mode");
+        app.insert_resource(DebugMode(true));
+    }
 
     app.run();
 }

@@ -52,6 +52,10 @@ impl Plugin for ScenePlugin {
             );
 
         app.add_systems(Update, tag_scene_elements);
+        app.add_systems(
+            Update,
+            log_scene_state.run_if(resource_changed::<State<SceneState>>()),
+        );
 
         //Auto loading screen
         //Register handles on which we will look to show loading screen
@@ -80,6 +84,10 @@ impl Plugin for ScenePlugin {
             ),
         );
     }
+}
+
+fn log_scene_state(st_scene: Res<State<SceneState>>) {
+    info!("SceneState::{:?}", **st_scene);
 }
 
 fn minimal_scene_setup(mut cmd: Commands) {
@@ -331,6 +339,10 @@ fn frame_scene_in_view(
     q_aabbs: Query<(&Aabb, &GlobalTransform), With<SceneAutoChild>>,
     mut q_camera: Query<(&mut CameraController, &mut Transform, &Projection)>,
 ) {
+    info!("frame_scene_in_view");
+    info!("  q_aabbs length: {}", q_aabbs.iter().count());
+    info!("  q_camera length: {}", q_camera.iter().count());
+
     let Ok((mut cam, mut cam_xform, cam_proj)) = q_camera.get_single_mut() else {
         error!("Failed to get camera controller");
         return;
@@ -400,12 +412,15 @@ fn frame_scene_in_view(
         y: height,
     } = bounding_rect.size();
 
+    info!("  bounding rect: {width:.2} x {height:.2}");
+
     let s = f32::max(width, height);
     let a = if s == height {
         pproj.fov
     } else {
         f32::atan(pproj.aspect_ratio * f32::tan(pproj.fov / 2.))
     };
+    info!("  FOV angle: {}°", a.to_degrees());
 
     // TODO:
     // According to "I eat babies" at the Ars Technica forums
@@ -427,6 +442,11 @@ fn frame_scene_in_view(
     cam.focus = aabb.center.into();
     cam.radius = radius;
     cam_xform.translation = cam.focus + cam_xform.back() * radius;
+
+    info!(
+        "Centering camera at ({:.3}, {:.3}, {:.3}) with a radius of {radius:.3}",
+        cam.focus.x, cam.focus.y, cam.focus.z,
+    );
 }
 
 #[cfg(feature = "wasm")]
