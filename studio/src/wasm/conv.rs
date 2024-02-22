@@ -22,6 +22,29 @@ export interface ITransform {
 }
 export type Transform = BevyObject<"Transform", ITransform>;
 export type GlobalTransform = BevyObject<"GlobalTransform", ITransform>;
+
+export enum MeshPrimitivePrefabType {
+    Cube,
+    Plane,
+    Sphere,
+    Capsule,
+    Torus,
+    Icosphere,
+}
+
+export type MeshPrimitivePrefab = BevyObject<"MeshPrimitivePrefab", MeshPrimitivePrefabType>;
+
+export type Color = [number, number, number, number];
+
+export type BaseColor = BevyObject<"BaseColor", Color>;
+
+export interface IStandartMaterial {
+    baseColor: BaseColor;
+}
+
+expoort type Material = BevyObject<"StandartMaterial", IMaterial>;
+
+
 "#;
 
 pub(crate) const SERIALIZER: Serializer = Serializer::new()

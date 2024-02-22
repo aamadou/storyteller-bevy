@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use self::fps::FpsCounterPlugin;
 
 mod fps;
+pub mod inspector;
 
 pub struct UiLayerPlugin;
 
