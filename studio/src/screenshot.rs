@@ -123,9 +123,7 @@ impl ScreenCapture {
     }
 }
 
-fn update_screen_capture_on_extract_step(
-    mut screen_captures: Query<&mut ScreenCapture>,
-) {
+fn update_screen_capture_on_extract_step(mut screen_captures: Query<&mut ScreenCapture>) {
     for mut screen_capture in screen_captures.iter_mut() {
         screen_capture.frames += 1;
         // if screen_capture.number_of_frames == 0 {
