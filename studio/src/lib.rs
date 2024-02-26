@@ -19,6 +19,7 @@ use wgpu::Extent3d;
 mod anim;
 mod bvh;
 mod camera_controller;
+mod change_tracking;
 mod debug;
 mod design_system;
 mod hierarchy;
@@ -279,6 +280,8 @@ pub fn start_internal(
             ..default()
         }),
         CommonPlugins,
+        #[cfg(all(feature = "wasm", feature = "wasm_screenshot"))]
+        wasm::ScreenshotPlugin,
     ));
 
     if matches!(studio_mode, StudioMode::Editor) {
