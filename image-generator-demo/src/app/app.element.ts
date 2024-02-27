@@ -75,6 +75,8 @@ export class AppElement extends LitElement {
 	@state() realtimeCapture = true;
 	@state() lcmLiveStatus = LCMLiveStatus.DISCONNECTED;
 	@state() websocket: WebSocket | null = null;
+	@state() websocketUUID: string | null = null;
+	@state() latestBlob: Blob | null = null;
 
 	params = new StudioURLParams();
 	viewer = createRef<ViewerElement>();
@@ -108,23 +110,27 @@ export class AppElement extends LitElement {
 	@on("screenshot-ready")
 	onScreenshotReady({ detail: screenshot }: ScreenshotReadyEvent) {
 		const prevUrl = this.imageCaptureUrl;
-		const blob = new Blob([screenshot.data.buffer], { type: "image/png" });
+		// const blob = new Blob([screenshot.data.buffer], { type: "image/png" });
+		const blob = new Blob([screenshot.data.buffer], {type : 'image/jpeg'});
+		this.latestBlob = blob;
+		// const blob = new Blob (["iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="]);
 
-		const innerSend = (blob: Blob | { [key: string]: any }) : void => {
-			if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-				if (blob instanceof Blob) {
-					this.websocket.send(blob);
-				} else {
-					this.websocket.send(JSON.stringify(blob));
-				}
-			} else {
-				console.log("WebSocket not connected durign innerSend with state" + this.lcmLiveStatus + " and readyState " + this.websocket?.readyState + " and blob " + blob + " and websocket " + this.websocket + " and websocket.readyState " + this.websocket?.readyState);
-			}
-		};
+		// const innerSend = (blob: Blob | { [key: string]: any }) : void => {
+		// 	if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+		// 		if (blob instanceof Blob) {
+		// 			this.websocket.send(blob);
+		// 		} else {
+		// 			this.websocket.send(JSON.stringify(blob));
+		// 		}
+		// 	} else {
+		// 		console.log("WebSocket not connected durign innerSend with state" + this.lcmLiveStatus + " and readyState " + this.websocket?.readyState + " and blob " + blob + " and websocket " + this.websocket + " and websocket.readyState " + this.websocket?.readyState);
+		// 	}
+		// };
 
 		// if websocket is disconnected, connect
 		if (this.lcmLiveStatus === LCMLiveStatus.DISCONNECTED) {
 			const userId = crypto.randomUUID();
+			this.websocketUUID = userId;
 			this.websocket = new WebSocket("wss://b3000.pancake-chimaera.ts.net/api/ws/" + userId);
 			this.websocket.onopen = () => {
 				console.log("Marking connection to websocket as open for user " + userId);
@@ -150,12 +156,18 @@ export class AppElement extends LitElement {
 							seed: 12345,
 							guidance_scale: 1.2,
 						});
-						const streamData = blob;
+						const streamData = [this.latestBlob];
 						console.log("Sending next frame with streamData" + streamData + " and websocket " + this.websocket + " and websocket.readyState " + this.websocket?.readyState)
 						this.websocket?.send(JSON.stringify({ status: "next_frame" }));
-						// for (const d of streamData) {
-							innerSend(streamData);
-						// }
+						this.websocket?.send(JSON.stringify({ prompt: default_prompt }));
+
+						for (const d of streamData) {
+							if (d instanceof Blob) {
+								this.websocket?.send(d);
+							} else {
+								this.websocket?.send(JSON.stringify(d));
+							}
+						}
 						break;
 					case "wait":
 						this.lcmLiveStatus = LCMLiveStatus.WAIT;

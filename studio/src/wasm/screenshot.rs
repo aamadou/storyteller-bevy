@@ -10,7 +10,7 @@
 //!    to the frontend by converting the `Vec<u8>` to a [`js_sys::Uint8Array`]
 
 use bevy::{prelude::*, render::view::screenshot::ScreenshotManager, window::PrimaryWindow};
-use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
+use image::{codecs::{jpeg::JpegEncoder, png::PngEncoder}, ColorType, ImageEncoder};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 use super::{AsJsValue, StaticBuffer, WasmMessageBuffer};
@@ -111,20 +111,26 @@ fn take_screenshots(
                 }
             };
             let src_buffer = &img.as_raw()[..buffer_len];
+            let mut jpeg_bytes = vec![];
 
-            let mut png_bytes = vec![];
-            if let Err(err) = PngEncoder::new(&mut png_bytes).write_image(
-                src_buffer,
-                img.width(),
-                img.height(),
-                ColorType::Rgb8,
-            ) {
+            if let Err(err) = JpegEncoder::new(&mut jpeg_bytes)
+                .encode(src_buffer, img.width(), img.height(), ColorType::Rgb8)
+                .map_err(|err| format!("{err}")) {
                 error!("{err}");
                 return;
-            }
+                };
+            // if let Err(err) = PngEncoder::new(&mut png_bytes).write_image(
+            //     src_buffer,
+            //     img.width(),
+            //     img.height(),
+            //     ColorType::Rgb8,
+            // ) {
+            //     error!("{err}");
+            //     return;
+            // }
 
             SCREENSHOT.write_message(ScreenshotNative {
-                data: png_bytes,
+                data: jpeg_bytes,
                 width: img.width() as usize,
                 height: img.height() as usize,
             });
