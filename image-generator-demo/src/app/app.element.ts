@@ -20,6 +20,13 @@ import "@storyteller/studio-web/viewer";
 
 import "./app.element.scss"
 
+export enum LCMLiveStatus {
+    CONNECTED = "connected",
+    DISCONNECTED = "disconnected",
+    WAIT = "wait",
+    SEND_FRAME = "send_frame",
+    TIMEOUT = "timeout",
+}
 class Debounce {
 	static readonly Wait = 1000 / 24;
 	static readonly Realtime = {
@@ -38,11 +45,36 @@ class Debounce {
 	}
 }
 
+interface IImageInfo {
+    prompt?: string;
+    negative_prompt?: string;
+    seed?: number;
+    guidance_scale?: number;
+}
+
+// imageinfo class
+
+class ImageInfo {
+	prompt?: string;
+	negativePrompt?: string;
+	seed?: number;
+	guidanceScale?: number;
+
+	constructor(data: IImageInfo) {
+		this.prompt = data.prompt;
+		this.negativePrompt = data.negative_prompt;
+		this.seed = data.seed;
+		this.guidanceScale = data.guidance_scale;
+	}
+}
+
 @customElement("app-root")
 export class AppElement extends LitElement {
 	@state() loading = true;
 	@state() imageCaptureUrl?: string;
 	@state() realtimeCapture = true;
+	@state() lcmLiveStatus = LCMLiveStatus.DISCONNECTED;
+	@state() websocket: WebSocket | null = null;
 
 	params = new StudioURLParams();
 	viewer = createRef<ViewerElement>();
@@ -76,8 +108,80 @@ export class AppElement extends LitElement {
 	@on("screenshot-ready")
 	onScreenshotReady({ detail: screenshot }: ScreenshotReadyEvent) {
 		const prevUrl = this.imageCaptureUrl;
-
 		const blob = new Blob([screenshot.data.buffer], { type: "image/png" });
+
+		const innerSend = (blob: Blob | { [key: string]: any }) : void => {
+			if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+				if (blob instanceof Blob) {
+					this.websocket.send(blob);
+				} else {
+					this.websocket.send(JSON.stringify(blob));
+				}
+			} else {
+				console.log("WebSocket not connected durign innerSend with state" + this.lcmLiveStatus + " and readyState " + this.websocket?.readyState + " and blob " + blob + " and websocket " + this.websocket + " and websocket.readyState " + this.websocket?.readyState);
+			}
+		};
+
+		// if websocket is disconnected, connect
+		if (this.lcmLiveStatus === LCMLiveStatus.DISCONNECTED) {
+			const userId = crypto.randomUUID();
+			this.websocket = new WebSocket("wss://b3000.pancake-chimaera.ts.net/api/ws/" + userId);
+			this.websocket.onopen = () => {
+				console.log("Marking connection to websocket as open for user " + userId);
+				this.lcmLiveStatus = LCMLiveStatus.CONNECTED;
+			};
+			this.websocket.onclose = () => {
+				console.log("Marking connection to websocket as closed for user " + userId);
+				this.lcmLiveStatus = LCMLiveStatus.DISCONNECTED;
+			};
+			this.websocket.onmessage = (event) => {
+				const data = JSON.parse(event.data);
+				switch (data.status) {
+					case "connected":
+						this.lcmLiveStatus = LCMLiveStatus.CONNECTED;
+						break;
+					case "send_frame":
+						this.lcmLiveStatus = LCMLiveStatus.SEND_FRAME;
+						const default_prompt = "Portrait of The Joker halloween costume, face painting, with , glare pose, detailed, intricate, full of colour, cinematic lighting, trending on artstation, 8k, hyperrealistic, focused, extreme details, unreal engine 5 cinematic, masterpiece"
+						const default_negative_prompt = "black and white, blurry, low resolution, pixelated,  pixel art, low quality, low fidelity"
+						const imageInfo = new ImageInfo({
+							prompt: default_prompt,
+							negative_prompt: default_negative_prompt,
+							seed: 12345,
+							guidance_scale: 1.2,
+						});
+						const streamData = blob;
+						console.log("Sending next frame with streamData" + streamData + " and websocket " + this.websocket + " and websocket.readyState " + this.websocket?.readyState)
+						this.websocket?.send(JSON.stringify({ status: "next_frame" }));
+						// for (const d of streamData) {
+							innerSend(streamData);
+						// }
+						break;
+					case "wait":
+						this.lcmLiveStatus = LCMLiveStatus.WAIT;
+						break;
+					case "timeout":
+						console.log("timeout");
+						this.lcmLiveStatus = LCMLiveStatus.TIMEOUT;
+						break;
+					case "error":
+						console.log(data.message);
+						this.lcmLiveStatus = LCMLiveStatus.DISCONNECTED;
+						// lcmLiveStatus.set(LCMLiveStatus.DISCONNECTED);
+						// streamId.set(null);
+						// reject(new Error(data.message));
+						break;
+				}
+			};
+		}
+
+
+		if (this.lcmLiveStatus === LCMLiveStatus.CONNECTED) {
+
+		} else {
+			console.log("WebSocket not connected with state" + this.lcmLiveStatus + " and readyState " + this.websocket?.readyState);
+		}
+
 		this.imageCaptureUrl = URL.createObjectURL(blob);
 		console.log(`New blob URL: ${this.imageCaptureUrl}`);
 
