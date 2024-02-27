@@ -70,7 +70,7 @@ header {
 	}
 }
 
-.icon.expanded {
+.caret.expanded {
 	transform: rotate(90deg);
 }
 
@@ -81,6 +81,10 @@ header {
 	align-items: center;
 	gap: 8px;
 	padding-inline-start: 5px;
+}
+
+.icon {
+	opacity: 0.75;
 }
 
 .children {

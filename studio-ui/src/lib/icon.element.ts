@@ -21,6 +21,9 @@ import farRotate from "@fortawesome/fontawesome-pro/svgs/regular/arrows-rotate.s
 import farScale from "@fortawesome/fontawesome-pro/svgs/regular/arrow-up-right-and-arrow-down-left-from-center.svg?raw";
 import fasCaretRight from "@fortawesome/fontawesome-pro/svgs/solid/caret-right.svg?raw";
 import fasFloppyDisk from "@fortawesome/fontawesome-pro/svgs/solid/floppy-disk.svg?raw";
+import farSkeleton from "@fortawesome/fontawesome-pro/svgs/regular/skeleton.svg?raw";
+import farBone from "@fortawesome/fontawesome-pro/svgs/regular/bone.svg?raw";
+import fasBrightness from "@fortawesome/fontawesome-pro/svgs/solid/brightness.svg?raw";
 
 import styles from "./icon.element.scss?inline";
 
@@ -47,6 +50,7 @@ function renderSvg(iconId: string) {
 		return RENDER_RESULTS.get(iconId)!;
 
 	const svgSrc = match (iconId, {
+		"bone": () => farBone,
 		"bwd-fast": () => fasBwdFast,
 		"bwd-step": () => fasBwdStep,
 		"circle-question": () => fasCircleQuestion,
@@ -57,11 +61,13 @@ function renderSvg(iconId: string) {
 		"fwd-fast": () => fasFwdFast,
 		"fwd-step": () => fasFwdStep,
 		"key": () => fasKey,
+		"light": () => fasBrightness,
 		"globe": () => farGlobe,
 		"play": () => fasPlay,
 		"question": () => fasQuestion,
 		"rotate": () => farRotate,
 		"scale": () => farScale,
+		"skeleton": () => farSkeleton,
 		"up-down-left-right": () => farUpDownLeftRight,
 		"video": () => farVideo,
 		_: () => null,
