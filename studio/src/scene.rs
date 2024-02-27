@@ -12,7 +12,8 @@ use bevy::{
     render::{camera::RenderTarget, primitives::Aabb},
     scene::InstanceId,
 };
-
+#[cfg(feature = "wasm")]
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use space_editor::{
     prelude::{EditorEvent, EditorPrefabPath, PrefabMarker},
     space_prefab::component::SceneAutoChild,
@@ -230,8 +231,21 @@ pub struct ImportSceneEvent(pub String);
 //       soon.
 /// A tag that identifies its entity as a user-facing scene element like a prop,
 /// a light, or a camera.
-#[derive(Component)]
-pub struct SceneElement;
+#[cfg_attr(
+    feature = "wasm",
+    repr(u8),
+    wasm_bindgen,
+    derive(Serialize_repr, Deserialize_repr)
+)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SceneElement {
+    Generic,
+    Mesh,
+    Skeleton,
+    Bone,
+    Light,
+    Camera,
+}
 
 #[derive(Component)]
 pub struct SceneData {
@@ -398,9 +412,9 @@ fn tag_scene_elements(
             }
         }
         if has_mesh {
-            cmd.entity(e).insert(SceneElement);
+            cmd.entity(e).insert(SceneElement::Mesh);
         } else {
-            cmd.entity(e).insert(NoMeshElement);
+            cmd.entity(e).insert(SceneElement::Generic);
         }
     }
 }

@@ -6,7 +6,7 @@ use bevy::{
 };
 use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 
-use crate::hierarchy;
+use crate::{hierarchy, scene::SceneElement};
 pub use retargeting::*;
 
 mod camera;
@@ -131,7 +131,7 @@ fn process_skinned_meshes(
         // skeleton
         let joints = joints.iter().copied().collect::<Vec<_>>();
         if let Some(root) = hierarchy::nearest_common_ancestor(&joints, &q_parents) {
-            cmd.entity(root).insert(Skeleton);
+            cmd.entity(root).insert((Skeleton, SceneElement::Skeleton));
         }
 
         // Tag each joint and find its bind poses
@@ -141,6 +141,7 @@ fn process_skinned_meshes(
 
             cmd.entity(joint).insert((
                 SkeletalJoint(Color::BLACK),
+                SceneElement::Bone,
                 BindPoseLocal(bind_pose_local),
                 BindPoseGlobal(bind_pose_global.affine()),
                 InvBindPose(bind_pose_global.affine().inverse()),
