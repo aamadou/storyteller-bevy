@@ -106,6 +106,10 @@ export class AppElement extends LitElement {
 		img.setAttribute("id", "video_image")
 		document.body.appendChild(img);
 
+
+		// Connect websocket at outset
+		// Probably connect it again on errors
+		this.connectWebsocket();
 	}
 
 
@@ -162,13 +166,10 @@ export class AppElement extends LitElement {
 
 					// After the server gets the image, we need to load the pipeline result.
 					let src = `https://b3000.pancake-chimaera.ts.net/api/stream/${userId}`;
+					this.imageCaptureUrl = src;
 
-					//let img = new Image();
-					//img.src = src;
-
-					console.log("set source", src);
-					//document.getElementById("video_image")?.setAttribute("src", src);
-					document.getElementsByClassName("image-capture")[0]?.setAttribute("src", src);
+					//console.log("set source", src);
+					//document.getElementsByClassName("image-capture")[0]?.setAttribute("src", src);
 
 
 					// for (const d of streamData) {
@@ -246,12 +247,11 @@ export class AppElement extends LitElement {
 		//	console.log("WebSocket not connected with state" + this.lcmLiveStatus + " and readyState " + this.websocket?.readyState);
 		//}
 
-		this.imageCaptureUrl = URL.createObjectURL(blob);
-		console.log(`New blob URL: ${this.imageCaptureUrl}`);
+
+		//this.imageCaptureUrl = URL.createObjectURL(blob);
+		//console.log(`New blob URL: ${this.imageCaptureUrl}`);
 
 		this.blob = blob;
-
-		this.connectWebsocket();
 
 		if (prevUrl != null)
 			URL.revokeObjectURL(prevUrl);
