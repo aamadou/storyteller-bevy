@@ -225,10 +225,6 @@ pub struct LoadSceneEvent(pub String);
 #[derive(Event, Deref)]
 pub struct ImportSceneEvent(pub String);
 
-// TODOL This could be converted into an enum that indicates what "kind" of
-//       element this is (e.g. StaticMesh, SkinnedMesh, Bone, Light, Camera).
-//       We don't have an immediate need for that just yet, but likely will
-//       soon.
 /// A tag that identifies its entity as a user-facing scene element like a prop,
 /// a light, or a camera.
 #[cfg_attr(
