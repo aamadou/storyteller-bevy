@@ -107,16 +107,20 @@ impl Plugin for ScenePlugin {
 }
 
 fn minimal_scene_setup(mut cmd: Commands) {
-    cmd.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            shadows_enabled: false,
-            illuminance: 20000.0,
+    cmd.spawn((
+        Name::new("Directional Light"),
+        DirectionalLightBundle {
+            directional_light: DirectionalLight {
+                shadows_enabled: false,
+                illuminance: 20000.0,
+                ..default()
+            },
+            transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
             ..default()
         },
-        transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
-        ..default()
-    })
-    .insert(PrefabMarker);
+        PrefabMarker,
+        SceneElement::Light,
+    ));
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
@@ -240,6 +244,7 @@ pub enum SceneElement {
     Skeleton,
     Bone,
     Light,
+    #[allow(dead_code)] // TODO: Will be used for camera animation
     Camera,
 }
 
@@ -334,6 +339,7 @@ fn init_object_loading(mut cmd: Commands, mut er: EventReader<LoadLibraryObjectE
     if let Some(id) = er.read().last() {
         info!("Loading library asset: {}", id.0);
         cmd.spawn((
+            Name::new(id.0.clone()),
             SpatialBundle::default(),
             space_editor::prelude::GltfPrefab {
                 path: format!("gltf/{}", id.0),
@@ -349,6 +355,7 @@ fn init_scene_import(mut cmd: Commands, mut er: EventReader<ImportSceneEvent>) {
     if let Some(path) = er.read().last() {
         info!("Importing asset: {}", path.0);
         cmd.spawn((
+            Name::new("Scene"), // TODO: Maybe use the "basename" part of the asset path?
             SpatialBundle::default(),
             space_editor::prelude::GltfPrefab {
                 path: path.0.clone(),
@@ -372,12 +379,6 @@ fn init_scene_loading(
     }
 }
 
-#[derive(Component)]
-pub struct NoMeshElement;
-
-#[derive(Component)]
-pub struct InitedKointSkinnedMesh;
-
 fn tag_scene_elements(
     mut cmd: Commands,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
@@ -394,7 +395,6 @@ fn tag_scene_elements(
             With<Name>,
             Without<Handle<Mesh>>,
             Without<SceneElement>,
-            Without<NoMeshElement>,
         ),
     >,
     mesh_entities: Query<Entity, With<Handle<Mesh>>>,
