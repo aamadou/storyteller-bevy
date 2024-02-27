@@ -1,16 +1,28 @@
 import { inject } from "@storyteller/framework";
 import * as studio from "@storyteller/studio";
-import { ViewportSize } from "@storyteller/studio";
-import { LitElement, PropertyValues, html, unsafeCSS } from "lit";
-
+import {
+	type InitOptions,
+	type SkyboxId,
+	StudioMode,
+	ViewportSize,
+} from "@storyteller/studio";
+import { LitElement, type PropertyValues, html, unsafeCSS } from "lit";
+import { customElement, property } from "lit/decorators.js";
 import { CANVAS_PROVIDER, type CanvasProvider } from "./canvas-provider.element";
 
-import styles from "./studio-base.element.scss?inline";
+import styles from "./studio.element.scss?inline";
 
-export abstract class StudioBaseElement extends LitElement {
+@customElement("sts-studio")
+export class StudioElement extends LitElement {
 	static override styles = unsafeCSS(styles);
 
-	get canvas() { return this.#canvas; }
+	@property() objectId?: string;
+	@property() bvhPath?: string;
+	@property() mixamoPath?: string;
+	@property() sceneImport?: string;
+	@property() storytellerScene?: string;
+	@property() skyboxId?: SkyboxId;
+	@property({ type: Number }) mode?: StudioMode;
 
 	@inject(CANVAS_PROVIDER)
 	_canvasProvider?: CanvasProvider;
@@ -18,9 +30,6 @@ export abstract class StudioBaseElement extends LitElement {
 	#canvas?: HTMLCanvasElement;
 	#resizeObserver?: ResizeObserver;
 	#frameRequest?: number;
-
-	abstract onStart(viewportSize: ViewportSize): void;
-	abstract onChanges?(changes: PropertyValues<this>): void;
 
 	override connectedCallback(): void {
 		super.connectedCallback();
@@ -53,7 +62,7 @@ export abstract class StudioBaseElement extends LitElement {
 		if (!studio.isInitialized()) {
 			this.#start();
 		} else {
-			this.onChanges?.(changes);
+			// TODO
 		}
 	}
 
@@ -75,10 +84,36 @@ export abstract class StudioBaseElement extends LitElement {
 
 	#start(): void {
 		if (!this.#canvas) return;
+		if (this.mode == null) return;
 
 		const { width, height } = this.getBoundingClientRect();
+		const options: InitOptions = {
+			mode: this.mode,
+			canvasSelector: `#${this._canvasProvider?.canvasId}`,
+			canvasAlt: "Storyteller Studio",
+			viewportSize: new ViewportSize(width, height),
+		};
+
 		try {
-			this.onStart(new ViewportSize(width, height));
+			if (
+				this.skyboxId
+				&& (this.objectId || this.bvhPath || this.mixamoPath || this.sceneImport)
+			) {
+				options.skyboxId = this.skyboxId;
+
+				if (this.objectId) {
+					studio.initFromLibrary(this.objectId, options);
+				} else if (this.bvhPath) {
+					studio.initFromBvh(this.bvhPath, options);
+				} else if (this.mixamoPath) {
+					studio.initFromMixamo(this.mixamoPath, options);
+				} else if (this.sceneImport) {
+					studio.initFromSceneImport(this.sceneImport, options);
+				}
+			}
+			else if (this.storytellerScene) {
+				studio.initFromStorytellerScene(this.storytellerScene, options);
+			}
 		} catch (err) {
 			if (!(err as Error).message?.startsWith("Using exceptions for control flow"))
 				throw err;
