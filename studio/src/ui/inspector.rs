@@ -1,8 +1,8 @@
-use std::{any::Any, marker::PhantomData};
+use std::{marker::PhantomData};
 
 use bevy::{
     prelude::*,
-    reflect::{serde::ReflectSerializer, DynamicStruct, GetTypeRegistration},
+    reflect::{serde::ReflectSerializer, GetTypeRegistration},
     utils::HashMap,
     window::PrimaryWindow,
 };
@@ -111,7 +111,7 @@ fn update_inspect_by_remove<T: Component + Reflect + GetTypeRegistration>(
     mut ev_inspect: EventWriter<UpdateInspect<T>>,
     mut q_t_removed: RemovedComponents<T>,
 ) {
-    if let Some(t) = q_t_removed.iter().next() {
+    if let Some(_t) = q_t_removed.read().next() {
         ev_inspect.send(UpdateInspect::<T>::default());
     }
 }
@@ -120,7 +120,7 @@ fn update_inspect_by_change<T: Component + Reflect + GetTypeRegistration>(
     mut ev_inspect: EventWriter<UpdateInspect<T>>,
     q_t_changed: Query<&T, (With<Selected>, Changed<T>)>,
 ) {
-    if let Some(_) = q_t_changed.iter().next() {
+    if q_t_changed.iter().next().is_some() {
         ev_inspect.send(UpdateInspect::<T>::default());
     }
 }
@@ -158,10 +158,8 @@ fn auto_serialize_system<T: Component + Reflect + GetTypeRegistration>(
     ev_update_description.send(UpdateEntityDescription);
 }
 
-fn auto_handle_inspect<T: Asset + Reflect>(mut assets: Res<Assets<T>>) {}
-
 fn update_description(
-    mut description: ResMut<EntityDescription>,
+    description: ResMut<EntityDescription>,
     mut ev_update_description: EventReader<UpdateEntityDescription>,
     mut q_windows: Query<&Window, With<PrimaryWindow>>,
 ) {
