@@ -6,7 +6,7 @@ use crate::interaction::TransformSpace;
 use super::material::GizmoMaterial;
 
 #[derive(Component, Reflect)]
-pub(super) struct TransformGizmo {
+pub struct TransformGizmo {
     pub(super) target: Entity,
     pub(super) transform_space: TransformSpace,
 }

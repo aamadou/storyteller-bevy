@@ -11,6 +11,7 @@ use self::{
     rotation::{spawn_rotation_gizmo, update_ss_ring_rotation},
     translation::spawn_translation_gizmo,
 };
+pub use common::TransformGizmo;
 
 use super::{Selection, TransformMode, TransformType};
 

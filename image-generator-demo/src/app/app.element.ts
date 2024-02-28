@@ -22,7 +22,6 @@ import "./app.element.scss"
 @customElement("app-root")
 export class AppElement extends LitElement {
 	@state() imageCaptureUrl?: string;
-	@state() realtimeCapture = true;
 
 	@state() hierarchyWidth = 256;
 	@state() resizing = false;
@@ -52,28 +51,15 @@ export class AppElement extends LitElement {
 	}
 
 	@on("entity-changes")
+	@debounce(1000 / 24)
 	onStudioChanges(): void {
-		if (this.realtimeCapture) {
-			this.requestScreenshot_realtime();
-		} else {
-			this.requestScreenshot_delayed();
-		}
+		studio.requestScreenshot();
 	}
 
 	@on("viewport-resized")
 	// This handler requires a longer debounce to avoid crashing the render piptline
 	@debounce(1000 / 5)
 	onViewportResized(): void {
-		studio.requestScreenshot();
-	}
-
-	@debounce(1000 / 24, { maxWait: 1000 / 5 })
-	requestScreenshot_realtime() {
-		studio.requestScreenshot();
-	}
-
-	@debounce(1000 / 24)
-	requestScreenshot_delayed() {
 		studio.requestScreenshot();
 	}
 
@@ -99,11 +85,6 @@ export class AppElement extends LitElement {
 	onResize(event: PointerEvent): void {
 		let updated = this.hierarchyWidth + event.movementX;
 		this.hierarchyWidth = Math.max(Math.min(updated, 512), 128);
-	}
-
-	toggleRealtimeCapture(event: InputEvent): void {
-		const { checked } = event.target as HTMLInputElement;
-		this.realtimeCapture = checked;
 	}
 
 	refreshSeed(): void {
@@ -184,6 +165,11 @@ export class AppElement extends LitElement {
 				</div>
 			</div>
 
+			${/*
+			FIXME: Real-time capture is not really feasible until we can come up
+			       with a more elegant way to exclude the world grid, gizmos, etc.
+			       from the captured image
+
 			<div class="config v-start h-end">
 				<label class="config-checkbox">
 					<input
@@ -194,6 +180,8 @@ export class AppElement extends LitElement {
 					Realtime Capture
 				</label>
 			</div>
+			*/
+			nothing}
 
 			${this.loading ? html`
 				<!-- TODO: Animated spinner or something -- talk to our designers -->
