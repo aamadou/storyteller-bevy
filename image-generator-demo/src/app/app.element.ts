@@ -151,9 +151,9 @@ export class AppElement extends LitElement {
 							class="config-field seed"
 							type="number"
 							aria-label="Seed"
-							value=${this.seed}
-							min="100"
-							max="10000"
+							.value=${this.seed.toString()}
+							min="1"
+							max="99999"
 						/>
 						<button
 							class="seed-refresh"
@@ -194,5 +194,5 @@ export class AppElement extends LitElement {
 }
 
 function randomSeed(): number {
-	return Math.round(Math.random() * 5000);
+	return Math.round(Math.random() * 99999);
 }
