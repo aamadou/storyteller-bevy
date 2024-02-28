@@ -10,7 +10,7 @@
 //!    to the frontend by converting the `Vec<u8>` to a [`js_sys::Uint8Array`]
 
 use bevy::{prelude::*, render::view::screenshot::ScreenshotManager, window::PrimaryWindow};
-use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
+use image::{codecs::jpeg::JpegEncoder, ColorType, ImageEncoder};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 use crate::{interaction::gizmos::TransformGizmo, world_grid::WorldGridPlane};
@@ -148,8 +148,8 @@ fn take_screenshots(
             };
             let src_buffer = &img.as_raw()[..buffer_len];
 
-            let mut png_bytes = vec![];
-            if let Err(err) = PngEncoder::new(&mut png_bytes).write_image(
+            let mut jpg_bytes = vec![];
+            if let Err(err) = JpegEncoder::new_with_quality(&mut jpg_bytes, 70).write_image(
                 src_buffer,
                 img.width(),
                 img.height(),
@@ -160,7 +160,7 @@ fn take_screenshots(
             }
 
             SCREENSHOT.write_message(ScreenshotNative {
-                data: png_bytes,
+                data: jpg_bytes,
                 width: img.width() as usize,
                 height: img.height() as usize,
             });

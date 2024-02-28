@@ -87,7 +87,7 @@ export class AppElement extends LitElement {
 	onScreenshotReady({ detail: screenshot }: ScreenshotReadyEvent) {
 		const prevUrl = this.imageCaptureUrl;
 
-		const blob = new Blob([screenshot.data.buffer], { type: "image/png" });
+		const blob = new Blob([screenshot.data.buffer], { type: "image/jpg" });
 		this.imageCaptureUrl = URL.createObjectURL(blob);
 
 		if (prevUrl != null)
