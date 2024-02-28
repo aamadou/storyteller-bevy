@@ -7,7 +7,7 @@ import {
 	StudioMode,
 } from "@storyteller/studio";
 import { match } from "@storyteller/utility";
-import { LitElement, html, nothing } from "lit";
+import { LitElement, type PropertyValues, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { classMap } from "lit/directives/class-map.js";
@@ -38,6 +38,19 @@ export class AppElement extends LitElement {
 			URL.revokeObjectURL(this.imageCaptureUrl);
 
 		super.disconnectedCallback();
+	}
+
+	protected override willUpdate(changes: PropertyValues<this>): void {
+		if (changes.has("prompt") || changes.has("seed") || changes.has("imageCaptureUrl")) {
+			// TODO: Send parameters to model
+			console.log("changes:", {
+				prompt: this.prompt,
+				seed: this.seed,
+				imageCaptureUrl: this.imageCaptureUrl,
+			});
+		}
+
+		super.willUpdate(changes);
 	}
 
 	@on("scene-state")
@@ -74,6 +87,25 @@ export class AppElement extends LitElement {
 			URL.revokeObjectURL(prevUrl);
 	}
 
+	updatePrompt(event: Event): void {
+		this.prompt = (event.target as HTMLInputElement).value;
+	}
+
+	refreshSeed(): void {
+		this.seed = randomSeed();
+	}
+
+	stopTextInputBubbling(event: KeyboardEvent): void {
+		// We want modifier keys like "Alt" to always be received by the Bevy
+		// canvas because they affect the camera controller behavior, but we do
+		// NOT want Bevy to receive typing inputs like W, A, S, and D while the
+		// user is trying to type into the Prompt field.
+		if (/^(Alt|Control|Shift)$/.test(event.key))
+			return;
+
+		event.stopPropagation();
+	}
+
 	onResizeStart(): void {
 		this.resizing = true;
 	}
@@ -85,10 +117,6 @@ export class AppElement extends LitElement {
 	onResize(event: PointerEvent): void {
 		let updated = this.hierarchyWidth + event.movementX;
 		this.hierarchyWidth = Math.max(Math.min(updated, 512), 128);
-	}
-
-	refreshSeed(): void {
-		this.seed = randomSeed();
 	}
 
 	protected override render = () => html`
@@ -137,14 +165,22 @@ export class AppElement extends LitElement {
 				`}
 
 				<div class="config config-prompt h-center v-end"
-					@keydown=${(event: KeyboardEvent) => event.stopPropagation()}
-					@keyup=${(event: KeyboardEvent) => event.stopPropagation()}
+					@keydown=${this.stopTextInputBubbling}
+					@keyup=${this.stopTextInputBubbling}
 				>
 					<input
 						class="config-field prompt"
 						type="text"
 						aria-label="Prompt"
 						placeholder="Enter a prompt to customize the output"
+						.value=${this.prompt}
+						@change=${this.updatePrompt}
+						@keydown=${(event: KeyboardEvent) => {
+							if (event.key === "Enter") {
+								event.preventDefault();
+								this.updatePrompt(event);
+							}
+						}}
 					/>
 					<div class="config-field-group">
 						<input
