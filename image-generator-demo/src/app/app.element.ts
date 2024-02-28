@@ -44,6 +44,17 @@ export class AppElement extends LitElement {
 		super();
 
 		this.#lcmClient.addEventListener("lcm-image-ready", event => {
+			console.log("lcm-image-ready", event.detail);
+
+			const prevUrl = this.outputUrl;
+			this.outputUrl = URL.createObjectURL(event.detail);
+
+			if (prevUrl)
+				URL.revokeObjectURL(prevUrl);
+		});
+
+		this.#lcmClient.addEventListener("lcm-image-url-ready", event => {
+			console.log("lcm-image-url-ready", event.detail);
 			this.outputUrl = event.detail;
 			this.requestUpdate();
 		});
@@ -54,6 +65,9 @@ export class AppElement extends LitElement {
 	override disconnectedCallback(): void {
 		if (this.inputUrl)
 			URL.revokeObjectURL(this.inputUrl);
+
+		if (this.outputUrl)
+			URL.revokeObjectURL(this.outputUrl);
 
 		super.disconnectedCallback();
 	}

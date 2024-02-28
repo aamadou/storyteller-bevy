@@ -21,6 +21,8 @@ interface LcmMessageData {
 }
 
 export class LcmClient extends WebSocket {
+	static readonly Api = "//b3000.pancake-chimaera.ts.net/api";
+
 	#userId: string;
 
 	get status() { return this.#status; }
@@ -35,7 +37,7 @@ export class LcmClient extends WebSocket {
 	#guidanceScale = 0.8;
 
 	constructor (userId: string) {
-		super(`wss://b3000.pancake-chimaera.ts.net/api/ws/${userId}`);
+		super(`wss:${LcmClient.Api}/ws/${userId}`);
 		this.#userId = userId;
 
 		this.addEventListener("open", () => this.#onOpen());
@@ -94,7 +96,7 @@ export class LcmClient extends WebSocket {
 		}
 	}
 
-	#sendFrame(): void {
+	async #sendFrame(): Promise<void> {
 		if (!this.#blob || !this.#prompt || !this.#negativePrompt || this.#seed == null) {
 			this.#waiting = true;
 			return;
@@ -113,16 +115,52 @@ export class LcmClient extends WebSocket {
 
 		this.#waiting = false;
 
-		setTimeout(() => {
-			this.dispatchEvent(new CustomEvent("lcm-image-ready", {
-				detail: `https://b3000.pancake-chimaera.ts.net/api/stream/${this.#userId}`
-			}));
-		});
+		try {
+			const url = `https:${LcmClient.Api}/stream/${this.#userId}`;
+
+			// FIXME: This only actually renders an image in the DOM about ~10% of the time
+			this.dispatchEvent(new CustomEvent("lcm-image-url-ready", { detail: url }));
+
+			// const response = await fetch(url, { method: "GET" });
+			// console.log("response:", response);
+
+			// if (!response.ok || !response.body) {
+			// 	console.error(`GET failed with status ${response.status}: "${response.statusText}"`);
+			// 	return;
+			// }
+
+			// const blobParts = [] as Uint8Array[];
+			// const reader = response.body.getReader();
+
+			// // FIXME: This doesn't appear to be an image
+			// // const { value } = await reader.read();
+			// // if (value) blobParts.push(value);
+
+			// // FIXME: this just stops responding after the first `read()` call even
+			// //        though `done` is false
+			// while (true) {
+			// 	console.log("Reading next chunk...");
+			//
+			// 	const { value, done } = await reader.read();
+			// 	console.log({ value, done });
+			//
+			// 	if (value) blobParts.push(value);
+			// 	if (done) break;
+			// }
+
+			// this.dispatchEvent(new CustomEvent<Blob>("lcm-image-ready", {
+			// 	detail: new Blob(blobParts, { type: "image/jpg" }),
+			// }));
+		}
+		catch (err) {
+			console.error(err);
+		}
 	}
 }
 
 export interface LcmClientEventMap extends WebSocketEventMap {
-	"lcm-image-ready": CustomEvent<string>;
+	"lcm-image-ready": CustomEvent<Blob>;
+	"lcm-image-url-ready": CustomEvent<string>;
 }
 
 export interface LcmClient {
