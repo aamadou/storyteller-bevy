@@ -13,6 +13,7 @@ npm version
 npm ci
 
 # Build projects
-npx nx run studio:build:image-generator
+#npx nx run studio:build:image-generator
+npx nx run studio:build:web
 npx nx run image-generator-demo:build:production
 
