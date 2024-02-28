@@ -111,7 +111,7 @@ export class AppElement extends LitElement {
 		// canvas because they affect the camera controller behavior, but we do
 		// NOT want Bevy to receive typing inputs like W, A, S, and D while the
 		// user is trying to type into the Prompt field.
-		if (/^(Alt|Control|Shift)$/.test(event.key))
+		if (/^(Alt|Control)$/.test(event.key))
 			return;
 
 		event.stopPropagation();
