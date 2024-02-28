@@ -13,6 +13,7 @@ import styles from "./tree.element.scss?inline";
 export interface Tree {
 	id?: string;
 	name: string;
+	icon?: string;
 	children?: Tree[];
 }
 
@@ -55,7 +56,7 @@ export class TreeElement extends LitElement {
 				>
 					<sts-icon
 						class=${classMap({
-							icon: true,
+							caret: true,
 							expanded: this.expanded,
 						})}
 						icon="caret-right"
@@ -67,7 +68,7 @@ export class TreeElement extends LitElement {
 				@click=${this.selectEntity}
 			>
 				${this.icon ? html`
-					<sts-icon icon=${this.icon}></sts-icon>
+					<sts-icon class="icon" icon=${this.icon}></sts-icon>
 				` : nothing}
 				${this.name}
 			</span>
@@ -79,6 +80,7 @@ export class TreeElement extends LitElement {
 					<sts-tree
 						id=${ifDefined(tree.id)}
 						.name=${tree.name}
+						.icon=${tree.icon}
 						.treeChildren=${tree.children}
 					></sts-tree>
 				`)}

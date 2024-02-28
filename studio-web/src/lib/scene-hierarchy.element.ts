@@ -1,10 +1,12 @@
+import { on } from "@storyteller/framework";
 import * as studio from "@storyteller/studio";
 import {
+	SceneElement,
 	type EntityDespawnEvent,
 	type EntityMultiSpawnEvent,
 	type EntitySpawnEvent,
 } from "@storyteller/studio";
-import { on } from "@storyteller/framework";
+import { match } from "@storyteller/utility";
 import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
@@ -12,7 +14,8 @@ import styles from "./scene-hierarchy.element.scss?inline";
 
 import "@storyteller/studio-ui/tree";
 
-interface SceneObject extends Omit<studio.SceneObject, "children"> {
+interface SceneObject extends Omit<studio.SceneObject, "icon"|"children"> {
+	icon?: string;
 	children: SceneObject[];
 }
 
@@ -43,8 +46,20 @@ export class SceneHierarchyElement extends LitElement {
 	#rebuildTree(): void {
 		this.#entityMap.clear();
 
-		for (let obj of this.#sceneObjectsFlat)
-			this.#entityMap.set(obj.id, { ...obj, children: [] });
+		for (let obj of this.#sceneObjectsFlat) {
+			this.#entityMap.set(obj.id, {
+				...obj,
+				icon: match (obj.type, {
+					[SceneElement.Generic]: () => "cube",
+					[SceneElement.Mesh]: () => "cube", // TODO ?
+					[SceneElement.Skeleton]: () => "skeleton",
+					[SceneElement.Bone]: () => "bone",
+					[SceneElement.Light]: () => "light",
+					[SceneElement.Camera]: () => "video",
+				}),
+				children: []
+			});
+		}
 
 		for (let obj of this.#entityMap.values()) {
 			if (obj.parent != null) {
@@ -70,6 +85,7 @@ export class SceneHierarchyElement extends LitElement {
 			<sts-tree
 				id=${obj.id}
 				.name=${obj.name}
+				.icon=${obj.icon}
 				.treeChildren=${obj.children}
 			></sts-tree>
 		`)}

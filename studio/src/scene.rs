@@ -12,7 +12,8 @@ use bevy::{
     render::{camera::RenderTarget, primitives::Aabb},
     scene::InstanceId,
 };
-
+#[cfg(feature = "wasm")]
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use space_editor::{
     prelude::{EditorEvent, EditorPrefabPath, PrefabMarker},
     space_prefab::component::SceneAutoChild,
@@ -106,16 +107,20 @@ impl Plugin for ScenePlugin {
 }
 
 fn minimal_scene_setup(mut cmd: Commands) {
-    cmd.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            shadows_enabled: false,
-            illuminance: 20000.0,
+    cmd.spawn((
+        Name::new("Directional Light"),
+        DirectionalLightBundle {
+            directional_light: DirectionalLight {
+                shadows_enabled: false,
+                illuminance: 20000.0,
+                ..default()
+            },
+            transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
             ..default()
         },
-        transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
-        ..default()
-    })
-    .insert(PrefabMarker);
+        PrefabMarker,
+        SceneElement::Light,
+    ));
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
@@ -224,14 +229,24 @@ pub struct LoadSceneEvent(pub String);
 #[derive(Event, Deref)]
 pub struct ImportSceneEvent(pub String);
 
-// TODOL This could be converted into an enum that indicates what "kind" of
-//       element this is (e.g. StaticMesh, SkinnedMesh, Bone, Light, Camera).
-//       We don't have an immediate need for that just yet, but likely will
-//       soon.
 /// A tag that identifies its entity as a user-facing scene element like a prop,
 /// a light, or a camera.
-#[derive(Component)]
-pub struct SceneElement;
+#[cfg_attr(
+    feature = "wasm",
+    repr(u8),
+    wasm_bindgen,
+    derive(Serialize_repr, Deserialize_repr)
+)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SceneElement {
+    Generic,
+    Mesh,
+    Skeleton,
+    Bone,
+    Light,
+    #[allow(dead_code)] // TODO: Will be used for camera animation
+    Camera,
+}
 
 #[derive(Component)]
 pub struct SceneData {
@@ -324,6 +339,7 @@ fn init_object_loading(mut cmd: Commands, mut er: EventReader<LoadLibraryObjectE
     if let Some(id) = er.read().last() {
         info!("Loading library asset: {}", id.0);
         cmd.spawn((
+            Name::new(id.0.clone()),
             SpatialBundle::default(),
             space_editor::prelude::GltfPrefab {
                 path: format!("gltf/{}", id.0),
@@ -339,6 +355,7 @@ fn init_scene_import(mut cmd: Commands, mut er: EventReader<ImportSceneEvent>) {
     if let Some(path) = er.read().last() {
         info!("Importing asset: {}", path.0);
         cmd.spawn((
+            Name::new("Scene"), // TODO: Maybe use the "basename" part of the asset path?
             SpatialBundle::default(),
             space_editor::prelude::GltfPrefab {
                 path: path.0.clone(),
@@ -362,12 +379,6 @@ fn init_scene_loading(
     }
 }
 
-#[derive(Component)]
-pub struct NoMeshElement;
-
-#[derive(Component)]
-pub struct InitedKointSkinnedMesh;
-
 fn tag_scene_elements(
     mut cmd: Commands,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
@@ -384,7 +395,6 @@ fn tag_scene_elements(
             With<Name>,
             Without<Handle<Mesh>>,
             Without<SceneElement>,
-            Without<NoMeshElement>,
         ),
     >,
     mesh_entities: Query<Entity, With<Handle<Mesh>>>,
@@ -398,9 +408,9 @@ fn tag_scene_elements(
             }
         }
         if has_mesh {
-            cmd.entity(e).insert(SceneElement);
+            cmd.entity(e).insert(SceneElement::Mesh);
         } else {
-            cmd.entity(e).insert(NoMeshElement);
+            cmd.entity(e).insert(SceneElement::Generic);
         }
     }
 }
