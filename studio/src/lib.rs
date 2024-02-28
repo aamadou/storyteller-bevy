@@ -158,7 +158,7 @@ pub fn start(init: InitParams, mode: StudioMode, window_config: Option<Window>) 
             ..default()
         }),
         CommonPlugins,
-        #[cfg(all(feature = "wasm", feature = "wasm_screenshot"))]
+        #[cfg(feature = "wasm")]
         wasm::ScreenshotPlugin,
     ));
 

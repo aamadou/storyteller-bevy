@@ -31,14 +31,6 @@
         "cwd": "studio"
       }
     },
-    "build:image-generator": {
-      "executor": "nx:run-commands",
-      "inputs": ["assets"],
-      "options": {
-        "command": "node scripts/build-web.mjs --features=wasm,wasm_screenshot",
-        "cwd": "studio"
-      }
-    },
     "dev": {
       "executor": "@nxrs/cargo:run",
       "options": {

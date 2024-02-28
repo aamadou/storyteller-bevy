@@ -67,7 +67,6 @@ wasm = [
 	"bevy_rapier3d/wasm-bindgen",
 ]
 desktop = []
-wasm_screenshot = []
 
 [dependencies.bevy]
 workspace = true
