@@ -83,6 +83,12 @@ export class AppElement extends LitElement {
 		return this;
 	}
 
+	@on("inspector-changed")
+	onInspectorChanged(event: studio.InspectorChanged): void {
+		const data = event.detail ? JSON.parse(event.detail) : null;
+		console.log("Inspector changed:", data);
+	}
+
 	@on("keydown")
 	@on("keyup")
 	pipeKeyboardEvents(event: KeyboardEvent): void {
