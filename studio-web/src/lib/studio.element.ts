@@ -2,7 +2,6 @@ import { inject } from "@storyteller/framework";
 import * as studio from "@storyteller/studio";
 import {
 	type InitOptions,
-	type SkyboxId,
 	StudioMode,
 	ViewportSize,
 } from "@storyteller/studio";
@@ -21,7 +20,7 @@ export class StudioElement extends LitElement {
 	@property() mixamoPath?: string;
 	@property() sceneImport?: string;
 	@property() storytellerScene?: string;
-	@property() skyboxId?: SkyboxId;
+	@property() skyboxId?: string;
 	@property({ type: Number }) mode?: StudioMode;
 
 	@inject(CANVAS_PROVIDER)
