@@ -9,8 +9,9 @@ import {
 import { match } from "@storyteller/utility";
 import { LitElement, type PropertyValues, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
-import { styleMap } from "lit/directives/style-map.js";
 import { classMap } from "lit/directives/class-map.js";
+import { createRef, ref } from "lit/directives/ref.js";
+import { styleMap } from "lit/directives/style-map.js";
 
 import { ImageInfo, LcmClient } from "./lcm-client";
 
@@ -20,7 +21,6 @@ import "@storyteller/studio-web/studio";
 import "@storyteller/studio-web/transform-toolbar";
 
 import "./app.element.scss"
-import { createRef, ref } from "lit/directives/ref.js";
 
 @customElement("app-root")
 export class AppElement extends LitElement {
