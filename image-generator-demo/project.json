@@ -29,7 +29,7 @@
       "dependsOn": [
         {
           "projects": ["studio"],
-          "target": "build:image-generator"
+          "target": "build:web"
         }
       ],
       "options": {
@@ -52,7 +52,7 @@
       "dependsOn": [
         {
           "projects": ["studio"],
-          "target": "build:image-generator"
+          "target": "build:web"
         }
       ],
       "options": {

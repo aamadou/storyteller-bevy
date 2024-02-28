@@ -23,7 +23,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
-    anim::SkeletalJoint,
     camera_controller::{CameraController, CameraControllerBundle},
     change_tracking::{ChangeTracker, ChangeTrackingPlugin},
     debug::DebugPoint,
@@ -63,13 +62,9 @@ impl Plugin for ScenePlugin {
             .add_systems(
                 OnEnter(SceneState::Active),
                 (
-                    (
-                        tag_scene_elements,
-                        frame_scene_in_view,
-                        start_capture.run_if(is_headless),
-                    ),
-                    apply_deferred,
-                    track_scene_elements,
+                    tag_scene_elements,
+                    frame_scene_in_view,
+                    start_capture.run_if(is_headless),
                 )
                     .chain()
                     .in_set(SceneSpawnerSystem),
@@ -521,15 +516,6 @@ fn frame_scene_in_view(
 fn start_capture(mut captures: Query<&mut ScreenCapture>) {
     for mut capture in captures.iter_mut() {
         capture.start_capturing();
-    }
-}
-
-fn track_scene_elements(
-    mut commands: Commands,
-    scene_elements: Query<Entity, (With<Transform>, With<SkeletalJoint>)>,
-) {
-    for element in scene_elements.iter() {
-        commands.entity(element).insert(ChangeTracker);
     }
 }
 

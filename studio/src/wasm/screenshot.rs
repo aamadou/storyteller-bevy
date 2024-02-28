@@ -10,8 +10,10 @@
 //!    to the frontend by converting the `Vec<u8>` to a [`js_sys::Uint8Array`]
 
 use bevy::{prelude::*, render::view::screenshot::ScreenshotManager, window::PrimaryWindow};
-use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
+use image::{codecs::jpeg::JpegEncoder, ColorType, ImageEncoder};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+
+use crate::{interaction::gizmos::TransformGizmo, world_grid::WorldGridPlane};
 
 use super::{AsJsValue, StaticBuffer, WasmMessageBuffer};
 
@@ -22,15 +24,24 @@ pub struct ScreenshotPlugin;
 
 impl Plugin for ScreenshotPlugin {
     fn build(&self, app: &mut App) {
+        app.add_event::<ScreenshotRequestedEvent>();
         app.add_systems(
             Update,
             (
-                take_screenshots.map(bevy::utils::error),
+                (
+                    prepare_screenshot,
+                    apply_deferred,
+                    take_screenshots.map(bevy::utils::error),
+                )
+                    .chain(),
                 send_screenshots.map(bevy::utils::error),
             ),
         );
     }
 }
+
+#[derive(Event)]
+pub struct ScreenshotRequestedEvent;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -74,20 +85,45 @@ impl AsJsValue for Screenshot {
 
 #[wasm_bindgen(js_name = requestScreenshot)]
 pub fn request_screenshot() {
+    info!("[wasm::screenshot] Screenshot request received");
     SCREENSHOT_REQUEST.write_message(());
+}
+
+fn prepare_screenshot(
+    mut q_editor_visuals: Query<&mut Visibility, Or<(With<WorldGridPlane>, With<TransformGizmo>)>>,
+    mut ew: EventWriter<ScreenshotRequestedEvent>,
+) {
+    if SCREENSHOT_REQUEST.take_message().is_none() {
+        return;
+    }
+
+    info!(
+        "[wasm::screenshot] Hiding {} editor visuals",
+        q_editor_visuals.iter().count()
+    );
+
+    for mut visibility in q_editor_visuals.iter_mut() {
+        *visibility = Visibility::Hidden;
+    }
+
+    ew.send(ScreenshotRequestedEvent);
 }
 
 fn take_screenshots(
     mut r_screenshot_mgr: ResMut<ScreenshotManager>,
     q_window: Query<Entity, With<PrimaryWindow>>,
+    mut er: EventReader<ScreenshotRequestedEvent>,
 ) -> Result<(), String> {
-    if SCREENSHOT_REQUEST.take_message().is_none() {
+    if er.is_empty() {
         return Ok(());
     }
-
     let Ok(window_ent) = q_window.get_single() else {
         return Ok(());
     };
+
+    er.clear();
+
+    info!("[wasm::screenshot] Queueing screenshot request");
 
     r_screenshot_mgr
         .take_screenshot(window_ent, |img| {
@@ -112,8 +148,8 @@ fn take_screenshots(
             };
             let src_buffer = &img.as_raw()[..buffer_len];
 
-            let mut png_bytes = vec![];
-            if let Err(err) = PngEncoder::new(&mut png_bytes).write_image(
+            let mut jpg_bytes = vec![];
+            if let Err(err) = JpegEncoder::new_with_quality(&mut jpg_bytes, 70).write_image(
                 src_buffer,
                 img.width(),
                 img.height(),
@@ -124,7 +160,7 @@ fn take_screenshots(
             }
 
             SCREENSHOT.write_message(ScreenshotNative {
-                data: png_bytes,
+                data: jpg_bytes,
                 width: img.width() as usize,
                 height: img.height() as usize,
             });
@@ -146,7 +182,10 @@ declare global {
 }
     "#;
 
-fn send_screenshots(q_window: Query<&Window, With<PrimaryWindow>>) -> Result<(), String> {
+fn send_screenshots(
+    q_window: Query<&Window, With<PrimaryWindow>>,
+    mut q_editor_visuals: Query<&mut Visibility, Or<(With<WorldGridPlane>, With<TransformGizmo>)>>,
+) -> Result<(), String> {
     let Some(screenshot) = SCREENSHOT.take_message() else {
         return Ok(());
     };
@@ -157,5 +196,16 @@ fn send_screenshots(q_window: Query<&Window, With<PrimaryWindow>>) -> Result<(),
 
     let screenshot = Screenshot::from(screenshot);
 
-    super::dispatch_to_js(window, "screenshot-ready", &screenshot)
+    super::dispatch_to_js(window, "screenshot-ready", &screenshot)?;
+
+    info!(
+        "[wasm::screenshot] Revealing {} previously hidden editor visuals",
+        q_editor_visuals.iter().count()
+    );
+
+    for mut visibility in q_editor_visuals.iter_mut() {
+        *visibility = Visibility::Inherited;
+    }
+
+    Ok(())
 }

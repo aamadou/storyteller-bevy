@@ -177,11 +177,17 @@ fn translate_dcc_camera_events(
     else if (keyboard.just_released(KeyCode::AltLeft) && !keyboard.pressed(KeyCode::AltRight))
         || (keyboard.just_released(KeyCode::AltRight) && !keyboard.pressed(KeyCode::AltLeft))
     {
-        input.send(InputAction(
-            Lifecycle::Stop,
-            CameraMotion::Orbit(Vec2::ZERO).into(),
-        ));
-        input.send(InputAction(Lifecycle::Stop, CameraMotion::Zoom(0.).into()));
+        // Stop Camera Orbit
+        if mouse_buttons.pressed(MouseButton::Left) {
+            input.send(InputAction(
+                Lifecycle::Stop,
+                CameraMotion::Orbit(Vec2::ZERO).into(),
+            ));
+        }
+        // Stop Camera Zoom
+        else if mouse_buttons.pressed(MouseButton::Right) {
+            input.send(InputAction(Lifecycle::Stop, CameraMotion::Zoom(0.).into()));
+        }
     }
     // Camera Rotation
     else if mouse_buttons.pressed(MouseButton::Right) {
