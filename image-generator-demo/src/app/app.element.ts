@@ -12,49 +12,74 @@ import { customElement, state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { classMap } from "lit/directives/class-map.js";
 
+import { ImageInfo, LcmClient } from "./lcm-client";
+
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/scene-hierarchy";
 import "@storyteller/studio-web/studio";
 import "@storyteller/studio-web/transform-toolbar";
 
 import "./app.element.scss"
+import { createRef, ref } from "lit/directives/ref.js";
 
 @customElement("app-root")
 export class AppElement extends LitElement {
-	@state() imageCaptureUrl?: string;
-
 	@state() hierarchyWidth = 256;
 	@state() resizing = false;
 
 	@state() loading = true;
 
+	@state() blob?: Blob;
 	@state() prompt = "";
 	@state() negPrompt = "";
 	@state() seed = randomSeed();
 
+	@state() inputUrl?: string;
+	@state() outputUrl?: string;
+
+	#lcmClient = new LcmClient(crypto.randomUUID());
+	#outputImageRef = createRef<HTMLImageElement>();
+
+	constructor () {
+		super();
+
+		this.#lcmClient.addEventListener("lcm-image-ready", event => {
+			this.outputUrl = event.detail;
+			this.requestUpdate();
+		});
+	}
+
 	protected override createRenderRoot = () => this;
 
 	override disconnectedCallback(): void {
-		if (this.imageCaptureUrl != null)
-			URL.revokeObjectURL(this.imageCaptureUrl);
+		if (this.inputUrl)
+			URL.revokeObjectURL(this.inputUrl);
 
 		super.disconnectedCallback();
 	}
 
 	protected override willUpdate(changes: PropertyValues<this>): void {
+		let updates: Partial<ImageInfo> = {};
+
+		if (changes.has("blob"))
+			updates.blob = this.blob;
+
+		if (changes.has("prompt"))
+			updates.prompt = this.prompt;
+
+		if (changes.has("negPrompt"))
+			updates.negativePrompt = this.negPrompt;
+
+		if (changes.has("seed"))
+			updates.seed = this.seed;
+
 		if (
-			changes.has("prompt")
+			changes.has("blob")
+			|| changes.has("prompt")
 			|| changes.has("negPrompt")
 			|| changes.has("seed")
-			|| changes.has("imageCaptureUrl")
 		) {
-			// TODO: Send parameters to model
-			console.log("changes:", {
-				prompt: this.prompt,
-				negPrompt: this.negPrompt,
-				seed: this.seed,
-				imageCaptureUrl: this.imageCaptureUrl,
-			});
+			this.#lcmClient.update(updates);
 		}
 
 		super.willUpdate(changes);
@@ -85,10 +110,10 @@ export class AppElement extends LitElement {
 
 	@on("screenshot-ready")
 	onScreenshotReady({ detail: screenshot }: ScreenshotReadyEvent) {
-		const prevUrl = this.imageCaptureUrl;
+		this.blob = new Blob([screenshot.data.buffer], { type: "image/jpg" });
 
-		const blob = new Blob([screenshot.data.buffer], { type: "image/jpg" });
-		this.imageCaptureUrl = URL.createObjectURL(blob);
+		const prevUrl = this.inputUrl;
+		this.inputUrl = URL.createObjectURL(this.blob);
 
 		if (prevUrl != null)
 			URL.revokeObjectURL(prevUrl);
@@ -165,10 +190,11 @@ export class AppElement extends LitElement {
 					></sts-transform-toolbar>
 				</sts-studio>
 
-				${this.imageCaptureUrl != null ? html`
+				${this.inputUrl || this.outputUrl ? html`
 					<img
+						${ref(this.#outputImageRef)}
 						class="image-capture"
-						src=${this.imageCaptureUrl}
+						src=${(this.outputUrl ?? this.inputUrl)!}
 						alt="Image capture"
 					/>
 				` : html`
