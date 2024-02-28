@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::scene::{SceneElement, SceneSpawnerSystem, SceneState};
+
 pub struct ChangeTrackingPlugin;
 
 impl Plugin for ChangeTrackingPlugin {
@@ -8,6 +10,10 @@ impl Plugin for ChangeTrackingPlugin {
 
         // Add more of these systems for each component that we want to track
         app.add_systems(Update, send_change_events::<Transform>);
+        app.add_systems(
+            OnEnter(SceneState::Active),
+            track_scene_elements.after(SceneSpawnerSystem),
+        );
 
         #[cfg(feature = "wasm")]
         app.add_systems(
@@ -26,6 +32,15 @@ fn send_change_events<T: Component>(
 ) {
     for entity in query.iter() {
         entity_change_writer.send(EntityChangedEvent(entity));
+    }
+}
+
+fn track_scene_elements(
+    mut cmd: Commands,
+    q_scene_elements: Query<Entity, (With<Transform>, With<SceneElement>, Without<ChangeTracker>)>,
+) {
+    for element in q_scene_elements.iter() {
+        cmd.entity(element).insert(ChangeTracker);
     }
 }
 
