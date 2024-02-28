@@ -73,8 +73,9 @@
 	border-radius: 0.5rem;
 }
 
-.config-prompt {
+.config-prompts {
 	display: flex;
+	flex-direction: column;
 	gap: 0.5rem;
 }
 
@@ -118,10 +119,6 @@
 		color: #FFFF;
 	}
 
-	&.prompt {
-		width: 512px;
-	}
-
 	&.seed {
 		width: 96px;
 		appearance: textfield;
@@ -134,8 +131,32 @@
 	}
 }
 
+.prompt {
+	flex: 1 0 0;
+}
+
 .config-field-group {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 	position: relative;
+
+	.pre-icon {
+		&.red {
+			color: rgb(220, 53, 69);
+			font-size: 1.333rem;
+		}
+		&.green {
+			color: rgb(25, 135, 84);
+			font-size: 1.15rem;
+		}
+	}
+}
+
+.config-row {
+	display: flex;
+	width: 768px;
+	gap: 0.5rem;
 }
 
 .seed-refresh {

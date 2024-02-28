@@ -24,6 +24,10 @@ import fasFloppyDisk from "@fortawesome/fontawesome-pro/svgs/solid/floppy-disk.s
 import farSkeleton from "@fortawesome/fontawesome-pro/svgs/regular/skeleton.svg?raw";
 import farBone from "@fortawesome/fontawesome-pro/svgs/regular/bone.svg?raw";
 import fasBrightness from "@fortawesome/fontawesome-pro/svgs/solid/brightness.svg?raw";
+import fasCheck from "@fortawesome/fontawesome-pro/svgs/solid/check.svg?raw";
+import fasXmark from "@fortawesome/fontawesome-pro/svgs/solid/xmark.svg?raw";
+import fasCircleCheck from "@fortawesome/fontawesome-pro/svgs/solid/circle-check.svg?raw";
+import fasCircleXmark from "@fortawesome/fontawesome-pro/svgs/solid/circle-xmark.svg?raw";
 
 import styles from "./icon.element.scss?inline";
 
@@ -53,7 +57,10 @@ function renderSvg(iconId: string) {
 		"bone": () => farBone,
 		"bwd-fast": () => fasBwdFast,
 		"bwd-step": () => fasBwdStep,
+		"check": () => fasCheck,
+		"circle-check": () => fasCircleCheck,
 		"circle-question": () => fasCircleQuestion,
+		"circle-xmark": () => fasCircleXmark,
 		"caret-right": () => fasCaretRight,
 		"crosshairs": () => farCrosshairs,
 		"cube": () => farCube,
@@ -70,6 +77,7 @@ function renderSvg(iconId: string) {
 		"skeleton": () => farSkeleton,
 		"up-down-left-right": () => farUpDownLeftRight,
 		"video": () => farVideo,
+		"xmark": () => fasXmark,
 		_: () => null,
 	});
 

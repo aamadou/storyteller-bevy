@@ -29,6 +29,7 @@ export class AppElement extends LitElement {
 	@state() loading = true;
 
 	@state() prompt = "";
+	@state() negPrompt = "";
 	@state() seed = randomSeed();
 
 	protected override createRenderRoot = () => this;
@@ -41,10 +42,16 @@ export class AppElement extends LitElement {
 	}
 
 	protected override willUpdate(changes: PropertyValues<this>): void {
-		if (changes.has("prompt") || changes.has("seed") || changes.has("imageCaptureUrl")) {
+		if (
+			changes.has("prompt")
+			|| changes.has("negPrompt")
+			|| changes.has("seed")
+			|| changes.has("imageCaptureUrl")
+		) {
 			// TODO: Send parameters to model
 			console.log("changes:", {
 				prompt: this.prompt,
+				negPrompt: this.negPrompt,
 				seed: this.seed,
 				imageCaptureUrl: this.imageCaptureUrl,
 			});
@@ -89,6 +96,10 @@ export class AppElement extends LitElement {
 
 	updatePrompt(event: Event): void {
 		this.prompt = (event.target as HTMLInputElement).value;
+	}
+
+	updateNegPrompt(event: Event): void {
+		this.negPrompt = (event.target as HTMLInputElement).value;
 	}
 
 	refreshSeed(): void {
@@ -164,39 +175,61 @@ export class AppElement extends LitElement {
 					<div class="image-capture placeholder"></div>
 				`}
 
-				<div class="config config-prompt h-center v-end"
+				<div class="config config-prompts h-center v-end"
 					@keydown=${this.stopTextInputBubbling}
 					@keyup=${this.stopTextInputBubbling}
 				>
-					<input
-						class="config-field prompt"
-						type="text"
-						aria-label="Prompt"
-						placeholder="Enter a prompt to customize the output"
-						.value=${this.prompt}
-						@change=${this.updatePrompt}
-						@keydown=${(event: KeyboardEvent) => {
-							if (event.key === "Enter") {
-								event.preventDefault();
-								this.updatePrompt(event);
-							}
-						}}
-					/>
-					<div class="config-field-group">
+					<div class="config-field-group prompt">
+						<sts-icon class="pre-icon green" icon="check"></sts-icon>
 						<input
-							class="config-field seed"
-							type="number"
-							aria-label="Seed"
-							.value=${this.seed.toString()}
-							min="1"
-							max="99999"
+							class="config-field prompt"
+							type="text"
+							aria-label="Affirmative Prompt"
+							placeholder="Enter an affirmative prompt to customize the output"
+							.value=${this.prompt}
+							@change=${this.updatePrompt}
+							@keydown=${(event: KeyboardEvent) => {
+								if (event.key === "Enter") {
+									event.preventDefault();
+									this.updatePrompt(event);
+								}
+							}}
 						/>
-						<button
-							class="seed-refresh"
-							@click=${this.refreshSeed}
-						>
-							<sts-icon icon="rotate"></sts-icon>
-						</button>
+					</div>
+					<div class="config-row">
+						<div class="config-field-group prompt">
+							<sts-icon class="pre-icon red" icon="xmark"></sts-icon>
+							<input
+								class="config-field prompt"
+								type="text"
+								aria-label="Negative Prompt"
+								placeholder="Enter a negative prompt to customize the output"
+								.value=${this.negPrompt}
+								@change=${this.updateNegPrompt}
+								@keydown=${(event: KeyboardEvent) => {
+									if (event.key === "Enter") {
+										event.preventDefault();
+										this.updateNegPrompt(event);
+									}
+								}}
+							/>
+						</div>
+						<div class="config-field-group">
+							<input
+								class="config-field seed"
+								type="number"
+								aria-label="Seed"
+								.value=${this.seed.toString()}
+								min="1"
+								max="99999"
+							/>
+							<button
+								class="seed-refresh"
+								@click=${this.refreshSeed}
+							>
+								<sts-icon icon="rotate"></sts-icon>
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>
