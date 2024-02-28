@@ -90,6 +90,11 @@ export class AppElement extends LitElement {
 		}
 	}
 
+	attachIkRig(): void {
+		if (this.selection)
+			studio.attachIkRig(this.selection.id);
+	}
+
 	toggleHelp(): void {
 		this.showHelp = !this.showHelp;
 	}
@@ -123,9 +128,7 @@ export class AppElement extends LitElement {
 						<sts-button
 							icon="share-nodes"
 							?disabled=${this.selection?.type !== SceneElement.Skeleton}
-							@click=${() => {
-								console.log("Attach IK rig");
-							}}
+							@click=${this.attachIkRig}
 						>
 							Attach IK Rig
 						</sts-button>
