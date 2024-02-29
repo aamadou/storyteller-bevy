@@ -1,6 +1,11 @@
 use bevy::{pbr::NotShadowCaster, prelude::*, render::view::RenderLayers};
+use bevy_mod_picking::prelude::*;
 
-use crate::{design_system, interaction::gizmos::GizmoMaterial, math::geo};
+use crate::{
+    design_system,
+    interaction::{gizmos::GizmoMaterial, NoSelectionOutline, Selectable},
+    math::geo,
+};
 
 pub const IK_RIG_RENDER_LAYER: u8 = 1;
 
@@ -31,6 +36,12 @@ struct IkBoneChain {
     len_upper: f32,
     len_lower: f32,
 }
+
+#[derive(Component)]
+pub struct IkPoleTarget;
+
+#[derive(Component)]
+pub struct CopyXformTarget(pub Entity);
 
 #[derive(Default)]
 struct IkBoneChainBuilder {
@@ -108,12 +119,18 @@ fn setup_ik_rig(
     let mut arm_chain_l = IkBoneChain::build();
     let mut arm_chain_r = IkBoneChain::build();
 
+    let mut spine = None;
+    let mut spine1 = None;
+
     for ent in q_children.iter_descendants(target) {
         let Ok(name) = q_names.get(ent) else {
             continue;
         };
 
         match name.as_str() {
+            // Spine entities
+            "DEF-spine" => spine = Some(ent),
+            "DEF-spine.001" => spine1 = Some(ent),
             // Left Leg
             "DEF-thigh.L" => leg_chain_l.set_root(ent),
             "DEF-thigh.L.001" => leg_chain_l.set_twist_1(ent),
@@ -142,6 +159,46 @@ fn setup_ik_rig(
         }
     }
 
+    if let Some(spine) = spine {
+        if let Some(spine1) = spine1 {
+            let spine_name = q_names.get(spine).unwrap();
+            let spine_xform = q_world_xforms.get(spine).unwrap();
+            let spine1_xform = q_world_xforms.get(spine1).unwrap();
+
+            cmd.entity(target).with_children(|builder| {
+                builder
+                    .spawn((
+                        Selectable,
+                        CopyXformTarget(spine),
+                        SpatialBundle {
+                            transform: spine_xform.reparented_to(root_xform),
+                            ..default()
+                        },
+                    ))
+                    .with_children(|builder| {
+                        builder.spawn((
+                            Name::new(format!("TGT_{spine_name}")),
+                            NotShadowCaster,
+                            NoSelectionOutline,
+                            RenderLayers::layer(IK_RIG_RENDER_LAYER),
+                            MaterialMeshBundle {
+                                transform: spine1_xform.reparented_to(spine_xform),
+                                mesh: ra_meshes.add(Mesh::from(shape::Cube { size: 0.25 })),
+                                material: ra_mats.add(GizmoMaterial {
+                                    color: design_system::Color::YELLOW.with_a(0.125),
+                                    blend_mode: AlphaMode::Blend,
+                                }),
+                                ..default()
+                            },
+                            PickableBundle::default(),
+                            On::<Pointer<Over>>::run(on_ik_gizmo_hover),
+                            On::<Pointer<Out>>::run(on_ik_gizmo_unhover),
+                        ));
+                    });
+            });
+        }
+    }
+
     for (color, bone_chain) in [
         (design_system::Color::RED, leg_chain_l),
         (design_system::Color::BLUE, leg_chain_r),
@@ -152,10 +209,15 @@ fn setup_ik_rig(
         let end_xform = q_world_xforms.get(bone_chain.end).unwrap();
         let mid_xform = q_world_xforms.get(bone_chain.mid).unwrap();
 
+        let end_name = q_names.get(bone_chain.end).unwrap();
+        let mid_name = q_names.get(bone_chain.mid).unwrap();
+
         cmd.entity(target).with_children(|builder| {
             builder.spawn((
                 bone_chain,
+                Name::new(format!("IK_{end_name}")),
                 NotShadowCaster,
+                NoSelectionOutline,
                 RenderLayers::layer(IK_RIG_RENDER_LAYER),
                 MaterialMeshBundle {
                     transform: end_xform.reparented_to(root_xform),
@@ -166,20 +228,30 @@ fn setup_ik_rig(
                     }),
                     ..default()
                 },
+                PickableBundle::default(),
+                Selectable,
+                On::<Pointer<Over>>::run(on_ik_gizmo_hover),
+                On::<Pointer<Out>>::run(on_ik_gizmo_unhover),
             ));
 
             builder
-                .spawn(SpatialBundle {
-                    transform: mid_xform.reparented_to(root_xform),
-                    ..default()
-                })
+                .spawn((
+                    Selectable,
+                    IkPoleTarget,
+                    SpatialBundle {
+                        transform: mid_xform.reparented_to(root_xform),
+                        ..default()
+                    },
+                ))
                 .with_children(|builder| {
                     let transform = Transform::from_xyz(0., 0., -0.1).with_rotation(
                         Quat::from_axis_angle(Vec3::NEG_X, std::f32::consts::FRAC_PI_2),
                     );
 
                     builder.spawn((
+                        Name::new(format!("IK_{mid_name}")),
                         NotShadowCaster,
+                        NoSelectionOutline,
                         RenderLayers::layer(IK_RIG_RENDER_LAYER),
                         MaterialMeshBundle {
                             transform,
@@ -194,12 +266,33 @@ fn setup_ik_rig(
                             }),
                             ..default()
                         },
+                        PickableBundle::default(),
+                        On::<Pointer<Over>>::run(on_ik_gizmo_hover),
+                        On::<Pointer<Out>>::run(on_ik_gizmo_unhover),
                     ));
                 });
         });
     }
 
     Ok(())
+}
+
+fn on_ik_gizmo_hover(
+    ev: Listener<Pointer<Over>>,
+    mut ra_mats: ResMut<Assets<GizmoMaterial>>,
+    q_target: Query<&Handle<GizmoMaterial>>,
+) {
+    let mat = ra_mats.get_mut(q_target.get(ev.target).unwrap()).unwrap();
+    mat.color *= 1.5;
+}
+
+fn on_ik_gizmo_unhover(
+    ev: Listener<Pointer<Out>>,
+    mut ra_mats: ResMut<Assets<GizmoMaterial>>,
+    q_target: Query<&Handle<GizmoMaterial>>,
+) {
+    let mat = ra_mats.get_mut(q_target.get(ev.target).unwrap()).unwrap();
+    mat.color *= 2. / 3.;
 }
 
 #[cfg(feature = "wasm")]
