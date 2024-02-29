@@ -1,3 +1,5 @@
+$hierarchy-width: 290px;
+
 .app-root {
 	position: fixed;
 	inset: 0;
@@ -8,12 +10,19 @@
 	position: absolute;
 	top: 16px;
 }
+.v-end {
+	position: absolute;
+	bottom: 16px;
+}
 .v-after-toolbar {
 	position: absolute;
 	top: 60px;
 }
 .h-start { left: 16px }
 .h-end  { right: 16px }
+.h-before-hierarchy {
+	right: $hierarchy-width + 32px;
+}
 .h-center {
 	left: 50%;
 	transform: translateX(-50%);
@@ -26,33 +35,9 @@ sts-button.active {
 
 // Hierarchy (TODO: Probably move this)
 .hierarchy {
-	overflow: auto;
-
-	box-sizing: border-box;
-	width: 290px;
+	width: $hierarchy-width;
 	max-height: calc(100vh - 32px);
-	padding: 10px 15px;
-
-	background: #0006;
-	backdrop-filter: blur(16px);
-	border: 8px solid transparent;
-	border-radius: 0.5rem;
-
 	pointer-events: auto;
-
-	&::-webkit-scrollbar {
-		width: 8px;
-		height: 8px;
-
-		&-thumb {
-			border-radius: 2px;
-			background: #FFF2;
-
-			&:hover {
-				background: #FFF3;
-			}
-		}
-	}
 }
 
 .loading {

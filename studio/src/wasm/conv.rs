@@ -85,6 +85,12 @@ impl AsJson for GlobalTransform {
     }
 }
 
+impl AsJson for serde_json::Map<String, JsonValue> {
+    fn as_json(&self) -> JsonValue {
+        JsonValue::Object(self.clone())
+    }
+}
+
 impl<T> AsJsValue for T
 where
     T: AsJson,
@@ -138,5 +144,40 @@ where
 impl AsJsValue for u32 {
     fn as_js(&self) -> Result<JsValue, String> {
         Ok(JsValue::from_f64(*self as f64))
+    }
+}
+
+/// A crate-local version of `std::str::FromStr` that can be implemented for
+/// foreign types
+pub trait FromStr: Sized {
+    type Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err>;
+}
+
+impl FromStr for Entity {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let fmt_err =
+            || format!("Expected a string with format '<integer>v<integer>', found '{s}'");
+
+        let mut split = s.split('v');
+
+        let index = split
+            .next()
+            .unwrap()
+            .parse::<u32>()
+            .map_err(|_| fmt_err())?;
+
+        let generation = split
+            .next()
+            .unwrap()
+            .parse::<u32>()
+            .map_err(|_| fmt_err())?;
+
+        let bits = (generation as u64) << 32 | index as u64;
+
+        Ok(Entity::from_bits(bits))
     }
 }

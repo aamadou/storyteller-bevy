@@ -79,6 +79,8 @@ pub enum Selection {
     Clear,
     /// Focus the camera on the currently selected entity
     Focus,
+    /// Delete the currently selected entity and its descendants
+    Delete,
 }
 impl From<Selection> for Action {
     fn from(value: Selection) -> Self {
@@ -99,6 +101,12 @@ fn translate_selection_events(keyboard: Res<Input<KeyCode>>, mut input: EventWri
         input.send(InputAction(Lifecycle::Start, Selection::Focus.into()));
     } else if keyboard.just_released(KeyCode::F) {
         input.send(InputAction(Lifecycle::Stop, Selection::Focus.into()));
+    }
+
+    if keyboard.just_pressed(KeyCode::Delete) {
+        input.send(InputAction(Lifecycle::Start, Selection::Delete.into()));
+    } else if keyboard.just_released(KeyCode::Delete) {
+        input.send(InputAction(Lifecycle::Stop, Selection::Delete.into()));
     }
 }
 
@@ -169,11 +177,17 @@ fn translate_dcc_camera_events(
     else if (keyboard.just_released(KeyCode::AltLeft) && !keyboard.pressed(KeyCode::AltRight))
         || (keyboard.just_released(KeyCode::AltRight) && !keyboard.pressed(KeyCode::AltLeft))
     {
-        input.send(InputAction(
-            Lifecycle::Stop,
-            CameraMotion::Orbit(Vec2::ZERO).into(),
-        ));
-        input.send(InputAction(Lifecycle::Stop, CameraMotion::Zoom(0.).into()));
+        // Stop Camera Orbit
+        if mouse_buttons.pressed(MouseButton::Left) {
+            input.send(InputAction(
+                Lifecycle::Stop,
+                CameraMotion::Orbit(Vec2::ZERO).into(),
+            ));
+        }
+        // Stop Camera Zoom
+        else if mouse_buttons.pressed(MouseButton::Right) {
+            input.send(InputAction(Lifecycle::Stop, CameraMotion::Zoom(0.).into()));
+        }
     }
     // Camera Rotation
     else if mouse_buttons.pressed(MouseButton::Right) {

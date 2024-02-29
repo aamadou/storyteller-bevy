@@ -13,7 +13,7 @@ export class HelpElement extends LitElement {
 			${section("Navigation", [
 				{ name: "Pan View", controls: "MMB" },
 				{ name: "Orbit around point", controls: "Alt + LMB" },
-				{ name: "Zoom", controls: ["Alt + RMB", "Mouse Wheel"]},
+				{ name: "Zoom", controls: ["Alt + RMB", "Scroll"]},
 				{ name: "Free fly", controls: "W, A, S, D, E, Q" },
 				{ name: "Free look", controls: ["RMB", "Shift"] },
 			])}
@@ -21,6 +21,11 @@ export class HelpElement extends LitElement {
 				{ name: "Select", controls: "LMB" },
 				{ name: "Clear selection", controls: "Esc" },
 				{ name: "Focus selection", controls: "F" },
+				{ name: "Delete selection", controls: "Delete" },
+			])}
+			${section("Animation Timeline", [
+				{ name: "Pan", controls: ["MMB", "Scroll"] },
+				{ name: "Zoom", controls: "Ctrl + Scroll" },
 			])}
 			${isDevEnvironment()
 				? section("Developer", [

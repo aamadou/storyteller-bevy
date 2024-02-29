@@ -12,19 +12,24 @@ use bevy::{
     render::{camera::RenderTarget, primitives::Aabb},
     scene::InstanceId,
 };
-
-use space_editor::{prelude::PrefabMarker, space_prefab::component::SceneAutoChild};
+#[cfg(feature = "wasm")]
+use serde_repr::{Deserialize_repr, Serialize_repr};
+use space_editor::{
+    prelude::{EditorEvent, EditorPrefabPath, PrefabMarker},
+    space_prefab::component::SceneAutoChild,
+};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
     camera_controller::{CameraController, CameraControllerBundle},
+    change_tracking::{ChangeTracker, ChangeTrackingPlugin},
     debug::DebugPoint,
-    is_headless, is_not_headless,
+    headless::{is_headless, is_not_headless, HeadlessSettings},
     math::{Combinable, Extrema},
     screenshot::ScreenCapture,
-    HeadlessSettings, MainCamera,
+    MainCamera,
 };
 
 pub struct ScenePlugin;
@@ -34,10 +39,14 @@ pub struct SceneSpawnerSystem;
 
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(ChangeTrackingPlugin);
+
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
             .insert_resource(Msaa::Off)
             .add_state::<SceneState>()
+            .add_event::<LoadLibraryObjectEvent>()
             .add_event::<LoadSceneEvent>()
+            .add_event::<ImportSceneEvent>()
             .add_systems(
                 Startup,
                 (
@@ -45,10 +54,20 @@ impl Plugin for ScenePlugin {
                     initialiaze_headless.run_if(is_headless),
                 ),
             )
-            .add_systems(Update, init_scene_loading.in_set(SceneSpawnerSystem))
+            .add_systems(
+                Update,
+                (init_object_loading, init_scene_import, init_scene_loading)
+                    .in_set(SceneSpawnerSystem),
+            )
             .add_systems(
                 OnEnter(SceneState::Active),
-                (tag_scene_elements, frame_scene_in_view).in_set(SceneSpawnerSystem),
+                (
+                    tag_scene_elements,
+                    frame_scene_in_view,
+                    start_capture.run_if(is_headless),
+                )
+                    .chain()
+                    .in_set(SceneSpawnerSystem),
             );
 
         app.add_systems(Update, tag_scene_elements);
@@ -73,7 +92,7 @@ impl Plugin for ScenePlugin {
         app.add_systems(
             Update,
             (
-                wasm::dispatch_scene_request,
+                wasm::dispatch_object_load_request,
                 wasm::notify_state_changes
                     .map(bevy::utils::error)
                     .run_if(resource_changed::<State<SceneState>>()),
@@ -83,16 +102,20 @@ impl Plugin for ScenePlugin {
 }
 
 fn minimal_scene_setup(mut cmd: Commands) {
-    cmd.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            shadows_enabled: false,
-            illuminance: 20000.0,
+    cmd.spawn((
+        Name::new("Directional Light"),
+        DirectionalLightBundle {
+            directional_light: DirectionalLight {
+                shadows_enabled: false,
+                illuminance: 20000.0,
+                ..default()
+            },
+            transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
             ..default()
         },
-        transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
-        ..default()
-    })
-    .insert(PrefabMarker);
+        PrefabMarker,
+        SceneElement::Light,
+    ));
 }
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
@@ -167,17 +190,58 @@ fn auto_add_handle<T: Asset>(
     }
 }
 
+/// Request the application to load a `gltf`/`glb` scene from the "bundled"
+/// asset library in `assets/gltf/`. Expects a filename including the extension.
+///
+/// ```ignore
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             CommonPlugins,
+///         ))
+///         .add_systems(Startup, load_mannequin)
+/// }
+///
+/// fn load_mannequin(mut ew_load_object: EventWriter<LoadLibraryObjectEvent>) {
+///     ew_load_object.send(LoadLibraryObjectEvent("Mannequin.gltf".into()));
+/// }
+/// ```
+#[derive(Event, Deref)]
+pub struct LoadLibraryObjectEvent(pub String);
+
+/// Request the application to load a previously saved Storyteller Studio scene.
+///
+/// Expects a full, resolvable path to the file (e.g. `scenes/my-scene.scn.ron`
+/// for a local file saved under `studio/assets/scenes`, or
+/// `remote://<media_token>.scn.ron` for a scene saved to the Storyteller.ai
+/// backend).
 #[derive(Event, Deref)]
 pub struct LoadSceneEvent(pub String);
 
-// TODOL This could be converted into an enum that indicates what "kind" of
-//       element this is (e.g. StaticMesh, SkinnedMesh, Bone, Light, Camera).
-//       We don't have an immediate need for that just yet, but likely will
-//       soon.
+/// Request the application to import and process a glTF scene from an arbitrary
+/// asset source (e.g., an http path or a Storyteller.ai media token).
+#[derive(Event, Deref)]
+pub struct ImportSceneEvent(pub String);
+
 /// A tag that identifies its entity as a user-facing scene element like a prop,
 /// a light, or a camera.
-#[derive(Component)]
-pub struct SceneElement;
+#[cfg_attr(
+    feature = "wasm",
+    repr(u8),
+    wasm_bindgen,
+    derive(Serialize_repr, Deserialize_repr)
+)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SceneElement {
+    Generic,
+    Mesh,
+    Skeleton,
+    Bone,
+    Light,
+    #[allow(dead_code)] // TODO: Will be used for camera animation
+    Camera,
+}
 
 #[derive(Component)]
 pub struct SceneData {
@@ -195,6 +259,7 @@ fn initialize(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
+        ChangeTracker,
         Camera3dBundle {
             transform: camera_xform,
             tonemapping: Tonemapping::BlenderFilmic,
@@ -261,17 +326,15 @@ fn initialiaze_headless(
             ..default()
         },
         CameraControllerBundle::new(focus, camera_xform.translation),
-        ScreenCapture::number_of_frames(
-            headless_settings.frames_to_capture,
-            &headless_settings.output_dir,
-        ),
+        ScreenCapture::from_out(&headless_settings.output_dir),
     ));
 }
 
-fn init_scene_loading(mut cmd: Commands, mut er: EventReader<LoadSceneEvent>) {
+fn init_object_loading(mut cmd: Commands, mut er: EventReader<LoadLibraryObjectEvent>) {
     if let Some(id) = er.read().last() {
-        info!("Loading scene: {}", id.0);
+        info!("Loading library asset: {}", id.0);
         cmd.spawn((
+            Name::new(id.0.clone()),
             SpatialBundle::default(),
             space_editor::prelude::GltfPrefab {
                 path: format!("gltf/{}", id.0),
@@ -283,11 +346,33 @@ fn init_scene_loading(mut cmd: Commands, mut er: EventReader<LoadSceneEvent>) {
     }
 }
 
-#[derive(Component)]
-pub struct NoMeshElement;
+fn init_scene_import(mut cmd: Commands, mut er: EventReader<ImportSceneEvent>) {
+    if let Some(path) = er.read().last() {
+        info!("Importing asset: {}", path.0);
+        cmd.spawn((
+            Name::new("Scene"), // TODO: Maybe use the "basename" part of the asset path?
+            SpatialBundle::default(),
+            space_editor::prelude::GltfPrefab {
+                path: path.0.clone(),
+                scene: "Scene0".to_string(),
+            },
+            PrefabMarker,
+            SceneRoot,
+        ));
+    }
+}
 
-#[derive(Component)]
-pub struct InitedKointSkinnedMesh;
+fn init_scene_loading(
+    mut er_load_scene: EventReader<LoadSceneEvent>,
+    mut ew_editor: EventWriter<EditorEvent>,
+) {
+    if let Some(scene_path) = er_load_scene.read().last() {
+        info!("Loading scene: {}", scene_path.0);
+        ew_editor.send(EditorEvent::Load(EditorPrefabPath::File(
+            scene_path.0.clone(),
+        )));
+    }
+}
 
 fn tag_scene_elements(
     mut cmd: Commands,
@@ -305,7 +390,6 @@ fn tag_scene_elements(
             With<Name>,
             Without<Handle<Mesh>>,
             Without<SceneElement>,
-            Without<NoMeshElement>,
         ),
     >,
     mesh_entities: Query<Entity, With<Handle<Mesh>>>,
@@ -319,9 +403,9 @@ fn tag_scene_elements(
             }
         }
         if has_mesh {
-            cmd.entity(e).insert(SceneElement);
+            cmd.entity(e).insert(SceneElement::Mesh);
         } else {
-            cmd.entity(e).insert(NoMeshElement);
+            cmd.entity(e).insert(SceneElement::Generic);
         }
     }
 }
@@ -429,12 +513,18 @@ fn frame_scene_in_view(
     cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
+fn start_capture(mut captures: Query<&mut ScreenCapture>) {
+    for mut capture in captures.iter_mut() {
+        capture.start_capturing();
+    }
+}
+
 #[cfg(feature = "wasm")]
 mod wasm {
     use bevy::{prelude::*, window::PrimaryWindow};
     use wasm_bindgen::prelude::*;
 
-    use super::{LoadSceneEvent, SceneState};
+    use super::{LoadLibraryObjectEvent, SceneState};
     use crate::wasm::{self, StaticBuffer, WasmMessageBuffer};
 
     static OBJECT_LOAD_REQUEST: WasmMessageBuffer<String> = WasmMessageBuffer::new();
@@ -446,9 +536,11 @@ mod wasm {
 
     // FIXME: Is it an object or a scene? Inconsistent terminology is
     //        unnecessarily confusing
-    pub(super) fn dispatch_scene_request(mut ew_load_scene: EventWriter<LoadSceneEvent>) {
+    pub(super) fn dispatch_object_load_request(
+        mut ew_load_scene: EventWriter<LoadLibraryObjectEvent>,
+    ) {
         if let Some(id) = OBJECT_LOAD_REQUEST.take_message() {
-            ew_load_scene.send(LoadSceneEvent(id));
+            ew_load_scene.send(LoadLibraryObjectEvent(id));
         }
     }
 
@@ -460,7 +552,7 @@ export interface SceneStateEvent extends CustomEvent {
 }
 
 declare global {
-    export interface HTMLElementEventMap {
+    export interface GlobalEventHandlersEventMap {
         "scene-state": SceneStateEvent;
     }
 }

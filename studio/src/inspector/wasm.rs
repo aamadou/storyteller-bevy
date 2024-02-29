@@ -4,10 +4,7 @@ use bevy::{prelude::*, utils::HashSet, window::PrimaryWindow};
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    scene::SceneElement,
-    wasm::{self, AsJson},
-};
+use crate::{scene::SceneElement, wasm};
 
 #[wasm_bindgen(typescript_custom_section)]
 const TYPE_DECLARATIONS: &str = r#"
@@ -16,6 +13,7 @@ export interface SceneObject {
     id: string;
     /** A user-friendly name for displaying in the UI */
     name: string;
+    type: SceneElement;
     /** The IDs of this object's children in the hierarchy */
     children: string[];
     /** The ID of this object's parent in the hierarchy, if it has one */
@@ -52,7 +50,7 @@ export interface EntityMultiSpawnEvent extends CustomEvent {
 }
 
 declare global {
-    export interface HTMLElementEventMap {
+    export interface GlobalEventHandlersEventMap {
         "entity-spawn": EntitySpawnEvent;
         "entity-despawn": EntityDespawnEvent;
         "entity-multi-spawn": EntityMultiSpawnEvent;
@@ -64,48 +62,48 @@ declare global {
 pub(super) struct SceneObject {
     id: String,
     name: String,
+    #[serde(rename = "type")]
+    type_: SceneElement,
     children: Vec<String>,
     parent: Option<String>,
-    transform: serde_json::Value,
-    #[serde(rename(serialize = "globalTransform"))]
-    global_transform: serde_json::Value,
 }
 
-struct SceneObjectBuilder<'a> {
+struct SceneObjectBuilder {
     id: Entity,
     name: Option<String>,
+    type_: Option<SceneElement>,
     children: Option<Vec<Entity>>,
     parent: Option<Entity>,
-    transform: Option<&'a Transform>,
-    global_transform: Option<&'a GlobalTransform>,
 }
 
-impl<'a> SceneObjectBuilder<'a> {
+impl SceneObjectBuilder {
     fn new(id: Entity) -> Self {
         Self {
             id,
             name: None,
+            type_: None,
             children: None,
             parent: None,
-            transform: None,
-            global_transform: None,
         }
     }
     fn finish(self) -> SceneObject {
         SceneObject {
             id: format!("{:?}", self.id),
             name: self.name.unwrap(),
+            type_: self.type_.unwrap(),
             children: self
                 .children
                 .map(|children| children.iter().map(|ent| format!("{ent:?}")).collect())
                 .unwrap_or_default(),
             parent: self.parent.map(|ent| format!("{ent:?}")),
-            transform: self.transform.unwrap().as_json(),
-            global_transform: self.global_transform.unwrap().as_json(),
         }
     }
     fn with_name(mut self, name: String) -> Self {
         self.name = Some(name);
+        self
+    }
+    fn with_type(mut self, type_: SceneElement) -> Self {
+        self.type_ = Some(type_);
         self
     }
     fn with_children(mut self, children: Vec<Entity>) -> Self {
@@ -116,18 +114,10 @@ impl<'a> SceneObjectBuilder<'a> {
         self.parent = Some(parent);
         self
     }
-    fn with_transform(mut self, transform: &'a Transform) -> Self {
-        self.transform = Some(transform);
-        self
-    }
-    fn with_global_transform(mut self, global_transform: &'a GlobalTransform) -> Self {
-        self.global_transform = Some(global_transform);
-        self
-    }
 }
 
-impl<'a> SceneObject {
-    fn build(id: Entity) -> SceneObjectBuilder<'a> {
+impl SceneObject {
+    fn build(id: Entity) -> SceneObjectBuilder {
         SceneObjectBuilder::new(id)
     }
 }
@@ -140,8 +130,8 @@ pub(super) fn notify_entity_spawn_changes(
     mut l_despawned_entities: Local<Vec<Entity>>,
     mut l_missing_parents: Local<VecDeque<Entity>>,
     q_window: Query<&Window, With<PrimaryWindow>>,
-    q_inspectables: Query<(Entity, &Transform, &GlobalTransform), With<SceneElement>>,
-    q_others: Query<(Entity, &Transform, &GlobalTransform), Without<SceneElement>>,
+    q_inspectables: Query<(Entity, &SceneElement)>,
+    q_others: Query<Entity, Without<SceneElement>>,
     q_names: Query<&Name>,
     q_parents: Query<&Children>,
     q_children: Query<&Parent>,
@@ -149,26 +139,21 @@ pub(super) fn notify_entity_spawn_changes(
     l_missing_parents.clear();
 
     l_new_objects.clear();
-    l_new_objects.extend(
-        q_inspectables
-            .iter()
-            .filter_map(|(ent, xform, world_xform)| {
-                build_scene_object(
-                    &mut l_notified,
-                    &mut l_missing_parents,
-                    ent,
-                    xform,
-                    world_xform,
-                    &q_inspectables,
-                    &q_names,
-                    &q_parents,
-                    &q_children,
-                )
-            }),
-    );
+    l_new_objects.extend(q_inspectables.iter().filter_map(|(ent, &type_)| {
+        build_scene_object(
+            &mut l_notified,
+            &mut l_missing_parents,
+            ent,
+            type_,
+            &q_inspectables,
+            &q_names,
+            &q_parents,
+            &q_children,
+        )
+    }));
 
     while let Some(parent) = l_missing_parents.pop_front() {
-        let Ok((ent, xform, world_xform)) = q_others.get(parent) else {
+        let Ok(ent) = q_others.get(parent) else {
             error!("Failed to find missing parent: {parent:?}");
             l_notified.insert(parent);
 
@@ -179,8 +164,7 @@ pub(super) fn notify_entity_spawn_changes(
             &mut l_notified,
             &mut l_missing_parents,
             ent,
-            xform,
-            world_xform,
+            SceneElement::Generic,
             &q_inspectables,
             &q_names,
             &q_parents,
@@ -218,9 +202,8 @@ fn build_scene_object(
     notified: &mut HashSet<Entity>,
     missing_parents: &mut VecDeque<Entity>,
     ent: Entity,
-    xform: &Transform,
-    world_xform: &GlobalTransform,
-    q_inspectables: &Query<(Entity, &Transform, &GlobalTransform), With<SceneElement>>,
+    type_: SceneElement,
+    q_inspectables: &Query<(Entity, &SceneElement)>,
     q_names: &Query<&Name>,
     q_parents: &Query<&Children>,
     q_children: &Query<&Parent>,
@@ -231,9 +214,7 @@ fn build_scene_object(
 
     notified.insert(ent);
 
-    let mut result = SceneObject::build(ent)
-        .with_transform(xform)
-        .with_global_transform(world_xform);
+    let mut result = SceneObject::build(ent).with_type(type_);
 
     if let Ok(children) = q_parents.get(ent) {
         result = result.with_children(children.iter().cloned().collect());

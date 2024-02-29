@@ -17,7 +17,7 @@ impl Plugin for WorldGridPlugin {
 }
 
 #[derive(Component)]
-struct WorldGridPlane;
+pub struct WorldGridPlane;
 
 #[derive(Asset, AsBindGroup, TypePath, Clone)]
 struct ProceduralGridMaterial {}

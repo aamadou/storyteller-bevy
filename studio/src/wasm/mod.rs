@@ -4,9 +4,12 @@ use parking_lot::ReentrantMutex;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 mod conv;
+mod init;
+mod screenshot;
 mod util;
 
 pub use conv::*;
+pub use screenshot::ScreenshotPlugin;
 pub(crate) use util::*;
 
 static INITIALIZED: OnceLock<ReentrantMutex<RefCell<bool>>> = OnceLock::new();

@@ -1,4 +1,4 @@
-import { Token, UniqueToken, provide } from "@storyteller/framework";
+import { Token, UniqueToken, on, provide } from "@storyteller/framework";
 import { LitElement, html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 
@@ -71,6 +71,35 @@ export class CanvasProviderElement
 		super.connectedCallback();
 	}
 
+	@on("keydown")
+	@on("keyup")
+	_pipeKeyboardEvents(event: KeyboardEvent): void {
+		// When the user interacts with one of the web UI elements, the Bevy
+		// canvas will lose focus, preventing it from receiving keyboard events.
+		// As a workaround, we can listen for any events that have bubbled up to
+		// the app root and repeat them for the canvas.
+		//
+		// This does unfortunately burden the web front-end with some additional
+		// responsibility: when we handle a keyboard event and _don't_ want the
+		// Bevy app to receive it, we'll need to call `event.stopPropagation()` in
+		// the handler to prevent it from reaching this listener.
+		const {
+			type,
+			code, charCode, key, keyCode, location, repeat,
+			altKey, ctrlKey, metaKey, shiftKey,
+		} = event;
+
+		document
+			.getElementById(this.#canvasId)
+			?.dispatchEvent(new KeyboardEvent(type, {
+				code, charCode, key, keyCode, location, repeat,
+				altKey, ctrlKey, metaKey, shiftKey,
+				bubbles: true,
+				cancelable: true,
+				composed: true,
+			}));
+	}
+
 	protected override render = () => html`
 		<slot></slot>
 		<slot name="canvas"></slot>
@@ -80,6 +109,7 @@ export class CanvasProviderElement
 		const canvas = document.createElement("canvas");
 		canvas.id = this.#canvasId;
 		canvas.slot = "canvas";
+		canvas.tabIndex = -1;
 
 		this.appendChild(canvas);
 

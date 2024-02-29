@@ -6,9 +6,10 @@ use bevy::{
 };
 use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 
-use crate::hierarchy;
+use crate::{hierarchy, scene::SceneElement};
 pub use retargeting::*;
 
+mod camera;
 mod retargeting;
 
 pub struct AnimPlugin;
@@ -28,10 +29,18 @@ impl Plugin for AnimPlugin {
             .editor_registry::<InvBindPose>();
 
         app.add_systems(Update, process_skinned_meshes);
+        app.insert_resource(GlobalSeekTime(0.));
 
-        app.add_plugins(retargeting::RetargetingPlugin);
+        app.add_plugins((retargeting::RetargetingPlugin, camera::CameraAnimPlugin));
+
+        #[cfg(feature = "wasm")]
+        app.add_systems(Update, wasm::update_global_seek_time);
     }
 }
+
+#[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut, Reflect)]
+#[reflect(Resource)]
+pub struct GlobalSeekTime(pub f32);
 
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 #[reflect(Component)]
@@ -122,7 +131,7 @@ fn process_skinned_meshes(
         // skeleton
         let joints = joints.iter().copied().collect::<Vec<_>>();
         if let Some(root) = hierarchy::nearest_common_ancestor(&joints, &q_parents) {
-            cmd.entity(root).insert(Skeleton);
+            cmd.entity(root).insert((Skeleton, SceneElement::Skeleton));
         }
 
         // Tag each joint and find its bind poses
@@ -132,10 +141,34 @@ fn process_skinned_meshes(
 
             cmd.entity(joint).insert((
                 SkeletalJoint(Color::BLACK),
+                SceneElement::Bone,
                 BindPoseLocal(bind_pose_local),
                 BindPoseGlobal(bind_pose_global.affine()),
                 InvBindPose(bind_pose_global.affine().inverse()),
             ));
+        }
+    }
+}
+
+#[cfg(feature = "wasm")]
+mod wasm {
+    use bevy::prelude::*;
+    use wasm_bindgen::prelude::*;
+
+    use crate::wasm::{StaticBuffer, WasmMessageBuffer};
+
+    use super::GlobalSeekTime;
+
+    static SEEK_TIME: WasmMessageBuffer<f32> = WasmMessageBuffer::new();
+
+    #[wasm_bindgen(js_name = seekTime)]
+    pub fn seek_time(timestamp: f32) {
+        SEEK_TIME.write_message(timestamp);
+    }
+
+    pub(super) fn update_global_seek_time(mut r_seek_time: ResMut<GlobalSeekTime>) {
+        if let Some(timestamp) = SEEK_TIME.take_message() {
+            **r_seek_time = timestamp;
         }
     }
 }

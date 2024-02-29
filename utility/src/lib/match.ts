@@ -83,7 +83,7 @@ export function match<K extends Key, T extends Matcher<K>>(
 	subject: K | null | undefined,
 	matcher: T,
 ): MatchReturn<K, T> {
-	if (subject && subject in matcher)
+	if (subject != null && subject in matcher)
 		return matcher[subject]!();
 
 	if ("_" in matcher)
