@@ -95,7 +95,7 @@ fn main() {
                 frames,
                 output_res,
             );
-            
+
             if orbit {
                 app.insert_resource(OrbitSettings { radius: 5.0 })
                     .add_systems(Update, orbit_scene);
