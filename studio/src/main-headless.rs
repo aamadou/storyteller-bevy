@@ -105,8 +105,11 @@ fn main() {
             let orbit_radius = orbit_radius.unwrap_or(8.0);
 
             if orbit {
-                app.insert_resource(OrbitSettings { radius: orbit_radius, speed: orbit_speed})
-                    .add_systems(Update, orbit_scene);
+                app.insert_resource(OrbitSettings {
+                    radius: orbit_radius,
+                    speed: orbit_speed,
+                })
+                .add_systems(Update, orbit_scene);
             }
 
             app
@@ -169,7 +172,7 @@ fn main() {
 #[derive(Resource)]
 struct OrbitSettings {
     radius: f32,
-    speed : f32
+    speed: f32,
 }
 
 fn orbit_scene(
