@@ -95,9 +95,9 @@ fn main() {
                 frames,
                 output_res,
             );
-
+            
             if orbit {
-                app.insert_resource(OrbitSettings { radius: 10.0 })
+                app.insert_resource(OrbitSettings { radius: 5.0 })
                     .add_systems(Update, orbit_scene);
             }
 
@@ -164,7 +164,7 @@ struct OrbitSettings {
 }
 
 fn orbit_scene(
-    mut camera: Query<&mut Transform, With<PrimaryWindow>>,
+    mut camera: Query<&mut Transform, With<Camera>>,
     orbit_settings: Res<OrbitSettings>,
     time: Res<Time>,
 ) {
@@ -173,9 +173,9 @@ fn orbit_scene(
     };
 
     main_cam_transform.translation = Vec3::new(
-        orbit_settings.radius * time.elapsed_seconds().cos() * 10.0,
-        orbit_settings.radius * time.elapsed_seconds().sin(),
+        orbit_settings.radius * time.elapsed_seconds().cos(),
         6.0,
+        orbit_settings.radius * time.elapsed_seconds().sin(),
     );
     main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
 }
