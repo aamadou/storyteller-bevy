@@ -1,4 +1,7 @@
-use bevy::{prelude::*, render::render_resource::Extent3d, transform::components::Transform, window::PrimaryWindow};
+use bevy::{
+    prelude::*, render::render_resource::Extent3d, transform::components::Transform,
+    window::PrimaryWindow,
+};
 use clap::{Args, Parser, Subcommand};
 use studio::headless::{start_headless, HeadlessMode};
 
@@ -20,7 +23,7 @@ enum Subcommands {
     Scene {
         scene_dir: String,
         #[arg(long)]
-        orbit : bool,
+        orbit: bool,
         #[arg(long, short)]
         output_dir: Option<String>,
         #[arg(long)]
@@ -92,15 +95,12 @@ fn main() {
                 frames,
                 output_res,
             );
-            
+
             if orbit {
-                app.insert_resource(OrbitSettings {
-                    radius: 10.0,
-                })
-                .add_systems(Update, orbit_scene)
-                ;
+                app.insert_resource(OrbitSettings { radius: 10.0 })
+                    .add_systems(Update, orbit_scene);
             }
-            
+
             app
         }
         Subcommands::Bvh {
@@ -163,14 +163,20 @@ struct OrbitSettings {
     radius: f32,
 }
 
-fn orbit_scene (
-    mut camera : Query<&mut Transform, With<PrimaryWindow>>,
-    orbit_settings : Res<OrbitSettings>,
-    time : Res<Time>
+fn orbit_scene(
+    mut camera: Query<&mut Transform, With<PrimaryWindow>>,
+    orbit_settings: Res<OrbitSettings>,
+    time: Res<Time>,
 ) {
-    let Ok(mut main_cam_transform) = camera.get_single_mut() else { return };
-    
-    main_cam_transform.translation = Vec3::new(orbit_settings.radius * time.elapsed_seconds().cos() * 10.0, orbit_settings.radius * time.elapsed_seconds().sin(), 6.0);
+    let Ok(mut main_cam_transform) = camera.get_single_mut() else {
+        return;
+    };
+
+    main_cam_transform.translation = Vec3::new(
+        orbit_settings.radius * time.elapsed_seconds().cos() * 10.0,
+        orbit_settings.radius * time.elapsed_seconds().sin(),
+        6.0,
+    );
     main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
 }
 
