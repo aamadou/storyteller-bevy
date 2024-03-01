@@ -139,6 +139,7 @@ fn extract_screen_capture_components(
 ) {
     for (entity, screen_capture) in screen_capure_comps.iter() {
         if screen_capture.should_capture() {
+            println!("Capturing Frame: {} / {}", screen_capture.frames, screen_capture.max_frames);
             commands.get_or_spawn(entity).insert(screen_capture.clone());
         }
     }

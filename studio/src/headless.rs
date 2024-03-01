@@ -8,10 +8,7 @@ use space_editor::prelude::{EditorEvent, EditorPrefabPath};
 use wgpu::Extent3d;
 
 use crate::{
-    bvh::{BvhAnimCompleteEvent, TestBvh},
-    screenshot::{ScreenCapture, ScreenShotPlugin},
-    BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera,
-    MixamoImportEvent, MixamoPlugin, SkyboxId, StudioMode, WorldGridPlugin,
+    bvh::{BvhAnimCompleteEvent, TestBvh}, scene::SceneState, screenshot::{ScreenCapture, ScreenShotPlugin}, BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera, MixamoImportEvent, MixamoPlugin, SkyboxId, StudioMode, WorldGridPlugin
 };
 
 #[derive(Debug, Resource, Clone)]
@@ -64,7 +61,7 @@ pub fn start_headless(
                 },
             );
 
-            app.add_systems(PostUpdate, check_for_bvh_capture_complete);
+            app.add_systems(PostUpdate, check_for_bvh_capture_complete.run_if(in_state(SceneState::Active)));
         }
         HeadlessMode::Scene(scene, skybox) => {
             app.add_systems(
@@ -87,7 +84,7 @@ pub fn start_headless(
                     commands.insert_resource(SkyboxId(skybox.clone()));
                 },
             );
-            app.add_systems(PostUpdate, check_for_mixamo_capture_complete);
+            app.add_systems(PostUpdate, check_for_mixamo_capture_complete.run_if(in_state(SceneState::Active)));
 
             app.run();
         }
@@ -135,7 +132,6 @@ fn check_for_bvh_capture_complete(
         return;
     };
 
-    println!("Frames captured {}", screen_capture.frames_captured());
     if !screen_capture.should_capture() || !bvh_event_reader.is_empty() {
         screen_capture.stop_capturing();
         close_app.send(AppExit);
