@@ -275,7 +275,7 @@ fn save_buffer_to_file(
             .expect("Output path could not be created");
 
         let path = format!(
-            "{}img_{:0.5}.png",
+            "{}img_{:0>4}.png",
             screen_capture.to_directory, screen_capture.frames
         );
 
