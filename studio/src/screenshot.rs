@@ -1,7 +1,5 @@
 use bevy::{
-    core_pipeline::{core_3d, prepass::ViewPrepassTextures},
-    prelude::*,
-    render::{
+    app::AppExit, core_pipeline::{core_3d, prepass::ViewPrepassTextures}, prelude::*, render::{
         render_graph::{RenderGraphApp, ViewNode, ViewNodeRunner},
         render_resource::{
             Buffer, BufferDescriptor, BufferUsages, ImageCopyBuffer, ImageDataLayout, MapMode,
@@ -9,7 +7,7 @@ use bevy::{
         renderer::RenderDevice,
         view::ViewTarget,
         Extract, Render, RenderSet,
-    },
+    }
 };
 use bytemuck::AnyBitPattern;
 use image::{
@@ -123,9 +121,13 @@ impl ScreenCapture {
     }
 }
 
-fn update_screen_capture_on_extract_step(mut screen_captures: Query<&mut ScreenCapture>) {
+fn update_screen_capture_on_extract_step(mut screen_captures: Query<&mut ScreenCapture>, mut exit_event : EventWriter<AppExit>) {
     for mut screen_capture in screen_captures.iter_mut() {
         screen_capture.frames += 1;
+        
+        if !screen_capture.should_capture() {
+            exit_event.send(AppExit);
+        }
         // if screen_capture.number_of_frames == 0 {
         //     commands.entity(entity).remove::<ScreenCapture>();
         // }

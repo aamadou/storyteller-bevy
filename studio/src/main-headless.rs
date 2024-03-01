@@ -170,7 +170,7 @@ fn orbit_scene (
 ) {
     let Ok(mut main_cam_transform) = camera.get_single_mut() else { return };
     
-    main_cam_transform.translation = Vec3::new(orbit_settings.radius * time.elapsed_seconds().cos(), orbit_settings.radius * time.elapsed_seconds().sin(), 6.0);
+    main_cam_transform.translation = Vec3::new(orbit_settings.radius * time.elapsed_seconds().cos() * 10.0, orbit_settings.radius * time.elapsed_seconds().sin(), 6.0);
     main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
 }
 
