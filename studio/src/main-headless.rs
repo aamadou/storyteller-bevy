@@ -24,6 +24,10 @@ enum Subcommands {
         scene_dir: String,
         #[arg(long)]
         orbit: bool,
+        #[arg(long, value_parser = clap::value_parser!(f32))]
+        orbit_radius: Option<f32>,
+        #[arg(long, value_parser = clap::value_parser!(f32))]
+        orbit_speed: Option<f32>,
         #[arg(long, short)]
         output_dir: Option<String>,
         #[arg(long)]
@@ -73,6 +77,8 @@ fn main() {
         Subcommands::Scene {
             scene_dir,
             orbit,
+            orbit_speed,
+            orbit_radius,
             skybox,
             output_dir,
             output_resolution,
@@ -95,10 +101,15 @@ fn main() {
                 frames,
                 output_res,
             );
+            let orbit_speed = orbit_speed.unwrap_or(1.0);
+            let orbit_radius = orbit_radius.unwrap_or(8.0);
 
             if orbit {
-                app.insert_resource(OrbitSettings { radius: 5.0 })
-                    .add_systems(Update, orbit_scene);
+                app.insert_resource(OrbitSettings {
+                    radius: orbit_radius,
+                    speed: orbit_speed,
+                })
+                .add_systems(Update, orbit_scene);
             }
 
             app
@@ -161,6 +172,7 @@ fn main() {
 #[derive(Resource)]
 struct OrbitSettings {
     radius: f32,
+    speed: f32,
 }
 
 fn orbit_scene(
@@ -173,9 +185,9 @@ fn orbit_scene(
     };
 
     main_cam_transform.translation = Vec3::new(
-        orbit_settings.radius * time.elapsed_seconds().cos(),
+        orbit_settings.radius * (time.elapsed_seconds() * orbit_settings.speed).cos(),
         6.0,
-        orbit_settings.radius * time.elapsed_seconds().sin(),
+        orbit_settings.radius * (time.elapsed_seconds() * orbit_settings.speed).sin(),
     );
     main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
 }
