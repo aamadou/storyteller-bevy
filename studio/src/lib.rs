@@ -7,7 +7,6 @@ use scene::ImportSceneEvent;
 
 #[cfg(feature = "wasm")]
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use space_editor::space_prefab::plugins::PrefabPlugin;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -137,8 +136,6 @@ pub enum InitAsset {
     /// Initialize the application by retargeting a Mixamo animation onto the
     /// bundled `Mannequin.gltf` model.
     MixamoAnim(String),
-    /// Initialize the application by loading an arbitary model given an identifier
-    MediaAsset(String),
 }
 
 pub fn start(init: InitParams, mode: StudioMode, window_config: Option<Window>) -> App {
@@ -234,6 +231,5 @@ fn init_from_asset(app: &mut App, asset: InitAsset, skybox_id: String) {
                 ew.send(ImportSceneEvent(scene.clone()));
             });
         }
-        InitAsset::MediaAsset(_) => todo!(),
     }
 }
