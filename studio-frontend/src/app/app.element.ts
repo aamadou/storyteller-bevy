@@ -31,6 +31,8 @@ import "@storyteller/studio-web/transform-toolbar";
 import "./anim-editor.element";
 import "./help.element";
 
+import "./blocking.element";
+
 import "./app.element.scss";
 
 @customElement("app-root")
@@ -149,6 +151,8 @@ export class AppElement extends LitElement {
 				<sts-anim-editor
 					class="timeline v-end h-start h-before-hierarchy"
 				></sts-anim-editor>
+
+				<sts-blocking></sts-blocking>
 			` : nothing}
 
 			<!-- Dialogs and modals -->
