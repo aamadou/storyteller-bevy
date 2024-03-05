@@ -24,6 +24,7 @@ import "@storyteller/studio-ui/toolbar";
 import "@storyteller/studio-ui/tree";
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/entity-inspector";
+import "@storyteller/studio-web/iframe-messaging-bridge";
 import "@storyteller/studio-web/loading";
 import "@storyteller/studio-web/scene-hierarchy";
 import "@storyteller/studio-web/studio";
@@ -71,7 +72,21 @@ export class AppElement extends LitElement {
 				headers: { "Accept": "text/plain" },
 				body: formData,
 			});
-			console.log(response);
+
+			if (response.ok) {
+				const resultJson: {
+					success: boolean;
+					media_file_token: string;
+				} = await response.json();
+
+				if (resultJson.success) {
+					this.dispatchEvent(new CustomEvent("scene-uploaded", {
+						detail: resultJson.media_file_token,
+						bubbles: true,
+						composed: true,
+					}));
+				}
+			}
 		}
 		catch (err) {
 			console.error(err);
@@ -132,6 +147,8 @@ export class AppElement extends LitElement {
 	protected override render = () => html`
 		<sts-canvas-provider class="app-root">
 		<sts-scene-data-provider>
+			<sts-iframe-messaging-bridge></sts-iframe-messaging-bridge>
+
 			<!-- Scene view -->
 			<sts-studio
 				class=${classMap({
