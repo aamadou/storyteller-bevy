@@ -37,14 +37,13 @@ export class ButtonElement extends LitElement {
 	}
 
 	protected override render = () => html`
-		${this.icon
-			? html`
-				<sts-icon
-					part="icon"
-					icon=${this.icon}
-					aria-hidden="true"
-				></sts-icon>`
-			: nothing}
+		${this.icon ? html`
+			<sts-icon
+				part="icon"
+				icon=${this.icon}
+				aria-hidden="true"
+			></sts-icon>
+		` : nothing}
 		<slot></slot>
 	`
 }
