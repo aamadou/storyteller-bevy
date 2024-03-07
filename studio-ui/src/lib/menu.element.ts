@@ -1,9 +1,8 @@
 import { inject, on } from "@storyteller/framework";
-import { Fn } from "@storyteller/utility";
 import { LitElement, PropertyValues, css, html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
-import { createRef, ref, type Ref } from "lit/directives/ref.js";
+import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
 
 import panelStyles from "./menu.element.scss?inline";
@@ -23,7 +22,7 @@ export class MenuElement extends LitElement {
 	`;
 
 	@property({ attribute: false })
-	trigger: Ref<HTMLElement> = createRef();
+	trigger = createRef<HTMLElement>();
 
 	/** Close the menu when one of its menuitems is pressed */
 	@property({ type: Boolean })
@@ -36,7 +35,6 @@ export class MenuElement extends LitElement {
 	#slotRef = createRef<HTMLSlotElement>();
 	#panelRef = createRef<MenuPanelElement>();
 	#handle?: WeakRef<OverlayHandle>;
-	#listener?: Fn;
 
 	protected override update(changes: PropertyValues<this>): void {
 		super.update(changes);
@@ -46,21 +44,32 @@ export class MenuElement extends LitElement {
 	}
 
 	protected override updated(changes: PropertyValues<this>): void {
-		if (changes.has("trigger") && this.trigger.value) {
+		if (changes.has("trigger")) {
+			const prevTrigger = changes.get("trigger");
+			if (prevTrigger?.value) {
+				prevTrigger.value.removeEventListener("click", this.onTriggerClick);
+			}
+
 			const trigger = this.trigger.value;
+			if (!trigger) return;
 
 			trigger.setAttribute("aria-owns", this.#menuId);
 			trigger.ariaHasPopup = "true";
 			trigger.ariaExpanded = "false";
 
-			if (this.#listener)
-				trigger.removeEventListener("click", this.#listener);
-
-			this.#listener = () => this.show();
-			trigger.addEventListener("click", this.#listener);
+			trigger.addEventListener("click", this.onTriggerClick);
 		}
 
 		super.updated(changes);
+	}
+
+	override disconnectedCallback(): void {
+		this.trigger.value?.removeEventListener("click", this.onTriggerClick);
+		super.disconnectedCallback();
+	}
+
+	onTriggerClick = (): void => {
+		this.show();
 	}
 
 	@on("window:click")
@@ -145,6 +154,7 @@ export class MenuElement extends LitElement {
 	`
 }
 
+// TODO: ARIA keyboard navigation: https://www.w3.org/WAI/ARIA/apg/patterns/menubar/
 @customElement("sts-menu-panel")
 export class MenuPanelElement extends LitElement {
 	static override styles = unsafeCSS(panelStyles);
