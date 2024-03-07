@@ -61,7 +61,7 @@ fn draw_camera_keyframes(
         gizmos.line(origin, origin + z_axis, Color::BLUE);
     }
 
-    let seek_time = **r_seek_time;
+    let seek_time = r_seek_time.time;
     let keyframes_sorted = q_cam_keyframes
         .iter()
         .sorted_by(|(a, _), (b, _)| a.partial_cmp(&b.0).unwrap())

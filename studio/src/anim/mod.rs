@@ -36,9 +36,6 @@ impl Plugin for AnimPlugin {
             camera::CameraAnimPlugin,
             timeline_animation::TimelinePlugin,
         ));
-
-        #[cfg(feature = "wasm")]
-        app.add_systems(Update, wasm::update_global_seek_time);
     }
 }
 
