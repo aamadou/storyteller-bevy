@@ -4,7 +4,7 @@ use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 
 use crate::math::{InvLerp, Lerp};
 
-use super::GlobalSeekTime;
+use super::timeline_animation::GlobalSeekTime;
 
 pub struct CameraAnimPlugin;
 impl Plugin for CameraAnimPlugin {
