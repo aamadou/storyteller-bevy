@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, sync::Arc};
 
 use bevy::{
+    ecs::world::unsafe_world_cell::UnsafeWorldCell,
     prelude::*,
     reflect::{serde::ReflectSerializer, GetTypeRegistration},
     utils::HashMap,
@@ -60,6 +61,43 @@ impl Plugin for InspectorPlugin {
         app.register_inspect::<Transform>();
         app.register_inspect::<Name>();
         app.register_inspect::<MeshPrimitivePrefab>();
+
+        //register standart material
+        {
+            app.register_type::<ShortMaterial>()
+                .add_event::<UpdateInspect<Handle<StandardMaterial>>>()
+                .add_systems(
+                    Update,
+                    (
+                        update_inspect_by_select_change::<Handle<StandardMaterial>>,
+                        update_inspect_by_remove::<Handle<StandardMaterial>>,
+                        update_inspect_by_change::<Handle<StandardMaterial>>,
+                        notify_asset_change_system::<StandardMaterial>,
+                    )
+                        .in_set(InspectorSystem::DetectChanges),
+                )
+                .add_systems(
+                    Update,
+                    serialize_standart_materal.in_set(InspectorSystem::PerComponentCollect),
+                );
+
+            app.world.resource_mut::<InspectGetters>().getters.insert(
+                StandardMaterial::get_type_registration()
+                    .type_info()
+                    .type_path()
+                    .to_string(),
+                Arc::new(|entity, path, world, f| unsafe {
+                    let handle = entity.get::<Handle<StandardMaterial>>().unwrap();
+                    let mut assets = world
+                        .get_resource_mut::<Assets<StandardMaterial>>()
+                        .unwrap();
+                    let material = assets.get_mut(handle).unwrap();
+
+                    let reflect_field = material.reflect_path_mut(path).unwrap();
+                    (f)(reflect_field);
+                }),
+            );
+        }
     }
 }
 
@@ -67,12 +105,17 @@ impl Plugin for InspectorPlugin {
 struct InspectGetters {
     getters: HashMap<
         String,
-        Arc<dyn Fn(&mut EntityWorldMut, &str, &dyn Fn(&mut dyn Reflect)) + Send + Sync>,
+        Arc<
+            dyn Fn(&mut EntityWorldMut, &str, &mut UnsafeWorldCell, &dyn Fn(&mut dyn Reflect))
+                + Send
+                + Sync,
+        >,
     >,
 }
 
 trait AppInspectable {
     fn register_inspect<T: Component + Reflect + GetTypeRegistration>(&mut self);
+    fn register_asset_inspect<T: Asset + Reflect + GetTypeRegistration>(&mut self);
 }
 
 impl AppInspectable for App {
@@ -100,13 +143,32 @@ impl AppInspectable for App {
                     .type_info()
                     .type_path()
                     .to_string(),
-                Arc::new(|entity, path, f| {
+                Arc::new(|entity, path, _, f| {
                     let mut component = entity.get_mut::<T>().unwrap();
                     let reflect_field = component.reflect_path_mut(path).unwrap();
                     (f)(reflect_field);
                 }),
             );
         }
+    }
+
+    fn register_asset_inspect<T: Asset + Reflect + GetTypeRegistration>(&mut self) {
+        self.register_type::<T>()
+            .add_event::<UpdateInspect<Handle<T>>>()
+            .add_systems(
+                Update,
+                (
+                    update_inspect_by_select_change::<Handle<T>>,
+                    update_inspect_by_remove::<Handle<T>>,
+                    update_inspect_by_change::<Handle<T>>,
+                    notify_asset_change_system::<T>,
+                )
+                    .in_set(InspectorSystem::DetectChanges),
+            )
+            .add_systems(
+                Update,
+                auto_serialize_asset::<T>.in_set(InspectorSystem::PerComponentCollect),
+            );
     }
 }
 
@@ -160,7 +222,7 @@ impl<T> Default for UpdateInspect<T> {
 
 fn update_field_by_ui(world: &mut World) {
     unsafe {
-        let unsafe_world = world.as_unsafe_world_cell();
+        let mut unsafe_world = world.as_unsafe_world_cell();
         let Some(msg) = CHANGE_FROM_UI.take_message() else {
             return;
         };
@@ -181,68 +243,73 @@ fn update_field_by_ui(world: &mut World) {
             return;
         };
 
-        getter.as_ref()(&mut entity_mut, &msg.reflect_path, &|reflect_field| {
-            if let Some(val) = reflect_field.downcast_mut::<f32>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
+        getter.as_ref()(
+            &mut entity_mut,
+            &msg.reflect_path,
+            &mut unsafe_world,
+            &|reflect_field| {
+                if let Some(val) = reflect_field.downcast_mut::<f32>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<f64>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<u32>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<u64>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<i32>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<i64>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<bool>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<String>() {
+                    *val = msg.value.as_str().unwrap().to_string();
+                } else if let Some(val) = reflect_field.downcast_mut::<Vec3>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else if let Some(val) = reflect_field.downcast_mut::<Quat>() {
+                    let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
+                        error!("Failed to parse value: {}", msg.value);
+                        return;
+                    };
+                    *val = msg_value;
+                } else {
+                    error!("Unsupported type {}!", &msg.reflect_path);
                     return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<f64>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<u32>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<u64>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<i32>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<i64>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<bool>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<String>() {
-                *val = msg.value.as_str().unwrap().to_string();
-            } else if let Some(val) = reflect_field.downcast_mut::<Vec3>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else if let Some(val) = reflect_field.downcast_mut::<Quat>() {
-                let Ok(msg_value) = serde_json::from_value(msg.value.clone()) else {
-                    error!("Failed to parse value: {}", msg.value);
-                    return;
-                };
-                *val = msg_value;
-            } else {
-                error!("Unsupported type {}!", &msg.reflect_path);
-                return;
-            }
-        });
+                }
+            },
+        );
     }
 }
 
@@ -311,6 +378,130 @@ fn auto_serialize_system<T: Component + Reflect + GetTypeRegistration>(
         description
             .components
             .remove(T::get_type_registration().type_info().type_path());
+    }
+
+    ev_update_description.send(UpdateEntityDescription);
+}
+
+fn notify_asset_change_system<T: Asset>(
+    mut ev_inspect: EventWriter<UpdateInspect<Handle<T>>>,
+    mut asset_changing: EventReader<AssetEvent<T>>,
+    mut selected: Query<&Handle<T>, With<Selected>>,
+) {
+    for ev in asset_changing.read() {
+        for handle in selected.iter_mut() {
+            if ev.is_modified(handle.id()) {
+                ev_inspect.send(UpdateInspect::<Handle<T>>::default());
+            }
+        }
+    }
+}
+
+fn auto_serialize_asset<T: Asset + Reflect + GetTypeRegistration>(
+    q_t: Query<&Handle<T>, With<Selected>>,
+    mut description: ResMut<EntityDescription>,
+    registry: Res<AppTypeRegistry>,
+    mut ev_inspect: EventReader<UpdateInspect<Handle<T>>>,
+    mut ev_update_description: EventWriter<UpdateEntityDescription>,
+    assets: Res<Assets<T>>,
+) {
+    if ev_inspect.is_empty() {
+        return;
+    }
+
+    ev_inspect.clear();
+
+    if let Some(handle) = q_t.iter().next() {
+        if let Some(asset) = assets.get(handle) {
+            let registry = registry.read();
+            info!(
+                "type: {:?}",
+                T::get_type_registration()
+                    .type_info()
+                    .type_path()
+                    .to_string()
+            );
+
+            let json = serde_json::to_value(ReflectSerializer::new(asset, &registry)).unwrap();
+            info!("json: {:?}", json.to_string());
+            description.components.insert(
+                T::get_type_registration()
+                    .type_info()
+                    .type_path()
+                    .to_string(),
+                json,
+            );
+        }
+    } else {
+        description
+            .components
+            .remove(T::get_type_registration().type_info().type_path());
+    }
+
+    ev_update_description.send(UpdateEntityDescription);
+}
+
+#[derive(Reflect, Default)]
+#[reflect(Default)]
+struct ShortMaterial {
+    pub base_color: Color,
+}
+
+impl ShortMaterial {
+    pub fn new(material: &StandardMaterial) -> Self {
+        Self {
+            base_color: material.base_color,
+        }
+    }
+}
+
+fn serialize_standart_materal(
+    q_m: Query<&Handle<StandardMaterial>>,
+    mut description: ResMut<EntityDescription>,
+    registry: Res<AppTypeRegistry>,
+    mut ev_inspect: EventReader<UpdateInspect<Handle<StandardMaterial>>>,
+    mut ev_update_description: EventWriter<UpdateEntityDescription>,
+    assets: Res<Assets<StandardMaterial>>,
+) {
+    if ev_inspect.is_empty() {
+        return;
+    }
+
+    ev_inspect.clear();
+
+    if let Some(handle) = q_m.iter().next() {
+        if let Some(material) = assets.get(handle) {
+            let registry = registry.read();
+            let short_material = ShortMaterial::new(material);
+            let json =
+                serde_json::to_value(ReflectSerializer::new(&short_material, &registry)).unwrap();
+            let json = json[ShortMaterial::get_type_registration()
+                .type_info()
+                .type_path()
+                .to_string()]
+            .clone();
+            let json = json!(
+            {
+                StandardMaterial::get_type_registration()
+                .type_info()
+                .type_path()
+                .to_string(): json
+            });
+            info!("json: {:?}", json.to_string());
+            description.components.insert(
+                StandardMaterial::get_type_registration()
+                    .type_info()
+                    .type_path()
+                    .to_string(),
+                json,
+            );
+        }
+    } else {
+        description.components.remove(
+            StandardMaterial::get_type_registration()
+                .type_info()
+                .type_path(),
+        );
     }
 
     ev_update_description.send(UpdateEntityDescription);
