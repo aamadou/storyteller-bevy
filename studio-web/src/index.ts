@@ -1,3 +1,4 @@
+export * from "./lib/add-to-scene-menu.element";
 export * from "./lib/canvas-provider.element";
 export * from "./lib/iframe-messaging-bridge.element";
 export * from "./lib/inspector/entity-inspector.element";

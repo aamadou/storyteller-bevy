@@ -5,7 +5,6 @@ import {
 	type SceneStateEvent,
 	SceneState,
 	StudioMode,
-	BlockingCommand,
 } from "@storyteller/studio";
 import { ButtonElement } from "@storyteller/studio-ui/button";
 import {
@@ -22,10 +21,10 @@ import { v4 as uuid } from "uuid";
 
 import "@storyteller/studio-ui/button";
 import "@storyteller/studio-ui/icon";
-import "@storyteller/studio-ui/menu";
 import "@storyteller/studio-ui/overlay-provider";
 import "@storyteller/studio-ui/toolbar";
 import "@storyteller/studio-ui/tree";
+import "@storyteller/studio-web/add-to-scene-menu";
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/entity-inspector";
 import "@storyteller/studio-web/iframe-messaging-bridge";
@@ -203,59 +202,7 @@ export class AppElement extends LitElement {
 
 			<!-- Studio-mode-only elements -->
 			${this.#params.mode === StudioMode.Editor ? html`
-				<!-- TODO: Move this -->
-				<sts-menu autoClose .trigger=${this.#addToSceneButtonRef}>
-					<sts-button
-						role="menuitem"
-						icon="cube"
-						@click=${() => {
-							studio.dispatchBlockingCommand(BlockingCommand.Cube);
-						}}
-					>
-						Cube
-					</sts-button>
-					<sts-button
-						role="menuitem"
-						icon="sphere"
-						@click=${() => {
-							studio.dispatchBlockingCommand(BlockingCommand.Sphere);
-						}}
-					>
-						Sphere
-					</sts-button>
-					<sts-button
-						role="menuitem"
-						icon="torus"
-						@click=${() => {
-							studio.dispatchBlockingCommand(BlockingCommand.Torus);
-						}}
-					>
-						Torus
-					</sts-button>
-					<sts-button
-						role="menuitem"
-						icon="cylinder"
-						@click=${() => {
-							studio.dispatchBlockingCommand(BlockingCommand.Cylinder);
-						}}
-					>
-						Cylinder
-					</sts-button>
-					<hr />
-					<sts-button
-						role="menuitem"
-						icon="file-import"
-					>
-						Import asset...
-					</sts-button>
-					<sts-button
-						role="menuitem"
-						icon="photo-film-music"
-					>
-						Media library...
-					</sts-button>
-				</sts-menu>
-
+				<sts-add-to-scene-menu .trigger=${this.#addToSceneButtonRef}></sts-add-to-scene-menu>
 				<sts-transform-toolbar class="v-start h-center"></sts-transform-toolbar>
 
 				${this.showInspector ? html`
