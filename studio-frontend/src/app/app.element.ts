@@ -204,7 +204,7 @@ export class AppElement extends LitElement {
 			<!-- Studio-mode-only elements -->
 			${this.#params.mode === StudioMode.Editor ? html`
 				<!-- TODO: Move this -->
-				<sts-menu .trigger=${this.#addToSceneButtonRef}>
+				<sts-menu autoClose .trigger=${this.#addToSceneButtonRef}>
 					<sts-button
 						role="menuitem"
 						icon="cube"

@@ -81,7 +81,8 @@ export class MenuElement extends LitElement {
 		event.stopPropagation();
 
 		if (
-			event.target
+			this.autoClose
+			&& event.target
 			&& event.target instanceof HTMLElement
 			&& event.target.role === "menuitem"
 		) {
