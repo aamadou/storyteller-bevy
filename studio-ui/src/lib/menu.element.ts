@@ -3,7 +3,7 @@ import { Fn } from "@storyteller/utility";
 import { LitElement, PropertyValues, css, html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
-import { createRef, ref, Ref } from "lit/directives/ref.js";
+import { createRef, ref, type Ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
 
 import panelStyles from "./menu.element.scss?inline";
