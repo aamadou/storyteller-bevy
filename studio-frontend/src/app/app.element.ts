@@ -5,7 +5,9 @@ import {
 	type SceneStateEvent,
 	SceneState,
 	StudioMode,
+	BlockingCommand,
 } from "@storyteller/studio";
+import { ButtonElement } from "@storyteller/studio-ui/button";
 import {
 	SceneHierarchyElement,
 	StudioURLParams,
@@ -20,6 +22,8 @@ import { v4 as uuid } from "uuid";
 
 import "@storyteller/studio-ui/button";
 import "@storyteller/studio-ui/icon";
+import "@storyteller/studio-ui/menu";
+import "@storyteller/studio-ui/overlay-provider";
 import "@storyteller/studio-ui/toolbar";
 import "@storyteller/studio-ui/tree";
 import "@storyteller/studio-web/canvas-provider";
@@ -48,6 +52,7 @@ export class AppElement extends LitElement {
 
 	#enableAnimTimeline = false; // TODO
 
+	#addToSceneButtonRef = createRef<ButtonElement>();
 	#inspectorRef = createRef<HTMLDivElement>();
 	#hierarchyRef = createRef<SceneHierarchyElement>();
 
@@ -145,6 +150,7 @@ export class AppElement extends LitElement {
 	}
 
 	protected override render = () => html`
+		<sts-overlay-provider>
 		<sts-canvas-provider class="app-root">
 		<sts-scene-data-provider>
 			<sts-iframe-messaging-bridge></sts-iframe-messaging-bridge>
@@ -174,6 +180,16 @@ export class AppElement extends LitElement {
 						>
 							Save
 						</sts-button>
+						<sts-button
+							${ref(this.#addToSceneButtonRef)}
+							icon="plus-large"
+						>
+							Add to Scene
+							<sts-icon
+								class="menu-button-icon"
+								icon="chevron-down"
+							></sts-icon>
+						</sts-button>
 					` : nothing}
 					<sts-button
 						class=${classMap({ active: this.showHelp })}
@@ -187,7 +203,58 @@ export class AppElement extends LitElement {
 
 			<!-- Studio-mode-only elements -->
 			${this.#params.mode === StudioMode.Editor ? html`
-				<sts-blocking></sts-blocking>
+				<!-- TODO: Move this -->
+				<sts-menu .trigger=${this.#addToSceneButtonRef}>
+					<sts-button
+						role="menuitem"
+						icon="cube"
+						@click=${() => {
+							studio.dispatchBlockingCommand(BlockingCommand.Cube);
+						}}
+					>
+						Cube
+					</sts-button>
+					<sts-button
+						role="menuitem"
+						icon="sphere"
+						@click=${() => {
+							studio.dispatchBlockingCommand(BlockingCommand.Sphere);
+						}}
+					>
+						Sphere
+					</sts-button>
+					<sts-button
+						role="menuitem"
+						icon="torus"
+						@click=${() => {
+							studio.dispatchBlockingCommand(BlockingCommand.Torus);
+						}}
+					>
+						Torus
+					</sts-button>
+					<sts-button
+						role="menuitem"
+						icon="cylinder"
+						@click=${() => {
+							studio.dispatchBlockingCommand(BlockingCommand.Cylinder);
+						}}
+					>
+						Cylinder
+					</sts-button>
+					<hr />
+					<sts-button
+						role="menuitem"
+						icon="file-import"
+					>
+						Import asset...
+					</sts-button>
+					<sts-button
+						role="menuitem"
+						icon="photo-film-music"
+					>
+						Media library...
+					</sts-button>
+				</sts-menu>
 
 				<sts-transform-toolbar class="v-start h-center"></sts-transform-toolbar>
 
@@ -276,5 +343,6 @@ export class AppElement extends LitElement {
 			` : nothing}
 		</sts-scene-data-provider>
 		</sts-canvas-provider>
+		</sts-overlay-provider>
 	`;
 }

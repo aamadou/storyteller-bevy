@@ -1,0 +1,35 @@
+:host {
+	display: flex;
+	flex-direction: column;
+	border-radius: 0.5rem;
+	padding: 0.5rem 0;
+	min-width: 220px;
+
+	background: #0006;
+	backdrop-filter: blur(16px);
+	overflow: hidden;
+}
+
+::slotted(sts-button) {
+	background: unset;
+	backdrop-filter: unset;
+	border-radius: unset;
+}
+
+::slotted(sts-button:hover) {
+	background: #0004;
+
+	// FIXME: https://github.com/w3c/csswg-drafts/issues/3896
+	&::part(icon) {
+		opacity: 0.75;
+	}
+}
+
+::slotted(hr) {
+	display: block;
+	width: 100%;
+	border: none;
+	height: 1px;
+	margin: 0.5rem 0;
+	background: #FFF1;
+}
