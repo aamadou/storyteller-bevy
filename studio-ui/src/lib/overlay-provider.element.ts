@@ -6,6 +6,15 @@ import { styleMap } from "lit/directives/style-map.js";
 
 export const OVERLAY_PROVIDER = UniqueToken.create<OverlayProvider>();
 
+// TODO: Document this
+export interface OverlayProvider {
+	attach(host: LitElement, template: TemplateResult): WeakRef<OverlayHandle>;
+	detach(handle: WeakRef<OverlayHandle>): void;
+	reRender(handle: WeakRef<OverlayHandle>): void;
+}
+
+
+// TODO: Document this
 export interface OverlayHandle {
 	readonly id: number;
 }
@@ -22,12 +31,6 @@ class OverlayHandleInternal implements OverlayHandle {
 	}
 }
 
-export interface OverlayProvider {
-	attach(receiver: LitElement, template: TemplateResult): WeakRef<OverlayHandle>;
-	detach(handle: WeakRef<OverlayHandle>): void;
-	reRender(handle: WeakRef<OverlayHandle>): void;
-}
-
 @customElement("sts-overlay-provider")
 @provide(OVERLAY_PROVIDER)
 export class OverlayProviderElement
@@ -39,7 +42,7 @@ export class OverlayProviderElement
 	#containerTemplates: TemplateResult[] = [];
 	#templates: [LitElement, TemplateResult][] = [];
 
-	attach(receiver: LitElement, template: TemplateResult): WeakRef<OverlayHandle> {
+	attach(host: LitElement, template: TemplateResult): WeakRef<OverlayHandle> {
 		const index = this.#templates.length;
 		const handle = new OverlayHandleInternal(index);
 
@@ -55,7 +58,7 @@ export class OverlayProviderElement
 				})}
 			></div>
 		`);
-		this.#templates.push([receiver, template]);
+		this.#templates.push([host, template]);
 
 		this.#updateLightDom();
 
@@ -87,8 +90,8 @@ export class OverlayProviderElement
 		const tuple = this.#templates[index];
 		if (!tuple) return;
 
-		const [receiver, template] = tuple;
-		render(template, container, { host: receiver });
+		const [host, template] = tuple;
+		render(template, container, { host });
 	}
 
 	#updateLightDom(): void {
@@ -98,8 +101,8 @@ export class OverlayProviderElement
 			const container = this.#containerRefs[i].value;
 			if (!container) throw new Error("Attempted to retrieve an invalid container ref!");
 
-			const [receiver, template] = this.#templates[i];
-			render(template, container, { host: receiver });
+			const [host, template] = this.#templates[i];
+			render(template, container, { host });
 		}
 	}
 
