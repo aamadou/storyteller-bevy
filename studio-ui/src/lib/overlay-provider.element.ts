@@ -2,17 +2,24 @@ import { UniqueToken, provide } from "@storyteller/framework";
 import { LitElement, TemplateResult, html, render } from "lit";
 import { customElement } from "lit/decorators.js";
 import { Ref, createRef, ref } from "lit/directives/ref.js";
-import { styleMap } from "lit/directives/style-map.js";
+import { StyleInfo, styleMap } from "lit/directives/style-map.js";
 
 export const OVERLAY_PROVIDER = UniqueToken.create<OverlayProvider>();
 
 // TODO: Document this
 export interface OverlayProvider {
-	attach(host: LitElement, template: TemplateResult): WeakRef<OverlayHandle>;
+	attach(
+		host: LitElement,
+		template: TemplateResult,
+		options?: AttachOptions,
+	): WeakRef<OverlayHandle>;
 	detach(handle: WeakRef<OverlayHandle>): void;
 	reRender(handle: WeakRef<OverlayHandle>): void;
 }
 
+export interface AttachOptions {
+	containerStyles?: Readonly<StyleInfo>;
+}
 
 // TODO: Document this
 export interface OverlayHandle {
@@ -42,9 +49,15 @@ export class OverlayProviderElement
 	#containerTemplates: TemplateResult[] = [];
 	#templates: [LitElement, TemplateResult][] = [];
 
-	attach(host: LitElement, template: TemplateResult): WeakRef<OverlayHandle> {
+	attach(
+		host: LitElement,
+		template: TemplateResult,
+		options: AttachOptions = {},
+	): WeakRef<OverlayHandle> {
 		const index = this.#templates.length;
 		const handle = new OverlayHandleInternal(index);
+
+		const containerStyles = options.containerStyles ?? {};
 
 		this.#handles.push(handle);
 		this.#containerRefs.push(createRef());
@@ -55,6 +68,7 @@ export class OverlayProviderElement
 				style=${styleMap({
 					position: "fixed",
 					inset: 0,
+					...containerStyles,
 				})}
 			></div>
 		`);

@@ -36,69 +36,6 @@ export class MenuElement extends LitElement {
 	#panelRef = createRef<MenuPanelElement>();
 	#handle?: WeakRef<OverlayHandle>;
 
-	protected override update(changes: PropertyValues<this>): void {
-		super.update(changes);
-
-		if (this.#handle)
-			this.overlay.reRender(this.#handle);
-	}
-
-	protected override updated(changes: PropertyValues<this>): void {
-		if (changes.has("trigger")) {
-			const prevTrigger = changes.get("trigger");
-			if (prevTrigger?.value) {
-				prevTrigger.value.removeEventListener("click", this.onTriggerClick);
-			}
-
-			const trigger = this.trigger.value;
-			if (!trigger) return;
-
-			trigger.setAttribute("aria-owns", this.#menuId);
-			trigger.ariaHasPopup = "true";
-			trigger.ariaExpanded = "false";
-
-			trigger.addEventListener("click", this.onTriggerClick);
-		}
-
-		super.updated(changes);
-	}
-
-	override disconnectedCallback(): void {
-		this.trigger.value?.removeEventListener("click", this.onTriggerClick);
-		super.disconnectedCallback();
-	}
-
-	onTriggerClick = (): void => {
-		this.show();
-	}
-
-	@on("window:click")
-	onWindowClick(event: PointerEvent): void {
-		if (!this.#handle || !this.#panelRef.value)
-			return;
-
-		const path = event.composedPath();
-		if (
-			!path.includes(this.#panelRef.value)
-			&& (!this.trigger.value || !path.includes(this.trigger.value))
-		) {
-			this.hide();
-		}
-	}
-
-	onMenuClick(event: PointerEvent): void {
-		event.stopPropagation();
-
-		if (
-			this.autoClose
-			&& event.target
-			&& event.target instanceof HTMLElement
-			&& event.target.role === "menuitem"
-		) {
-			this.hide();
-		}
-	}
-
 	show(): void {
 		const trigger = this.trigger.value;
 		if (!trigger) return;
@@ -118,14 +55,13 @@ export class MenuElement extends LitElement {
 					top: `${rect.bottom + 4}px`,
 					left: `${rect.left}px`,
 				})}
-				@click=${this.onMenuClick}
-			>
-				${
-					// Move the nodes assigned to the <sts-menu>'s slot into the
-					// <sts-menu-panel>'s slot
-					this.#slotRef.value?.assignedNodes()
-				}
-			</sts-menu-panel>
+				?autoClose=${this.autoClose}
+				@hide=${this.hide}
+			>${
+				// Move the nodes assigned to the <sts-menu>'s slot into the
+				// <sts-menu-panel>'s slot
+				this.#slotRef.value?.assignedNodes()
+			}</sts-menu-panel>
 		`);
 	}
 
@@ -149,6 +85,43 @@ export class MenuElement extends LitElement {
 		this.#handle = undefined;
 	}
 
+	protected override update(changes: PropertyValues<this>): void {
+		super.update(changes);
+
+		if (this.#handle)
+			this.overlay.reRender(this.#handle);
+	}
+
+	protected override updated(changes: PropertyValues<this>): void {
+		if (changes.has("trigger")) {
+			const prevTrigger = changes.get("trigger");
+			if (prevTrigger?.value) {
+				prevTrigger.value.removeEventListener("click", this.#onTriggerClick);
+			}
+
+			const trigger = this.trigger.value;
+			if (!trigger) return;
+
+			trigger.setAttribute("aria-owns", this.#menuId);
+			trigger.ariaHasPopup = "true";
+			trigger.ariaExpanded = "false";
+
+			trigger.addEventListener("click", this.#onTriggerClick);
+		}
+
+		super.updated(changes);
+	}
+
+	override disconnectedCallback(): void {
+		this.trigger.value?.removeEventListener("click", this.#onTriggerClick);
+		super.disconnectedCallback();
+	}
+
+	#onTriggerClick = (event: Event): void => {
+		event.stopPropagation();
+		this.show();
+	}
+
 	protected override render = () => html`
 		<slot ${ref(this.#slotRef)}></slot>
 	`
@@ -162,16 +135,33 @@ export class MenuPanelElement extends LitElement {
 	@property({ reflect: true })
 	override role = "menu";
 
+	@property({ type: Boolean })
+	autoClose = false;
+
 	#slotRef = createRef<HTMLSlotElement>();
 	getSlot(): HTMLSlotElement | undefined { return this.#slotRef.value; }
+
+	@on("click")
+	onClick(event: PointerEvent): void {
+		event.stopPropagation();
+
+		if (
+			this.autoClose
+			&& event.target
+			&& event.target instanceof HTMLElement
+			&& event.target.role === "menuitem"
+		) {
+			this.dispatchEvent(new CustomEvent("hide"));
+		}
+	}
+
+	@on("window:click")
+	onWindowClick(event: PointerEvent): void {
+		if (!event.composedPath().includes(this))
+			this.dispatchEvent(new CustomEvent("hide"));
+	}
 
 	protected override render = () => html`
 		<slot ${ref(this.#slotRef)}></slot>
 	`
-}
-
-declare global {
-	interface HTMLElementTagNameMap {
-		"sts-menu-panel": MenuPanelElement;
-	}
 }
