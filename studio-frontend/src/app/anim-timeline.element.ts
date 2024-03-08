@@ -22,7 +22,7 @@ import styles from "./anim-timeline.element.scss?inline";
 //       which would look something like:
 //       ```
 //       @memo(["rangeStart", "rangeEnd", "_renderWidth"])
-//       msPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
+//       secondsPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
 //       ```
 //       But that feels a little obtuse and overengineered. In this particular
 //       case we're probably only saving on the order of nanoseconds, so I'm
@@ -54,19 +54,19 @@ class Computed extends Number {
 export class AnimTimelineElement extends LitElement {
 	static override styles = unsafeCSS(styles);
 
-	/** The time (in ms) at the left edge of the timeline view */
+	/** The time (in seconds) at the left edge of the timeline view */
 	@property({ type: Number }) rangeStart = 0;
-	/** The time (in ms) at the right edge of the timeline view */
-	@property({ type: Number }) rangeEnd = 5_000;
+	/** The time (in seconds) at the right edge of the timeline view */
+	@property({ type: Number }) rangeEnd = 5;
 
-	/** The time (in ms) at the beginning of the active clip range */
+	/** The time (in seconds) at the beginning of the active clip range */
 	@property({ type: Number }) clipStart = 0;
-	/** The time (in ms) at the end of the active clip range */
-	@property({ type: Number }) clipEnd = 15_000;
+	/** The time (in seconds) at the end of the active clip range */
+	@property({ type: Number }) clipEnd = 15;
 
-	/** The time (in ms) of the current play-head position */
+	/** The time (in seconds) of the current play-head position */
 	@property({ type: Number }) playHead = 0;
-	/** Keyframe positions (in ms) */
+	/** Keyframe positions (in seconds) */
 	@property({ attribute: false }) keyframes: Record<string, number> = {};
 
 	@state() _selectedKeyframe: string | null = null;
@@ -74,7 +74,7 @@ export class AnimTimelineElement extends LitElement {
 	/** The width (in px) of the timeline view */
 	@state() _renderWidth!: number;
 
-	/** The offset from 0ms of the left edge of the timeline view, in px */
+	/** The offset from 0seconds of the left edge of the timeline view, in px */
 	@state() _offsetX = 0;
 	/** The vertical scroll offset (in px) */
 	@state() _offsetY = 0;
@@ -85,8 +85,8 @@ export class AnimTimelineElement extends LitElement {
 	 */
 	@state() _panning = false;
 
-	/** How many ms are represented by each px of horizontal space. */
-	msPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
+	/** How many seconds are represented by each px of horizontal space. */
+	pxPerSecond = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
 
 	#resizeObserver: ResizeObserver;
 
@@ -112,7 +112,7 @@ export class AnimTimelineElement extends LitElement {
 			|| changes.has("rangeEnd")
 			|| changes.has("_renderWidth")
 		) {
-			this.msPerPx.invalidate();
+			this.pxPerSecond.invalidate();
 		}
 
 		super.update(changes);
@@ -158,7 +158,7 @@ export class AnimTimelineElement extends LitElement {
 		// FIXME: When zooming the timeline, the transform origin should be
 		//        centered on the mouse cursor. Currently this does not work as
 		//        intended, always centering on the 00:00 timestamp instead.
-		const t = ((this._offsetX + origin) * this.msPerPx.get()) / currentRange;
+		const t = ((this._offsetX + origin) * this.pxPerSecond.get()) / currentRange;
 		console.log(`t: ${t}`);
 		console.log(`deltaStart: ${-deltaRange * t}`);
 		console.log(`deltaEnd:   ${deltaRange * (1 - t)}`);
@@ -184,24 +184,24 @@ export class AnimTimelineElement extends LitElement {
 	#pan(deltaPx: number): void {
 		this._offsetX += deltaPx;
 
-		const msPerPx = this.msPerPx.get();
-		const rangeStart = this.rangeStart - deltaPx * msPerPx;
-		const rangeEnd = this.rangeEnd - deltaPx * msPerPx;
+		const pxPerSecond = this.pxPerSecond.get();
+		const rangeStart = this.rangeStart - deltaPx * pxPerSecond;
+		const rangeEnd = this.rangeEnd - deltaPx * pxPerSecond;
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
 	}
 
 	#onPlayheadDrag(event: PointerEvent): void {
-		const deltaMs = event.movementX * this.msPerPx.get();
-		const updated = this.playHead + deltaMs;
+		const deltaSeconds = event.movementX * this.pxPerSecond.get();
+		const updated = this.playHead + deltaSeconds;
 
 		this.dispatchEvent(new CustomEvent("playHead-change", { detail: updated }));
 	}
 
 	#onKeyframeDrag(id: string, event: PointerEvent): void {
-		const deltaMs = event.movementX * this.msPerPx.get();
-		const updated = this.keyframes[id] + deltaMs;
+		const deltaSeconds = event.movementX * this.pxPerSecond.get();
+		const updated = this.keyframes[id] + deltaSeconds;
 
 		studio.updateKeyframe(id, updated);
 
@@ -221,14 +221,14 @@ export class AnimTimelineElement extends LitElement {
 	}
 
 	/**
-	 * Format a time value (in ms) for displaying in the timeline view
+	 * Format a time value (in seconds) for displaying in the timeline view
 	 */
-	#timestamp(ms: number) {
-		const sign = ms < 0 ? "-" : "";
-		ms = Math.abs(ms);
+	#timestamp(seconds: number) {
+		const sign = seconds < 0 ? "-" : "";
+		seconds = Math.abs(seconds);
 
-		let s = Math.floor(ms / 1000);
-		let frac = Math.round(ms % 1000);
+		let s = Math.floor(seconds);
+		let frac = Math.floor(seconds * 1000 - s * 1000);
 		if (frac === 1000) {
 			frac = 0;
 			s += 1;
@@ -252,28 +252,22 @@ export class AnimTimelineElement extends LitElement {
 	}
 
 	/**
-	 * Convert a time value (in ms) to a px offset from the left edge of the view
+	 * Convert a time value (in seconds) to a px offset from the left edge of the view
 	 */
-	#msToPx(ms: number): number {
-		return this._offsetX + ms / this.msPerPx.get();
+	#secondsToPx(seconds: number): number {
+		return this._offsetX + seconds * this.pxPerSecond.get();
 	}
 
 	protected override render = () => {
-		const msPerPx = this.msPerPx.get();
+		const pxPerSecond = this.pxPerSecond.get();
 		const range = this.rangeEnd - this.rangeStart;
 
-		let subdivsPerSec = 32;
-		let subdivsCount = (range / 1000) * subdivsPerSec;
-		let pxPerSubdiv = this._renderWidth / subdivsCount;
+		const subdivsCount = Math.floor(this._renderWidth / 64);
+		const pxPerSubdiv = this._renderWidth / subdivsCount;
+		const secondsPerSubdiv = pxPerSecond / pxPerSubdiv;
 
-		while (pxPerSubdiv < 64) {
-			subdivsPerSec /= 2;
-			subdivsCount = (range / 1000) * subdivsPerSec;
-			pxPerSubdiv = this._renderWidth / subdivsCount;
-		}
-
-		const msPerSubdiv = msPerPx * pxPerSubdiv;
-		const subdivs = new Array(Math.ceil(subdivsCount) + 2).fill(null);
+		console.log("Seconds per Subdiv: ", secondsPerSubdiv);
+		const subdivs = new Array(subdivsCount + 2).fill(null);
 
 		const fracPxOffset = this._offsetX % pxPerSubdiv;
 
@@ -299,17 +293,17 @@ export class AnimTimelineElement extends LitElement {
 			>
 				<div class="clip-region"
 					style=${styleMap({
-						left: `${this.#msToPx(this.clipStart)}px`,
-						right: `${this._renderWidth - this.#msToPx(this.clipEnd)}px`,
+						left: `${this.#secondsToPx(this.clipStart)}px`,
+						right: `${this._renderWidth - this.#secondsToPx(this.clipEnd)}px`,
 					})}
 				></div>
 
 				${subdivs.map((_, idx) => {
 					const pxOffset = (idx - 1) * pxPerSubdiv + fracPxOffset;
-					const ms = (startingIdx + idx) * msPerSubdiv;
+					const seconds = (startingIdx + idx) * secondsPerSubdiv;
 
-					const msFrac = Math.abs(Math.round(ms) % 1000);
-					const strong = msFrac === 0;
+					const secondsFrac = Math.abs(Math.round(seconds));
+					const strong = secondsFrac === 0;
 
 					return html`
 						<div
@@ -327,7 +321,7 @@ export class AnimTimelineElement extends LitElement {
 									left: `${pxOffset + 8}px`
 								})}
 							>
-								${this.#timestamp(ms)}
+								${seconds}
 							</span>
 						` : nothing}
 					`;
@@ -338,7 +332,7 @@ export class AnimTimelineElement extends LitElement {
 						move: this.#onPlayheadDrag
 					})}
 					style=${styleMap({
-						left: `${this.#msToPx(this.playHead)}px`
+						left: `${this.#secondsToPx(this.playHead)}px`
 					})}
 					tabindex="-1"
 				>
@@ -356,7 +350,7 @@ export class AnimTimelineElement extends LitElement {
 								selected: this._selectedKeyframe === id,
 							})}
 							style=${styleMap({
-								left: `${this.#msToPx(keyframe)}px`
+								left: `${this.#secondsToPx(keyframe)}px`
 							})}
 							tabindex="-1"
 							${drag({
