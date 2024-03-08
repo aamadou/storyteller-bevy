@@ -1,3 +1,4 @@
+import { match } from "@storyteller/utility";
 import axios, { AxiosResponse } from "axios";
 
 export class StorytellerApi {
@@ -7,17 +8,15 @@ export class StorytellerApi {
 	});
 
 	async createScene(file: File): Promise<MediaFileToken> {
-		type Response = {
-			success: boolean;
-			media_file_token: MediaFileToken;
-		}
-
-		const response = await this.#api.postForm<Response>("v1/engine/create_scene", {
-			uuid_idempotency_token: crypto.randomUUID(),
-			file,
-		}, {
-			headers: { Accept: "text/plain" },
-		});
+		const response = await this.#api.postForm<MediaUploadResponse>(
+			"v1/engine/create_scene",
+			{
+				uuid_idempotency_token: crypto.randomUUID(),
+				file,
+			}, {
+				headers: { Accept: "text/plain" },
+			},
+		);
 		this.#validateResponse(response);
 
 		return response.data.media_file_token;
@@ -50,6 +49,39 @@ export class StorytellerApi {
 		this.#validateResponse(response);
 
 		return response.data;
+	}
+
+	async uploadMediaFile(file: File, subtype: MediaFileSubtype): Promise<MediaFileToken> {
+		const [, _basename, extension] = file.name.match(/(.+?)\.(.+)/) ?? [];
+		const mimeType = match (extension, {
+			"fbx": () => "application/fbx",
+			"gltf": () => "model/gltf+json",
+			"glb": () => "model/gltf-binary",
+			"scn.ron": () => "text/ron",
+			_: () => "application/octet-stream",
+		});
+
+		const response = await this.#api.postForm<MediaUploadResponse>(
+			"v1/media_files/upload/engine_asset",
+			{
+				uuid_idempotency_token: crypto.randomUUID(),
+				file,
+				media_file_subtype: subtype,
+			},
+			{
+				headers: { Accept: mimeType },
+			},
+		);
+		this.#validateResponse(response);
+
+		return response.data.media_file_token;
+	}
+
+	async mediaFile(token: MediaFileToken): Promise<MediaFile> {
+		const response = await this.#api.get<MediaFileResult>(`v1/media_files/file/${token}`);
+		this.#validateResponse(response);
+
+		return response.data.media_file;
 	}
 
 	#validateResponse<R extends AxiosResponse>(response: R): asserts response is OkResponse<R> {
@@ -91,6 +123,11 @@ export interface ListMediaFilesResult {
 	success: boolean;
 }
 
+export interface MediaUploadResponse {
+	success: boolean;
+	media_file_token: MediaFileToken;
+}
+
 /**
  * Pagination by page id.
  *
@@ -104,6 +141,31 @@ export interface PaginationPage {
 	total_page_count: number;
 }
 
+export interface MediaFileResult {
+	success: boolean;
+	media_file: MediaFile;
+}
+
+export interface MediaFile {
+	token: MediaFileToken;
+	media_type: MediaFileType;
+	maybe_media_subtype?: MediaFileSubtype;
+	maybe_batch_token?: unknown;
+	public_bucket_path: string;
+	maybe_model_weight_info?: unknown;
+	maybe_creator_user?: UserDetailsLight;
+	creator_set_visibility: Visibility;
+	maybe_text_transcript?: string;
+	maybe_prompt_token?: unknown;
+	maybe_original_filename?: string;
+	is_emulated_media_file: boolean;
+	stats: Stats;
+	/** Date-time string */
+	created_at: string;
+	/** Date-time string */
+	updated_at: string;
+}
+
 export interface MediaFileListItem {
 	/** Date-time string */
 	created_at: string;
@@ -115,6 +177,7 @@ export interface MediaFileListItem {
 	/** Text transcripts for TTS, etc. */
 	maybe_text_transcript?: string;
 	media_type: MediaFileType;
+	maybe_media_subtype?: MediaFileSubtype;
 	origin: MediaFileOriginDetails;
 	origin_category: MediaFileOriginCategory;
 	origin_product_category: MediaFileOriginProductCategory;
@@ -124,6 +187,11 @@ export interface MediaFileListItem {
 	token: MediaFileToken;
 	/** Date-time string */
 	updated_at: string;
+}
+
+export interface Stats {
+	positive_rating_count: number;
+	bookmark_count: number;
 }
 
 export type MediaFileForUserListItem = Omit<MediaFileListItem, "maybe_creator">;
@@ -167,6 +235,39 @@ export enum MediaFileType {
 	Glb = "glb",
 	Gltf = "gltf",
 	ScnRon = "scene_ron",
+}
+
+export enum MediaFileSubtype {
+	/**
+	 * Animation file from Mixamo.
+	 * Primarily used for FBX and GLB.
+	 */
+	Mixamo = "mixamo",
+	/**
+	 * Animation file from MocapNet.
+	 * Primarily used for BVH.
+	 */
+	MocapNet = "mocap_net",
+	/**
+	 * Generic animation case.
+	 * Used for BVH files, but can also pertain to animation-only files of other
+	 * types.
+	 */
+	AnimationOnly = "animation_only",
+	/**
+	 * @deprecated Use `SceneImport` instead.
+	 */
+	Scene = "scene",
+	/**
+	 * Generic 3D scene file.
+	 * Can pertain to glTF, glB, FBX, etc.
+	 */
+	SceneImport = "scene_import",
+	/**
+	 * Native Storyteller scene format.
+	 * Typically stored in a `.scn.ron` file.
+	 */
+	StorytellerScene = "storyteller_scene",
 }
 
 /** Fields useful for enriching media file listings */
