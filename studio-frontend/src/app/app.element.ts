@@ -69,6 +69,8 @@ export class AppElement extends LitElement {
 
 	// TODO
 	override async connectedCallback(): Promise<void> {
+		super.connectedCallback();
+
 		try {
 			const session = await this.api.session();
 			console.log("session:", session);
@@ -94,8 +96,6 @@ export class AppElement extends LitElement {
 		catch (err) {
 			console.error(err);
 		}
-
-		super.connectedCallback();
 	}
 
 	@on("scene-saved")
