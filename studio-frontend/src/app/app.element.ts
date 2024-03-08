@@ -8,11 +8,12 @@ import {
 } from "@storyteller/studio";
 import { ButtonElement } from "@storyteller/studio-ui/button";
 import {
+	MediaFileType,
 	SceneHierarchyElement,
 	StorytellerApi,
 	StudioURLParams,
 } from "@storyteller/studio-web";
-import { match } from "@storyteller/utility";
+import { assert, match } from "@storyteller/utility";
 import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
@@ -64,6 +65,37 @@ export class AppElement extends LitElement {
 
 	protected override createRenderRoot(): Element | ShadowRoot {
 		return this;
+	}
+
+	// TODO
+	override async connectedCallback(): Promise<void> {
+		try {
+			const session = await this.api.session();
+			console.log("session:", session);
+
+			if (!session.logged_in)
+				return; // TODO: Prompt for login?
+
+			assert(session.user?.username != null);
+
+			const mediaFilesResult = await this.api.listMediaFiles({
+				username: session.user.username,
+				filterMediaType: [
+					MediaFileType.Bvh,
+					MediaFileType.Fbx,
+					MediaFileType.Glb,
+					MediaFileType.Gltf,
+					MediaFileType.Mocap,
+					MediaFileType.ScnRon,
+				],
+			});
+			console.log(mediaFilesResult);
+		}
+		catch (err) {
+			console.error(err);
+		}
+
+		super.connectedCallback();
 	}
 
 	@on("scene-saved")
