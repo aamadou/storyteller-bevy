@@ -1,0 +1,14 @@
+:host {
+	display: block;
+	min-width: 512px;
+	min-height: 256px;
+	max-width: 80%;
+	max-height: 80%;
+	padding: 1rem;
+	overflow: auto;
+
+	background: #0006;
+	color: #FFFC;
+	backdrop-filter: blur(16px);
+	border-radius: 0.5rem;
+}

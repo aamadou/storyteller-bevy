@@ -60,6 +60,9 @@ export class AddToSceneMenuElement extends LitElement {
 			<sts-button
 				role="menuitem"
 				icon="photo-film-music"
+				@click=${() => {
+					this.dispatchEvent(new CustomEvent("open-media-library"));
+				}}
 			>
 				Media library...
 			</sts-button>

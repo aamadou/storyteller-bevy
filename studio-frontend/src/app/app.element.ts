@@ -8,17 +8,17 @@ import {
 } from "@storyteller/studio";
 import { ButtonElement } from "@storyteller/studio-ui/button";
 import {
-	MediaFileType,
 	SceneHierarchyElement,
 	StorytellerApi,
 	StudioURLParams,
 } from "@storyteller/studio-web";
-import { assert, match } from "@storyteller/utility";
+import { match } from "@storyteller/utility";
 import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
+import { MediaLibraryElement } from "./media-library.element";
 
 import "@storyteller/studio-ui/button";
 import "@storyteller/studio-ui/icon";
@@ -37,6 +37,7 @@ import "./anim-editor.element";
 import "./help.element";
 
 import "./blocking.element";
+import "./media-library.element";
 
 import "./app.element.scss";
 
@@ -58,6 +59,7 @@ export class AppElement extends LitElement {
 	#enableAnimTimeline = false; // TODO
 
 	#addToSceneButtonRef = createRef<ButtonElement>();
+	#mediaLibraryRef = createRef<MediaLibraryElement>();
 	#inspectorRef = createRef<HTMLDivElement>();
 	#hierarchyRef = createRef<SceneHierarchyElement>();
 
@@ -65,37 +67,6 @@ export class AppElement extends LitElement {
 
 	protected override createRenderRoot(): Element | ShadowRoot {
 		return this;
-	}
-
-	// TODO
-	override async connectedCallback(): Promise<void> {
-		super.connectedCallback();
-
-		try {
-			const session = await this.api.session();
-			console.log("session:", session);
-
-			if (!session.logged_in)
-				return; // TODO: Prompt for login?
-
-			assert(session.user?.username != null);
-
-			const mediaFilesResult = await this.api.listMediaFiles({
-				username: session.user.username,
-				filterMediaType: [
-					MediaFileType.Bvh,
-					MediaFileType.Fbx,
-					MediaFileType.Glb,
-					MediaFileType.Gltf,
-					MediaFileType.Mocap,
-					MediaFileType.ScnRon,
-				],
-			});
-			console.log(mediaFilesResult);
-		}
-		catch (err) {
-			console.error(err);
-		}
 	}
 
 	@on("scene-saved")
@@ -220,7 +191,14 @@ export class AppElement extends LitElement {
 
 			<!-- Studio-mode-only elements -->
 			${this.#params.mode === StudioMode.Editor ? html`
-				<sts-add-to-scene-menu .trigger=${this.#addToSceneButtonRef}></sts-add-to-scene-menu>
+				<sts-add-to-scene-menu
+					.trigger=${this.#addToSceneButtonRef}
+					@open-media-library=${() => {
+						this.#mediaLibraryRef.value?.open();
+					}}
+				></sts-add-to-scene-menu>
+				<sts-media-library ${ref(this.#mediaLibraryRef)}></sts-media-library>
+
 				<sts-transform-toolbar class="v-start h-center"></sts-transform-toolbar>
 
 				${this.showInspector ? html`
