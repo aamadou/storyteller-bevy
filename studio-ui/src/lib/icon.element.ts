@@ -12,6 +12,7 @@ import farCube from "@fortawesome/fontawesome-pro/svgs/regular/cube.svg?raw";
 import farGlobe from "@fortawesome/fontawesome-pro/svgs/regular/globe.svg?raw";
 import farUpDownLeftRight from "@fortawesome/fontawesome-pro/svgs/regular/arrows-up-down-left-right.svg?raw";
 import fasPlay from "@fortawesome/fontawesome-pro/svgs/solid/play.svg?raw";
+import fasPause from "@fortawesome/fontawesome-pro/svgs/solid/pause.svg?raw";
 import fasFwdStep from "@fortawesome/fontawesome-pro/svgs/solid/forward-step.svg?raw";
 import fasFwdFast from "@fortawesome/fontawesome-pro/svgs/solid/forward-fast.svg?raw";
 import fasBwdStep from "@fortawesome/fontawesome-pro/svgs/solid/backward-step.svg?raw";
@@ -77,6 +78,7 @@ function renderSvg(iconId: string) {
 		"minus": () => fasMinus,
 		"globe": () => farGlobe,
 		"play": () => fasPlay,
+		"pause": () => fasPause,
 		"question": () => fasQuestion,
 		"rotate": () => farRotate,
 		"scale": () => farScale,

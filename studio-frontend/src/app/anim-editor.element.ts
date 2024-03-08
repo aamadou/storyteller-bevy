@@ -1,5 +1,5 @@
 import * as studio from "@storyteller/studio";
-import { type CameraKeyframesEvent } from "@storyteller/studio";
+import { type CameraKeyframesEvent, type SeekTimeChanged, type UpdateAnimationTargets } from "@storyteller/studio";
 import { bind, drag, on } from "@storyteller/framework";
 import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
@@ -25,6 +25,7 @@ export class AnimEditorElement extends LitElement {
 	@state() clipEnd = 15_000;
 
 	@state() playHead = 0;
+	@state() playing = false;
 	@state() keyframes: Record<string, number> = {};
 
 	protected override update(changes: PropertyValues<this>): void {
@@ -34,9 +35,21 @@ export class AnimEditorElement extends LitElement {
 		super.update(changes);
 	}
 
+	@on("window:seek-time-changed")
+	onSeekTimeChanged({ detail: {time, playing} }: SeekTimeChanged ): void {
+		console.log("Seek Time Changed", time, playing);
+		this.playHead = time;
+		this.playing = playing;
+	}
+
 	@on("window:camera-keyframes")
 	onCameraKeyframeChanges({ detail: keyframes }: CameraKeyframesEvent): void {
 		this.keyframes = keyframes;
+	}
+
+	@on("window:update-animation-targets")
+	onUpdateAnimationTargets({detail: { added, removed}}: UpdateAnimationTargets) : void {
+		
 	}
 
 	onSidebarResize(event: PointerEvent): void {
@@ -81,6 +94,14 @@ export class AnimEditorElement extends LitElement {
 		this.playHead = this.clipEnd;
 	}
 
+	togglePlaying(): void {
+		if (this.playing) {
+			studio.pause();
+		} else {
+			studio.play();
+		}
+	}
+
 	protected override render = (): TemplateResult => html`
 		<div class="sidebar"
 			style=${styleMap({
@@ -110,9 +131,10 @@ export class AnimEditorElement extends LitElement {
 						@click=${this.prevKeyframe}
 					></sts-button>
 					<sts-button class="play"
-						icon="play"
+						icon=${this.playing ? "pause" : "play" }
 						aria-label="Play"
 						title="Play"
+						@click=${this.togglePlaying}
 					></sts-button>
 					<sts-button
 						icon="fwd-step"

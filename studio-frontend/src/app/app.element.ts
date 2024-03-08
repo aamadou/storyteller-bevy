@@ -46,7 +46,7 @@ export class AppElement extends LitElement {
 	@state() inspectorWidth = 320;
 	@state() hierarchyHeight?: number;
 
-	#enableAnimTimeline = false; // TODO
+	#enableAnimTimeline = true; // TODO
 
 	#inspectorRef = createRef<HTMLDivElement>();
 	#hierarchyRef = createRef<SceneHierarchyElement>();

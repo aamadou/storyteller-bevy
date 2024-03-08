@@ -23,13 +23,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
-    camera_controller::{CameraController, CameraControllerBundle},
-    change_tracking::{ChangeTracker, ChangeTrackingPlugin},
-    debug::DebugPoint,
-    headless::{is_headless, is_not_headless, HeadlessSettings},
-    math::{Combinable, Extrema},
-    screenshot::ScreenCapture,
-    MainCamera,
+    anim::timeline_animation::AnimationTarget, camera_controller::{CameraController, CameraControllerBundle}, change_tracking::{ChangeTracker, ChangeTrackingPlugin}, debug::DebugPoint, headless::{is_headless, is_not_headless, HeadlessSettings}, math::{Combinable, Extrema}, screenshot::ScreenCapture, MainCamera
 };
 
 pub struct ScenePlugin;
@@ -260,6 +254,7 @@ fn initialize(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
+        AnimationTarget,
         ChangeTracker,
         Camera3dBundle {
             transform: camera_xform,
@@ -316,6 +311,7 @@ fn initialiaze_headless(
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
+        AnimationTarget,
         Camera3dBundle {
             transform: camera_xform,
             tonemapping: Tonemapping::BlenderFilmic,

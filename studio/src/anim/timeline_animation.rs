@@ -23,14 +23,22 @@ impl Plugin for TimelinePlugin {
             playing: false,
         });
 
-        #[cfg(feature = "wasm")]
-        app.add_systems(
-            Update,
-            (
-                wasm::update_global_seek_time,
-                wasm::notify_seek_time_changes.map(bevy::utils::error),
-            ),
+        app.add_systems(PreUpdate,
+            (process_timeline_events, update_tick).chain(),
         );
+
+        #[cfg(feature = "wasm")]
+        {
+            app.add_systems(First, 
+                wasm::update_global_seek_time);
+            app.add_systems(
+                Update,
+                (
+                    wasm::notify_seek_time_changes.map(bevy::utils::error),
+                    wasm::notify_updated_animation_targets.map(bevy::utils::error)
+                ),
+            );
+        }
     }
 }
 
@@ -55,6 +63,7 @@ pub struct TimedAnimationClip {
     start_time: f32,
     duration: f32,
     incoming_transition_duration: f32,
+    speed: f32,
     target: Entity,
 }
 
@@ -89,6 +98,7 @@ impl Default for TimedAnimationClip {
             clip: Default::default(),
             start_time: Default::default(),
             duration: Default::default(),
+            speed: 1.0,
             incoming_transition_duration: Default::default(),
             target: Entity::PLACEHOLDER,
         }
@@ -105,14 +115,31 @@ impl MapEntities for TimedAnimationClip {
 #[reflect(Component)]
 pub struct AnimationTarget;
 
+fn process_timeline_events(mut e_timeline_event: EventReader<TimelineEvent>, mut r_global_seek_time: ResMut<GlobalSeekTime>) {
+    for event in e_timeline_event.read() {
+        match event {
+            TimelineEvent::Play => r_global_seek_time.playing = true,
+            TimelineEvent::Pause => r_global_seek_time.playing = false,
+            TimelineEvent::Seek(time) => r_global_seek_time.time = *time,
+        }
+    }
+}
+
+fn update_tick(mut r_global_seek_time: ResMut<GlobalSeekTime>, time: Res<Time>) {
+    if r_global_seek_time.playing {
+        r_global_seek_time.time += time.delta_seconds();
+    }
+}
+
 #[cfg(feature = "wasm")]
 mod wasm {
-    use bevy::{prelude::*, window::PrimaryWindow};
+    use bevy::{prelude::*, utils::hashbrown::HashMap, window::PrimaryWindow};
+    use serde::{Deserialize, Serialize};
     use wasm_bindgen::prelude::*;
 
     use crate::wasm::{StaticBuffer, WasmMessageBuffer};
 
-    use super::{GlobalSeekTime, TimelineEvent};
+    use super::{AnimationTarget, GlobalSeekTime, TimelineEvent};
 
     static SEEK_TIME: WasmMessageBuffer<TimelineEvent> = WasmMessageBuffer::new();
 
@@ -138,26 +165,84 @@ mod wasm {
     }
 
     #[wasm_bindgen(typescript_custom_section)]
-    const SEEK_TIME_CHANGED_EVENT: &str = r#"
+    const TIMELINE_TYPES: &str = r#"
     export interface SeekTimeChanged extends CustomEvent {
         type: "seek-time-changed";
-        detail: number;
+        detail: {
+            time: number,
+            playing: bool
+        };
+    }
+
+    export interface UpdateAnimationTargets extends CustomEvent {
+        type: "update-animation-targets",
+        details: {
+            added: Record<string, { name?: string, target_type: 'camera' | 'transform' }>,
+            removed: string[]
+        }
     }
     
     declare global {
         export interface GlobalEventHandlersEventMap {
             "seek-time-changed": CameraKeyframesEvent; 
+            "update-animation-targets": UpdateAnimationTargets;
         }
     }
     "#;
+
+    const CAMERA : &str = "camera";
+    const TRANSFORM : &str = "transform";
+
+    #[derive(Serialize, Deserialize)]
+    struct AddedAnimationTargetRecordItem {
+        name: Option<String>,
+        target_type: String
+    }
+
+    
+
+    #[derive(Serialize, Deserialize)]
+    struct UpdatedAnimationTargetsEvent {
+        added: HashMap<Entity, AddedAnimationTargetRecordItem>,
+        removed: Vec<Entity>
+    }
+
+    pub(super) fn notify_updated_animation_targets(
+        q_window: Query<&Window, With<PrimaryWindow>>,
+        q_cameras: Query<(Entity, Option<&Name>), (Added<AnimationTarget>, With<Camera>)>,
+        q_transforms: Query<(Entity, Option<&Name>), (Added<AnimationTarget>, With<Transform>, Without<Camera>)>,
+        mut removed: bevy::prelude::RemovedComponents<AnimationTarget>
+    ) -> Result<(), String> {
+        let Ok(window) = q_window.get_single() else {
+            return Ok(());
+        };
+
+        let added = q_transforms.iter().map(|(entity, name)| {
+            (entity, AddedAnimationTargetRecordItem { name: name.map(|v| v.to_string()), target_type: TRANSFORM.to_owned()})
+        }).chain(q_cameras.iter().map(|(entity, name)| (entity, AddedAnimationTargetRecordItem { name: name.map(|v| v.to_string()), target_type: CAMERA.to_owned()}))).collect::<HashMap<_,_>>();
+
+        let removed = removed.read().collect::<Vec<_>>();
+
+        let event = UpdatedAnimationTargetsEvent { added, removed };
+
+        crate::wasm::dispatch_to_js(
+            window,
+            "update-animation-targets",
+            &serde_json::to_value(&event).map_err(|e| format!("{e}"))?,
+        )
+    }
 
     pub(super) fn notify_seek_time_changes(
         r_global_seek_time: Res<GlobalSeekTime>,
         q_window: Query<&Window, With<PrimaryWindow>>,
     ) -> Result<(), String> {
+        if !r_global_seek_time.is_changed() {
+            return Ok(());
+        }
         let Ok(window) = q_window.get_single() else {
             return Ok(());
         };
+        info!("Current Seek Time: {r_global_seek_time:?}");
 
         crate::wasm::dispatch_to_js(
             window,
