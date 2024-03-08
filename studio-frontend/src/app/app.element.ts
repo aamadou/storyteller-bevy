@@ -1,4 +1,4 @@
-import { drag, on } from "@storyteller/framework";
+import { drag, on, provide } from "@storyteller/framework";
 import * as studio from "@storyteller/studio";
 import {
 	type SceneSavedEvent,
@@ -9,6 +9,7 @@ import {
 import { ButtonElement } from "@storyteller/studio-ui/button";
 import {
 	SceneHierarchyElement,
+	StorytellerApi,
 	StudioURLParams,
 } from "@storyteller/studio-web";
 import { match } from "@storyteller/utility";
@@ -17,7 +18,6 @@ import { customElement, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
-import { v4 as uuid } from "uuid";
 
 import "@storyteller/studio-ui/button";
 import "@storyteller/studio-ui/icon";
@@ -40,6 +40,10 @@ import "./blocking.element";
 import "./app.element.scss";
 
 @customElement("app-root")
+@provide({
+	token: StorytellerApi,
+	provide() { return this.api; }
+})
 export class AppElement extends LitElement {
 	@state() showHelp = false;
 	@state() showInspector = false;
@@ -49,6 +53,7 @@ export class AppElement extends LitElement {
 	@state() inspectorWidth = 320;
 	@state() hierarchyHeight?: number;
 
+	private api = new StorytellerApi();
 	#enableAnimTimeline = false; // TODO
 
 	#addToSceneButtonRef = createRef<ButtonElement>();
@@ -63,34 +68,15 @@ export class AppElement extends LitElement {
 
 	@on("scene-saved")
 	async onSceneSaved({ detail: scene }: SceneSavedEvent): Promise<void> {
-		const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
-		const formData = new FormData();
-
-		formData.append("uuid_idempotency_token", uuid());
-		formData.append("file", file);
-
 		try {
-			const response = await fetch("https://api.fakeyou.com/v1/engine/create_scene", {
-				method: "POST",
-				credentials: "include",
-				headers: { "Accept": "text/plain" },
-				body: formData,
-			});
+			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
+			const token = await this.api.createScene(file);
 
-			if (response.ok) {
-				const resultJson: {
-					success: boolean;
-					media_file_token: string;
-				} = await response.json();
-
-				if (resultJson.success) {
-					this.dispatchEvent(new CustomEvent("scene-uploaded", {
-						detail: resultJson.media_file_token,
-						bubbles: true,
-						composed: true,
-					}));
-				}
-			}
+			this.dispatchEvent(new CustomEvent("scene-uploaded", {
+				detail: token,
+				bubbles: true,
+				composed: true,
+			}));
 		}
 		catch (err) {
 			console.error(err);

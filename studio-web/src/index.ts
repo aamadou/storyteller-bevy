@@ -6,6 +6,7 @@ export * from "./lib/inspector/inspector.types";
 export * from "./lib/loading.element";
 export * from "./lib/scene-data-provider.element";
 export * from "./lib/scene-hierarchy.element";
+export * from "./lib/storyteller-api";
 export * from "./lib/studio.element";
 export * from "./lib/transform-toolbar.element";
 export * from "./lib/url-params";
