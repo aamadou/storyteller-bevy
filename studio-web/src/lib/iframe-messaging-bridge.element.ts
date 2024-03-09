@@ -4,52 +4,52 @@ import { SceneState, type SceneStateEvent } from "@storyteller/studio";
 import { LitElement, nothing } from "lit";
 import { customElement } from "lit/decorators.js";
 
-const PARENT_ORIGIN_WHITELIST: readonly string[] = [
-	"https://fakeyou.com",
-	"https://storyteller.ai",
-	"https://staging.fakeyou.com",
-	"https://staging.storyteller.ai",
-	"https://feature-mvp--fakeyou.netlify.app",
-	"https://feature-mvp--storyteller-ai.netlify.app",
-	"http://dev.fakeyou.com:7000",
-	"http://dev.fakeyou.com:7001",
-	"http://dev.fakeyou.com:7002",
-	"http://devproxy.fakeyou.com:7000",
-	"http://devproxy.fakeyou.com:7001",
-	"http://devproxy.fakeyou.com:7002",
-	"http://dev.storyteller.ai:7000",
-	"http://dev.storyteller.ai:7001",
-	"http://dev.storyteller.ai:7002",
-	"http://devproxy.storyteller.ai:7000",
-	"http://devproxy.storyteller.ai:7001",
-	"http://devproxy.storyteller.ai:7002",
-	"http://localhost:7000",
-	"http://localhost:7001",
-	"http://localhost:7002",
-];
+//const PARENT_ORIGIN_WHITELIST: readonly string[] = [
+//	"https://fakeyou.com",
+//	"https://storyteller.ai",
+//	"https://staging.fakeyou.com",
+//	"https://staging.storyteller.ai",
+//	"https://feature-mvp--fakeyou.netlify.app",
+//	"https://feature-mvp--storyteller-ai.netlify.app",
+//	"http://dev.fakeyou.com:7000",
+//	"http://dev.fakeyou.com:7001",
+//	"http://dev.fakeyou.com:7002",
+//	"http://devproxy.fakeyou.com:7000",
+//	"http://devproxy.fakeyou.com:7001",
+//	"http://devproxy.fakeyou.com:7002",
+//	"http://dev.storyteller.ai:7000",
+//	"http://dev.storyteller.ai:7001",
+//	"http://dev.storyteller.ai:7002",
+//	"http://devproxy.storyteller.ai:7000",
+//	"http://devproxy.storyteller.ai:7001",
+//	"http://devproxy.storyteller.ai:7002",
+//	"http://localhost:7000",
+//	"http://localhost:7001",
+//	"http://localhost:7002",
+//];
 
 @customElement("sts-iframe-messaging-bridge")
 export class IframeMessagingBridgeElement extends LitElement {
 	#parentWindow?: Window;
-	#parentOrigin?: string;
+	//#parentOrigin?: string;
 
 	override connectedCallback(): void {
 		console.log('window.parent', window.parent);
-		console.log('window.parent.origin', window.parent.origin);
+		//console.log('window.parent.origin', window.parent.origin);
 		
 		try {
 			if (
 				window.parent
 				&& window.parent !== window
-				&& PARENT_ORIGIN_WHITELIST.includes(window.parent.origin)
+				//&& PARENT_ORIGIN_WHITELIST.includes(window.parent.origin)
 			) {
 				this.#parentWindow = window.parent;
-				this.#parentOrigin = window.parent.origin;
+				//this.#parentOrigin = window.parent.origin;
 			}
 		}
 		catch {
 			this.#parentWindow = undefined;
-			this.#parentOrigin = undefined;
+			//this.#parentOrigin = undefined;
 		}
 
 		super.connectedCallback();
@@ -58,10 +58,10 @@ export class IframeMessagingBridgeElement extends LitElement {
 	@on("window:message")
 	onParentMessage(event: MessageEvent<string>): void {
 		console.log('window.parent', window.parent);
-		console.log('window.parent.origin', window.parent.origin);
+		//console.log('window.parent.origin', window.parent.origin);
 
-		if (!this.#parentOrigin || event.origin !== this.#parentOrigin)
-			return;
+		//if (!this.#parentOrigin || event.origin !== this.#parentOrigin)
+		//	return;
 
 		if (event.data === "save-scene")
 			studio.saveScene();
@@ -70,24 +70,28 @@ export class IframeMessagingBridgeElement extends LitElement {
 	@on("window:scene-uploaded")
 	onSceneUploaded(event: CustomEvent<string>): void {
 		console.log('window.parent', window.parent);
-		console.log('window.parent.origin', window.parent.origin);
+		//console.log('window.parent.origin', window.parent.origin);
 
-		if (!this.#parentWindow || !this.#parentOrigin)
+		if (!this.#parentWindow  /*|| !this.#parentOrigin */)
 			return;
 
-		this.#parentWindow.postMessage(`scene-saved:${event.detail}`, this.#parentOrigin);
+		// NB: We'll need to receive and validate the targetOrigin by another method since CORS 
+		// removes our ability to inspect this via `window.parent.origin`.
+		//this.#parentWindow.postMessage(`scene-saved:${event.detail}`, this.#parentOrigin);
+		this.#parentWindow.postMessage(`scene-saved:${event.detail}`, "*");
 	}
 
 	@on("window:scene-state")
 	onSceneStateChange({ detail: state }: SceneStateEvent): void {
 		console.log('window.parent', window.parent);
-		console.log('window.parent.origin', window.parent.origin);
+		//console.log('window.parent.origin', window.parent.origin);
 
-		if (!this.#parentWindow || !this.#parentOrigin)
+		if (!this.#parentWindow /* || !this.#parentOrigin */)
 			return;
 
 		if (state === SceneState.Active)
-			this.#parentWindow.postMessage("studio-ready", this.#parentOrigin);
+			//this.#parentWindow.postMessage("studio-ready", this.#parentOrigin);
+			this.#parentWindow.postMessage("studio-ready", "*");
 	}
 
 	protected override render = () => nothing;
