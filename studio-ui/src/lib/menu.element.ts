@@ -4,6 +4,7 @@ import { customElement, property } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
+import { v4 as uuid } from "uuid";
 
 import panelStyles from "./menu.element.scss?inline";
 
@@ -31,7 +32,7 @@ export class MenuElement extends LitElement {
 	@inject(OVERLAY_PROVIDER)
 	overlay!: OverlayProvider;
 
-	#menuId = crypto.randomUUID();
+	#menuId = uuid();
 	#slotRef = createRef<HTMLSlotElement>();
 	#panelRef = createRef<MenuPanelElement>();
 	#handle?: WeakRef<OverlayHandle>;

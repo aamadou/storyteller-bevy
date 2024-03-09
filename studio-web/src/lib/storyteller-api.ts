@@ -1,5 +1,6 @@
 import { match } from "@storyteller/utility";
 import axios, { AxiosResponse } from "axios";
+import { v4 as uuid } from "uuid";
 
 export class StorytellerApi {
 	#api = axios.create({
@@ -11,7 +12,7 @@ export class StorytellerApi {
 		const response = await this.#api.postForm<MediaUploadResponse>(
 			"v1/engine/create_scene",
 			{
-				uuid_idempotency_token: crypto.randomUUID(),
+				uuid_idempotency_token: uuid(),
 				file,
 			}, {
 				headers: { Accept: "text/plain" },
@@ -64,7 +65,7 @@ export class StorytellerApi {
 		const response = await this.#api.postForm<MediaUploadResponse>(
 			"v1/media_files/upload/engine_asset",
 			{
-				uuid_idempotency_token: crypto.randomUUID(),
+				uuid_idempotency_token: uuid(),
 				file,
 				media_file_subtype: subtype,
 			},
