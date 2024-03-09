@@ -34,6 +34,9 @@ export class IframeMessagingBridgeElement extends LitElement {
 	#parentOrigin?: string;
 
 	override connectedCallback(): void {
+		console.log('window.parent', window.parent);
+		console.log('window.parent.origin', window.parent.origin);
+		
 		try {
 			if (
 				window.parent
@@ -54,6 +57,9 @@ export class IframeMessagingBridgeElement extends LitElement {
 
 	@on("window:message")
 	onParentMessage(event: MessageEvent<string>): void {
+		console.log('window.parent', window.parent);
+		console.log('window.parent.origin', window.parent.origin);
+
 		if (!this.#parentOrigin || event.origin !== this.#parentOrigin)
 			return;
 
@@ -63,6 +69,9 @@ export class IframeMessagingBridgeElement extends LitElement {
 
 	@on("window:scene-uploaded")
 	onSceneUploaded(event: CustomEvent<string>): void {
+		console.log('window.parent', window.parent);
+		console.log('window.parent.origin', window.parent.origin);
+
 		if (!this.#parentWindow || !this.#parentOrigin)
 			return;
 
@@ -71,6 +80,9 @@ export class IframeMessagingBridgeElement extends LitElement {
 
 	@on("window:scene-state")
 	onSceneStateChange({ detail: state }: SceneStateEvent): void {
+		console.log('window.parent', window.parent);
+		console.log('window.parent.origin', window.parent.origin);
+
 		if (!this.#parentWindow || !this.#parentOrigin)
 			return;
 
