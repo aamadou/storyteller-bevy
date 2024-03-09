@@ -1,0 +1,30 @@
+# https://answers.netlify.com/t/access-control-allow-origin-to-multiple-domains/23969
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = '''
+    http://dev.fakeyou.com,
+    http://dev.fakeyou.com:7000,
+    http://dev.fakeyou.com:7001,
+    http://dev.fakeyou.com:7002,
+    http://dev.storyteller.ai,
+    http://dev.storyteller.ai:7000,
+    http://dev.storyteller.ai:7001,
+    http://dev.storyteller.ai:7002,
+    http://devproxy.fakeyou.com:7000,
+    http://devproxy.fakeyou.com:7001,
+    http://devproxy.fakeyou.com:7002,
+    http://devproxy.storyteller.ai,
+    http://devproxy.storyteller.ai:7000,
+    http://devproxy.storyteller.ai:7001,
+    http://devproxy.storyteller.ai:7002,
+    https://api.fakeyou.com,
+    https://engine.fakeyou.com,
+    https://fakeyou.com,
+    https://feature-mvp--fakeyou.netlify.app,
+    https://feature-mvp--storyteller-ai.netlify.app,
+    https://staging.fakeyou.com,
+    https://staging.storyteller.ai,
+    https://storyteller.ai,
+    https://example.com'''
+
