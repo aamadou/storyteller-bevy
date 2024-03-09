@@ -4,3 +4,7 @@
     # NB: This is potentially dangerous, but I don't think we have much other choice:
     Access-Control-Allow-Origin = "*"
 
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors
+    # NB: The *.netlify.app is dangerous.
+    Content-Security-Policy = "frame-ancestors 'self' https://fakeyou.com https://*.fakeyou.com https://storyteller.ai https://*.storyteller.ai https://*.netlify.app;"
+
