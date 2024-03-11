@@ -21,6 +21,11 @@ frontend project, run:
 npx nx serve studio-frontend
 ```
 
+You'll need to install the wasm compiler for Rust: 
+```
+rustup target add wasm32-unknown-unknown
+```
+
 Projects are located in directories at the workspace root. The list of commands
 supported by a given project can be found under the `target` property of its
 `project.json` file, which defines the Nx configuration for that project.

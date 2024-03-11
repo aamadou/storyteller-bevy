@@ -15,7 +15,7 @@ export function on(eventSelector: string) {
 		? eventSelector.split(":")
 		: [null, eventSelector];
 
-	let target = match (targetName, {
+	const target = match (targetName, {
 		"window": () => window as EventTarget,
 		"document": () => document as EventTarget,
 		_: () => null,
@@ -23,17 +23,35 @@ export function on(eventSelector: string) {
 
 	return <T extends LitElement>(proto: T, propName: keyof T, desc: PropertyDescriptor) => {
 		const handler = getMethodDescriptor(proto, propName)?.value ?? (() => {});
+		const $handler = Symbol(String(propName));
+
+		type Decorated = T & {
+			[$handler]: typeof handler;
+		}
 
 		prependRoutine(proto, "connectedCallback", function (this: T) {
-			target ??= this;
-			target.addEventListener(eventName, handler.bind(this));
+			assertType<Decorated>(this);
+			this[$handler] ??= handler.bind(this);
+
+			if (target) {
+				target.addEventListener(eventName, this[$handler]);
+			} else {
+				this.addEventListener(eventName, this[$handler]);
+			}
 		});
 
 		prependRoutine(proto, "disconnectedCallback", function (this: T) {
-			target ??= this;
-			target.removeEventListener(eventName, handler.bind(this));
+			assertType<Decorated>(this);
+
+			if (target) {
+				target.removeEventListener(eventName, this[$handler]);
+			} else {
+				this.removeEventListener(eventName, this[$handler]);
+			}
 		});
 
 		return desc;
 	}
 }
+
+function assertType<T>(value: unknown): asserts value is T {}
