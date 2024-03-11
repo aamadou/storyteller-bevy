@@ -144,7 +144,8 @@ export class AppElement extends LitElement {
 		this.showHelp = !this.showHelp;
 	}
 
-	protected override render = () => html`
+	protected override render() {
+		return html`
 		<sts-canvas-provider class="app-root">
 		<sts-scene-data-provider>
 			<sts-iframe-messaging-bridge></sts-iframe-messaging-bridge>
@@ -277,4 +278,5 @@ export class AppElement extends LitElement {
 		</sts-scene-data-provider>
 		</sts-canvas-provider>
 	`;
+	}
 }
