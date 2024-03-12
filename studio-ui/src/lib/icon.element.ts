@@ -31,6 +31,14 @@ import fasCircleXmark from "@fortawesome/fontawesome-pro/svgs/solid/circle-xmark
 import fasMinus from "@fortawesome/fontawesome-pro/svgs/solid/minus.svg?raw";
 import fasListTree from "@fortawesome/fontawesome-pro/svgs/solid/list-tree.svg?raw";
 import fasBars from "@fortawesome/fontawesome-pro/svgs/solid/bars.svg?raw";
+import fasPlusLarge from "@fortawesome/fontawesome-pro/svgs/solid/plus-large.svg?raw";
+import farFileImport from "@fortawesome/fontawesome-pro/svgs/regular/file-import.svg?raw";
+import farPhotoFilmMusic from "@fortawesome/fontawesome-pro/svgs/regular/photo-film-music.svg?raw";
+import fasChevronDown from "@fortawesome/fontawesome-pro/svgs/solid/chevron-down.svg?raw";
+
+import customCylinder from "../assets/icons/cylinder.svg?raw";
+import customSphere from "../assets/icons/sphere.svg?raw";
+import customTorus from "../assets/icons/torus.svg?raw";
 
 import styles from "./icon.element.scss?inline";
 
@@ -61,13 +69,16 @@ function renderSvg(iconId: string) {
 		"bone": () => farBone,
 		"bwd-fast": () => fasBwdFast,
 		"bwd-step": () => fasBwdStep,
+		"caret-right": () => fasCaretRight,
 		"check": () => fasCheck,
+		"chevron-down": () => fasChevronDown,
 		"circle-check": () => fasCircleCheck,
 		"circle-question": () => fasCircleQuestion,
 		"circle-xmark": () => fasCircleXmark,
-		"caret-right": () => fasCaretRight,
 		"crosshairs": () => farCrosshairs,
 		"cube": () => farCube,
+		"cylinder": () => customCylinder,
+		"file-import": () => farFileImport,
 		"floppy-disk": () => fasFloppyDisk,
 		"fwd-fast": () => fasFwdFast,
 		"fwd-step": () => fasFwdStep,
@@ -76,11 +87,15 @@ function renderSvg(iconId: string) {
 		"list-tree": () => fasListTree,
 		"minus": () => fasMinus,
 		"globe": () => farGlobe,
+		"photo-film-music": () => farPhotoFilmMusic,
 		"play": () => fasPlay,
+		"plus-large": () => fasPlusLarge,
 		"question": () => fasQuestion,
 		"rotate": () => farRotate,
 		"scale": () => farScale,
 		"skeleton": () => farSkeleton,
+		"sphere": () => customSphere,
+		"torus": () => customTorus,
 		"up-down-left-right": () => farUpDownLeftRight,
 		"video": () => farVideo,
 		"xmark": () => fasXmark,
@@ -89,7 +104,7 @@ function renderSvg(iconId: string) {
 
 	if (!svgSrc) return nothing;
 
-	const [, attrsString, body] = svgSrc.match(/<svg(.+?)>(.+?)<\/svg>/)!;
+	const [, attrsString, body] = svgSrc.match(/<svg(.+?)>(.+?)<\/svg>/s)!;
 	const attrs = Object.fromEntries(
 		Array.from(attrsString.matchAll(/([-:_a-zA-Z0-9]+)(?:=['"]?([^'"]*)['"]?)/g))
 			.map(([, attr, value]) => [attr, value])
