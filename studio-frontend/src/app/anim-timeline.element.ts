@@ -234,17 +234,33 @@ export class AnimTimelineElement extends LitElement {
 	}
 
 	protected override render() {
-		const {
-			subdivision: subdivisionScale,
-			major: majorSubdivisionScale,
-		} = {
-			subdivision: 0.5,
-			major: 1,
-		};
+		const range = this.rangeEnd - this.rangeStart;
+
+		let subdivisionScale = 0.5;
+		let majorSubdivisionScale = 1;
+
+		if (range < 0.5) {
+			subdivisionScale = 0.05;
+			majorSubdivisionScale = 0.1;
+		} else if (range < 2) {
+			subdivisionScale = 1 / 4;
+			majorSubdivisionScale = 0.5;
+		} else if (range > 120) {
+			subdivisionScale = 30;
+			majorSubdivisionScale = 60;
+		} else if (range > 60) {
+			subdivisionScale = 10;
+			majorSubdivisionScale = 30;
+		} else if (range > 10) {
+			subdivisionScale  = 5;
+			majorSubdivisionScale = 10;
+		} else if (range > 5) {
+			subdivisionScale = 1;
+			majorSubdivisionScale = 5;
+		}
 
 		const scaledStart = this.rangeStart / subdivisionScale;
 		const scaledEnd = this.rangeEnd / subdivisionScale;
-		const range = this.rangeEnd - this.rangeStart;
 
 		console.log("Scaled Start", scaledStart, "Scaled End", scaledEnd, "Range Start", this.rangeStart, "Range End", this.rangeEnd, "Range", range, "Playhead", this.playHead);
 		
