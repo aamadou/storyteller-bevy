@@ -1,7 +1,7 @@
 import * as studio from "@storyteller/studio";
 import { type CameraKeyframesEvent, type SeekTimeChanged, type UpdateAnimationTargets } from "@storyteller/studio";
 import { bind, drag, on } from "@storyteller/framework";
-import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult } from "lit";
+import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult, PropertyValueMap } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 
@@ -12,6 +12,12 @@ import "./anim-timeline.element";
 
 import styles from "./anim-editor.element.scss?inline";
 
+const TRACK_ICONS : Record<string, string> = {
+	camera: "video",
+	transform: "up-down-left-right",
+	light: "light"
+};
+
 @customElement("sts-anim-editor")
 export class AnimEditorElement extends LitElement {
 	static override styles = unsafeCSS(styles);
@@ -19,14 +25,25 @@ export class AnimEditorElement extends LitElement {
 	@state() sidebarWidth = 256;
 
 	@state() timelineStart = 0;
-	@state() timelineEnd = 5_000;
+	@state() timelineEnd = 5;
 
 	@state() clipStart = 0;
 	@state() clipEnd = 15_000;
 
 	@state() playHead = 0;
 	@state() playing = false;
-	@state() keyframes: Record<string, number> = {};
+
+	@state() tracks : Record<string, {name?: string, target_type: string }> = {};
+	
+	@state() track_ordered : string[] = [];
+
+	@state() keyframes : Record<string, number[]> = {};
+
+	@state() selected_track : string | null = null;
+
+	trackCount(): number {
+		return Object.keys(this.tracks).length;
+	}
 
 	protected override update(changes: PropertyValues<this>): void {
 		if (changes.has("playHead"))
@@ -42,14 +59,26 @@ export class AnimEditorElement extends LitElement {
 		this.playing = playing;
 	}
 
-	@on("window:camera-keyframes")
-	onCameraKeyframeChanges({ detail: keyframes }: CameraKeyframesEvent): void {
-		this.keyframes = keyframes;
-	}
-
 	@on("window:update-animation-targets")
 	onUpdateAnimationTargets({detail: { added, removed}}: UpdateAnimationTargets) : void {
+		let addedKeys = Object.keys(added);
+		if (addedKeys.length === 0 && removed.length === 0) {
+			return;
+		}
+		console.log("Animation Targets Changed");
+		let tracks = {...this.tracks};
+		for (let track_entity of addedKeys) {
+			let track = added[track_entity];
+			tracks[track_entity] = track;
+		}
 		
+		for (let track_entity of removed) {
+			delete tracks[track_entity];
+		}
+
+		this.track_ordered = Object.keys(tracks);
+
+		this.tracks = tracks;
 	}
 
 	onSidebarResize(event: PointerEvent): void {
@@ -67,25 +96,11 @@ export class AnimEditorElement extends LitElement {
 	prevKeyframe(): void {
 		let pos = this.playHead;
 
-		const keyframes = Array.from(Object.values(this.keyframes)).sort((a, b) => b - a);
-		for (let keyframe of keyframes) {
-			pos = keyframe;
-			if (keyframe < this.playHead)
-				break;
-		}
-
 		this.playHead = pos;
 	}
 
 	nextKeyframe(): void {
 		let pos = this.playHead;
-
-		const keyframes = Array.from(Object.values(this.keyframes)).sort((a, b) => a - b);
-		for (let keyframe of keyframes) {
-			pos = keyframe;
-			if (keyframe > this.playHead)
-				break;
-		}
 
 		this.playHead = pos;
 	}
@@ -95,6 +110,7 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	togglePlaying(): void {
+		console.log("toggling play");
 		if (this.playing) {
 			studio.pause();
 		} else {
@@ -102,10 +118,16 @@ export class AnimEditorElement extends LitElement {
 		}
 	}
 
-	protected override render = (): TemplateResult => html`
+	protected override render(): TemplateResult {
+		let track_count = {
+			'--track-count': `${this.trackCount()}`,
+			'--row-count': `calc(var(--track-count) + 1)`
+		};
+		return html`
 		<div class="sidebar"
 			style=${styleMap({
 				width: `${this.sidebarWidth}px`,
+				...track_count
 			})}
 		>
 			<sts-toolbar>
@@ -151,26 +173,29 @@ export class AnimEditorElement extends LitElement {
 				</sts-toolbar-group>
 			</sts-toolbar>
 			<div class="tracklist" role="list">
-				<sts-tree class="track"
-					role="listitem"
-					name="Camera"
-					icon="video"
-				></sts-tree>
-				<sts-tree class="track"
-					role="listitem"
-					name="Camera Target"
-					icon="crosshairs"
-				></sts-tree>
+			${
+				this.track_ordered.map((entity) => {
+					let track = this.tracks[entity];
+					let name = track.name ?? track.target_type;
+					let icon = TRACK_ICONS[track.target_type] ?? "minus";
+					return html!`<sts-tree class="track"
+						role="listitem"
+						name=${name}
+						icon=${icon}
+					></sts-tree>`;
+				})
+			}
 			</div>
 		</div>
 
-		<div class="divider"
+		<div class="divider" style=${styleMap(track_count)}
 			${drag({
 				move: this.onSidebarResize,
 			})}
 		></div>
 
 		<sts-anim-timeline class="timeline"
+		style=${styleMap(track_count)}
 			.rangeStart=${bind(this, "timelineStart")}
 			.rangeEnd=${bind(this, "timelineEnd")}
 			.clipStart=${this.clipStart}
@@ -178,5 +203,7 @@ export class AnimEditorElement extends LitElement {
 			.playHead=${bind(this, "playHead")}
 			.keyframes=${bind(this, "keyframes")}
 		></sts-anim-timeline>
-	`;
-}
+	`
+	};
+};
+
