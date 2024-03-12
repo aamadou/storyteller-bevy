@@ -137,7 +137,7 @@ mod wasm {
     use serde::{Deserialize, Serialize};
     use wasm_bindgen::prelude::*;
 
-    use crate::wasm::{StaticBuffer, WasmMessageBuffer};
+    use crate::{scene::SceneElement, wasm::{StaticBuffer, WasmMessageBuffer}};
 
     use super::{AnimationTarget, GlobalSeekTime, TimelineEvent};
 
@@ -177,7 +177,7 @@ mod wasm {
     export interface UpdateAnimationTargets extends CustomEvent {
         type: "update-animation-targets",
         details: {
-            added: Record<string, { name?: string, target_type: 'camera' | 'transform' }>,
+            added: Record<string, { name?: string, target_type: 'camera' | 'transform' | 'light' | 'bone' | 'skeleton' | 'mesh' >,
             removed: string[]
         }
     }
@@ -192,6 +192,10 @@ mod wasm {
 
     const CAMERA : &str = "camera";
     const TRANSFORM : &str = "transform";
+    const LIGHT : &str = "light";
+    const BONE : &str = "bone";
+    const SKELETON : &str = "skeleton";
+    const MESH : &str = "mesh";
 
     #[derive(Serialize, Deserialize)]
     struct AddedAnimationTargetRecordItem {
@@ -210,7 +214,8 @@ mod wasm {
     pub(super) fn notify_updated_animation_targets(
         q_window: Query<&Window, With<PrimaryWindow>>,
         q_cameras: Query<(Entity, Option<&Name>), (Added<AnimationTarget>, With<Camera>)>,
-        q_transforms: Query<(Entity, Option<&Name>), (Added<AnimationTarget>, With<Transform>, Without<Camera>)>,
+        q_scene_elements: Query<(Entity, Option<&Name>, &SceneElement), (Added<AnimationTarget>, Without<Camera>)>,
+        q_transforms: Query<(Entity, Option<&Name>), (Added<AnimationTarget>, With<Transform>, Without<Camera>, Without<SceneElement>)>,
         mut removed: bevy::prelude::RemovedComponents<AnimationTarget>
     ) -> Result<(), String> {
         let Ok(window) = q_window.get_single() else {
@@ -219,7 +224,15 @@ mod wasm {
 
         let added = q_transforms.iter().map(|(entity, name)| {
             (entity, AddedAnimationTargetRecordItem { name: name.map(|v| v.to_string()), target_type: TRANSFORM.to_owned()})
-        }).chain(q_cameras.iter().map(|(entity, name)| (entity, AddedAnimationTargetRecordItem { name: name.map(|v| v.to_string()), target_type: CAMERA.to_owned()}))).collect::<HashMap<_,_>>();
+        }).chain(q_cameras.iter().map(|(entity, name)| (entity, AddedAnimationTargetRecordItem { name: name.map(|v| v.to_string()), target_type: CAMERA.to_owned()})))
+        .chain(q_scene_elements.iter().map(|(entity, name, element)| (entity, AddedAnimationTargetRecordItem { name: name.map(|v| v.to_string()), target_type: match element {
+            SceneElement::Generic => TRANSFORM,
+            SceneElement::Mesh => MESH,
+            SceneElement::Skeleton => SKELETON,
+            SceneElement::Bone => BONE,
+            SceneElement::Light => LIGHT,
+            SceneElement::Camera => CAMERA,
+        }.to_string()}))).collect::<HashMap<_,_>>();
 
         let removed = removed.read().collect::<Vec<_>>();
 

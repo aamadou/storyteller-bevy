@@ -99,6 +99,7 @@ impl Plugin for ScenePlugin {
 fn minimal_scene_setup(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Directional Light"),
+        AnimationTarget,
         DirectionalLightBundle {
             directional_light: DirectionalLight {
                 shadows_enabled: false,
