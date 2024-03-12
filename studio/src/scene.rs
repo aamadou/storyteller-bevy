@@ -596,4 +596,29 @@ declare global {
 
         Ok(())
     }
+    
+//==============================================================================
+//           Spawing GLTF objects
+//==============================================================================
+
+    // static LOAD_GLTF : WasmMessageBuffer<String> = WasmMessageBuffer::new();
+    
+    // #[wasm_bindgen(js_name = spawnGltf)]
+    // pub fn spawn_gltf(path : String) {
+    //     let wrapper = LOAD_GLTF.get_or_init(|| ReentrantMutex::new(RefCell::new(Some(path.clone()))));
+    //     let guard = wrapper.lock();
+    //     *guard.borrow_mut() = Some(path);
+    // }
+    
+    // pub(super) fn load_gltf_object(
+    //     mut load_object_event: EventWriter<LoadLibraryObjectEvent>
+    // ) {
+    //     let wrapper = LOAD_GLTF.get_or_init(|| ReentrantMutex::new(RefCell::new(Some(path.clone()))));
+    //     let guard = wrapper.lock();
+        
+    //     if guard.borrow().is_some() {
+    //         load_object_event.send(LoadLibraryObjectEvent(guard.take().unwrap()));
+    //     }
+        
+    // }
 }

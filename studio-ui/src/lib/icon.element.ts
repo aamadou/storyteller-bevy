@@ -39,6 +39,7 @@ import fasChevronDown from "@fortawesome/fontawesome-pro/svgs/solid/chevron-down
 import customCylinder from "../assets/icons/cylinder.svg?raw";
 import customSphere from "../assets/icons/sphere.svg?raw";
 import customTorus from "../assets/icons/torus.svg?raw";
+import customMannequin from "../assets/icons/person.svg?raw";
 
 import styles from "./icon.element.scss?inline";
 
@@ -99,6 +100,7 @@ function renderSvg(iconId: string) {
 		"up-down-left-right": () => farUpDownLeftRight,
 		"video": () => farVideo,
 		"xmark": () => fasXmark,
+		"mannequin": () => customMannequin,
 		_: () => null,
 	});
 

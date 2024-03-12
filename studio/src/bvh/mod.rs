@@ -58,13 +58,13 @@ fn spawn_test_bvh(
             
             
             
-            let ent = cmd.spawn_bvh_with_transform(
-                &r_bvh.0,
-                Transform::from_scale(Vec3::splat(0.06))
-                    .with_translation(Vec3::new(0., 1.0, 0.524)),
-            );
+            // let ent = cmd.spawn_bvh_with_transform(
+            //     &r_bvh.0,
+            //     Transform::from_scale(Vec3::splat(0.06))
+            //         .with_translation(Vec3::new(0., 1.0, 0.524)),
+            // );
 
-            cmd.entity(ent).insert(RetargetSource);
+            // cmd.entity(ent).insert(RetargetSource);
         }
     }
 }

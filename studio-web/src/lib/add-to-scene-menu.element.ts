@@ -50,6 +50,15 @@ export class AddToSceneMenuElement extends LitElement {
 			>
 				Cylinder
 			</sts-button>
+			<sts-button
+							role="menuitem"
+							icon="mannequin"
+							@click=${() => {
+								studio.loadObject("Mannequin.gltf")
+							}}
+						>
+							Mannequin
+			</sts-button>
 			<hr />
 			<sts-button
 				role="menuitem"
