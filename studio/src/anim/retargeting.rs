@@ -412,6 +412,12 @@ impl RetargetMap {
         ("mixamorig:LeftFoot", "DEF-foot.L"),
         ("mixamorig:LeftToeBase", "DEF-toe.L"),
     ];
+    
+    ///This is a percentage total of the retargeting coverage
+    pub fn coverage(&self, names : impl IntoIterator<Item = String>) -> f32 {
+        let matches = names.into_iter().filter(|n| self.src_to_tgt.contains_key(n)).count();
+        matches as f32 / self.src_to_tgt.len() as f32
+    }
 }
 
 impl Default for RetargetMap {

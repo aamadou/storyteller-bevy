@@ -45,7 +45,7 @@ impl Plugin for BvhPlugin {
 
 // TODO: Rename & reorganize
 #[derive(Resource, Deref, DerefMut)]
-pub struct TestBvh(pub Handle<Bvh>);
+pub struct TestBvh(pub Handle<AnimationClip>);
 
 // TODO: Rename & reorganize
 fn spawn_test_bvh(
@@ -55,6 +55,9 @@ fn spawn_test_bvh(
 ) {
     for event in er_bvh_events.read() {
         if matches!(event, AssetEvent::LoadedWithDependencies { .. }) {
+            
+            
+            
             let ent = cmd.spawn_bvh_with_transform(
                 &r_bvh.0,
                 Transform::from_scale(Vec3::splat(0.06))
