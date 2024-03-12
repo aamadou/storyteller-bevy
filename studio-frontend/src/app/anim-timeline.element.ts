@@ -69,11 +69,6 @@ export class AnimTimelineElement extends LitElement {
 	/** The width (in px) of the timeline view */
 	@state() _renderWidth!: number;
 
-	/** The offset from 0seconds of the left edge of the timeline view, in px */
-	@state() _offsetX = 0;
-	/** The vertical scroll offset (in px) */
-	@state() _offsetY = 0;
-
 	/**
 	 * `true` when the timeline is being mouse-panned. Primarily useful for
 	 * setting the cursor style to the grabby hand.
@@ -120,7 +115,7 @@ export class AnimTimelineElement extends LitElement {
 		event.stopImmediatePropagation();
 
 		if (event.ctrlKey) {
-			this.#zoomTimeline(event.offsetX, event.deltaY);
+			this.#zoomTimeline(event.clientX, event.deltaY);
 		} else if (event.deltaX) {
 			this.#pan(-event.deltaX);
 		} else if (event.shiftKey && event.deltaY) {
@@ -149,17 +144,13 @@ export class AnimTimelineElement extends LitElement {
 
 	#zoomTimeline(origin: number, delta: number): void {
 		const currentRange = this.rangeEnd - this.rangeStart;
-		const deltaRange = delta * 4;
+		const elementRect = this.getBoundingClientRect();
+		const focusPoint = (origin - elementRect.x) / elementRect.width;
 
-		// FIXME: When zooming the timeline, the transform origin should be
-		//        centered on the mouse cursor. Currently this does not work as
-		//        intended, always centering on the 00:00 timestamp instead.
-		const t = ((this._offsetX + origin) * this.secondsPerPx.get()) / currentRange;
-		console.log(`t: ${t}`);
-		console.log(`deltaStart: ${-deltaRange * t}`);
-		console.log(`deltaEnd:   ${deltaRange * (1 - t)}`);
-		const rangeStart = this.rangeStart - deltaRange * t;
-		const rangeEnd = this.rangeEnd + deltaRange * (1 - t);
+		const deltaTimeScale = delta * 0.001 * currentRange;
+
+		const rangeStart = this.rangeStart - deltaTimeScale * focusPoint;
+		const rangeEnd = this.rangeEnd + deltaTimeScale * (1 - focusPoint);
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
@@ -178,11 +169,11 @@ export class AnimTimelineElement extends LitElement {
 	}
 
 	#pan(deltaPx: number): void {
-		this._offsetX += deltaPx;
+		const deltaChange = deltaPx * 0.001;
+		const scaledChange = (this.rangeEnd - this.rangeStart) * deltaChange;
 
-		const pxPerSecond = this.secondsPerPx.get();
-		const rangeStart = this.rangeStart - deltaPx * pxPerSecond;
-		const rangeEnd = this.rangeEnd - deltaPx * pxPerSecond;
+		const rangeStart = this.rangeStart - scaledChange;
+		const rangeEnd = this.rangeEnd - scaledChange;
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
@@ -242,13 +233,6 @@ export class AnimTimelineElement extends LitElement {
 		}`;
 	}
 
-	/**
-	 * Convert a time value (in seconds) to a px offset from the left edge of the view
-	 */
-	secondsToPx(seconds: number): number {
-		return this._offsetX + seconds * this.secondsPerPx.get();
-	}
-
 	protected override render() {
 		const {
 			subdivision: subdivisionScale,
@@ -262,7 +246,7 @@ export class AnimTimelineElement extends LitElement {
 		const scaledEnd = this.rangeEnd / subdivisionScale;
 		const range = this.rangeEnd - this.rangeStart;
 
-		console.log("Scaled Start", scaledStart, "Scaled End", scaledEnd, "Range", range);
+		console.log("Scaled Start", scaledStart, "Scaled End", scaledEnd, "Range Start", this.rangeStart, "Range End", this.rangeEnd, "Range", range, "Playhead", this.playHead);
 		
 		let subdivisions : Array<{seconds: number, fraction: number, isMajor: boolean}> = [];
 		let currentOffset = scaledStart;
@@ -271,7 +255,7 @@ export class AnimTimelineElement extends LitElement {
 		while (currentOffset < scaledEnd) {
 			const currentSeconds = currentOffsetSeconds;
 			const isMajor = currentOffsetSeconds % majorSubdivisionScale === 0;
-			subdivisions.push({ seconds: currentSeconds, fraction: currentSeconds / range, isMajor });
+			subdivisions.push({ seconds: currentSeconds, fraction: (currentSeconds - this.rangeStart) / range, isMajor });
 			let nextSubdiv = Math.ceil(currentOffset);
 			if (Math.abs(nextSubdiv - currentOffset) < 0.1) {
 				nextSubdiv += 1;
@@ -349,7 +333,7 @@ export class AnimTimelineElement extends LitElement {
 								selected: this._selectedKeyframe === id,
 							})}
 							style=${styleMap({
-								left: `${this.secondsToPx(keyframe)}px`
+								left: `${100 * (keyframe - this.rangeStart) / range}%`
 							})}
 							tabindex="-1"
 							${drag({
