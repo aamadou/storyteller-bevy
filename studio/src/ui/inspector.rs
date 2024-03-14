@@ -10,11 +10,7 @@ use bevy::{
 use serde::{Deserialize, Serialize};
 use serde_json::*;
 use space_editor::{
-    space_editor_ui::{
-        editor_tab::{EditorTab, EditorTabName},
-        EditorUiAppExt,
-    },
-    space_prefab::component::MeshPrimitivePrefab,
+    space_editor_ui::{editor_tab::{EditorTab, EditorTabName}, ui_plugin::EditorUiAppExt}, space_prefab::component::MeshPrimitive3dPrefab,
 };
 use wasm_bindgen::prelude::*;
 
@@ -60,7 +56,7 @@ impl Plugin for InspectorPlugin {
 
         app.register_inspect::<Transform>();
         app.register_inspect::<Name>();
-        app.register_inspect::<MeshPrimitivePrefab>();
+        app.register_inspect::<MeshPrimitive3dPrefab>();
 
         //register standart material
         {

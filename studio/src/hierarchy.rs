@@ -1,6 +1,5 @@
 use bevy::{
-    prelude::*,
-    utils::{EntityHashMap, EntityHashSet},
+    ecs::entity::{EntityHashMap, EntityHashSet}, prelude::*
 };
 
 /// Find the parent entity of `target`. Returns `None` if `target` has no

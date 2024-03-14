@@ -309,8 +309,8 @@ fn do_pan(
     };
 
     // Pan along local XY plane, with the distance scaled by the radius
-    let up = xform.up();
-    let left = xform.left();
+    let up = xform.up().xyz();
+    let left = xform.left().xyz();
     let delta = (pan.y * up + pan.x * left) * controller.radius;
 
     // Update camera translation and focus point

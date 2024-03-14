@@ -1,9 +1,9 @@
 use bevy::{
-    core_pipeline::{clear_color::ClearColorConfig, fxaa::Fxaa},
+    core_pipeline::fxaa::Fxaa,
     prelude::*,
     render::view::RenderLayers,
 };
-use space_editor::space_editor_ui::NotShowCamera;
+use space_editor::space_editor_ui::camera_plugin::NotShowCamera;
 
 use crate::MainCamera;
 
@@ -24,7 +24,6 @@ pub(super) fn spawn_gizmo_camera(
             GizmoCamera,
             Camera3dBundle {
                 camera_3d: Camera3d {
-                    clear_color: ClearColorConfig::None,
                     ..default()
                 },
                 camera: Camera {

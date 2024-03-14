@@ -3,7 +3,7 @@ use bevy::{
     core_pipeline::{
         bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
         fxaa::Fxaa,
-        tonemapping::Tonemapping,
+        tonemapping::Tonemapping, Skybox,
     },
     gltf::Gltf,
     math::vec2,
@@ -43,7 +43,7 @@ impl Plugin for ScenePlugin {
 
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
             .insert_resource(Msaa::Off)
-            .add_state::<SceneState>()
+            .init_state::<SceneState>()
             .add_event::<LoadLibraryObjectEvent>()
             .add_event::<LoadSceneEvent>()
             .add_event::<ImportSceneEvent>()
@@ -72,6 +72,9 @@ impl Plugin for ScenePlugin {
 
         app.add_systems(Update, tag_scene_elements);
 
+        app.init_resource::<SkyboxHolder>();
+        app.add_systems(Update, attach_skybox);
+
         //Auto loading screen
         //Register handles on which we will look to show loading screen
         app.init_resource::<LoadingQueue>();
@@ -95,10 +98,27 @@ impl Plugin for ScenePlugin {
                 wasm::dispatch_object_load_request,
                 wasm::notify_state_changes
                     .map(bevy::utils::error)
-                    .run_if(resource_changed::<State<SceneState>>()),
+                    .run_if(resource_changed::<State<SceneState>>),
                 wasm::notify_loading_queue_changes.map(bevy::utils::error),
             ),
         );
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct SkyboxHolder(pub Option<Skybox>);
+
+fn attach_skybox(
+    mut cmd: Commands,
+    mut skybox_holder: ResMut<SkyboxHolder>,
+    mut q_camera: Query<Entity, (With<Camera3d>, Without<Skybox>)>
+) {
+    let Some(skybox) = skybox_holder.0.as_ref() else {
+        return;
+    };
+
+    for entity in q_camera.iter_mut() {
+        cmd.entity(entity).insert(skybox.clone());
     }
 }
 
@@ -436,7 +456,7 @@ fn frame_scene_in_view(
 
             // Project each corner onto the camera plane
             let v = p - plane_origin;
-            let proj = p - v.project_onto_normalized(plane_normal);
+            let proj = p - v.project_onto_normalized(plane_normal.xyz());
 
             cmd.spawn(DebugPoint {
                 point: proj,

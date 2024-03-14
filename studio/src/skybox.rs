@@ -16,9 +16,9 @@ impl Plugin for SkyboxPlugin {
         app.add_systems(
             Update,
             (
-                load_skybox.run_if(resource_exists_and_changed::<SkyboxId>()),
+                load_skybox.run_if(resource_exists_and_changed::<SkyboxId>),
                 spawn_skybox
-                    .run_if(resource_exists::<SkyboxAssets>())
+                    .run_if(resource_exists::<SkyboxAssets>)
                     .run_if(skybox_assets_loaded),
             ),
         );
@@ -98,10 +98,14 @@ fn spawn_skybox(
 
     // Add components to the scene camera
     cmd.entity(q_camera.single()).insert((
-        Skybox(skybox_assets.cubemap.clone()),
+        Skybox {
+            image : skybox_assets.cubemap.clone(),
+            brightness: 1.0
+        },
         EnvironmentMapLight {
             diffuse_map: skybox_assets.env_diffuse.clone(),
             specular_map: skybox_assets.env_specular.clone(),
+            intensity: 1.0,
         },
     ));
 

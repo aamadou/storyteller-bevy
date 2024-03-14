@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
-    app::{AppExit, ScheduleRunnerPlugin},
-    prelude::*,
+    app::{AppExit, ScheduleRunnerPlugin}, core_pipeline::Skybox, prelude::*
 };
 use space_editor::prelude::{EditorEvent, EditorPrefabPath};
 use wgpu::Extent3d;
@@ -74,7 +73,10 @@ pub fn start_headless(
             app.add_systems(
                 Startup,
                 move |mut cmd: Commands, mut ew: EventWriter<EditorEvent>| {
-                    cmd.insert_resource(SkyboxId(skybox.clone()));
+                    cmd.insert_resource(Skybox {
+                        image : skybox.clone(),
+                        brightness: 1.0
+                    });
                     ew.send(EditorEvent::Load(EditorPrefabPath::File(scene.clone())))
                 },
             );

@@ -1,6 +1,6 @@
 use bevy::{
     ecs::{
-        query::{ReadOnlyWorldQuery, WorldQuery},
+        query::{QueryData, QueryFilter, WorldQuery},
         system::Command,
     },
     prelude::*,
@@ -30,7 +30,7 @@ impl Plugin for BvhPlugin {
             //        module's `SceneState`) to manage the order/frequency at
             //        which these systems run instead of just running them all
             //        every frame
-            .add_systems(Update, spawn_test_bvh.run_if(resource_exists::<TestBvh>()))
+            .add_systems(Update, spawn_test_bvh.run_if(resource_exists::<TestBvh>))
             .add_systems(
                 PostUpdate,
                 (compute_inverse_bindposes, apply_deferred, animate_bvh)
@@ -143,7 +143,7 @@ pub fn animate_bvh(
     }
 }
 
-fn lerp_frames<T: ReadOnlyWorldQuery>(
+fn lerp_frames<T: QueryFilter>(
     joint_query: &mut Query<JointQuery, T>,
     current_joint: Entity,
     bvh: &studio_bvh::Bvh,
@@ -226,8 +226,8 @@ pub struct BvhAnimCompleteEvent;
 #[derive(Debug, Component, Reflect)]
 pub struct BvhJoint(usize);
 
-#[derive(Debug, WorldQuery)]
-#[world_query(mutable)]
+#[derive(Debug, QueryData)]
+#[query_data(mutable)]
 pub struct JointQuery {
     pub name: &'static Name,
     pub joint: &'static BvhJoint,

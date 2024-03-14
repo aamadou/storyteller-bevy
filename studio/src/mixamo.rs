@@ -12,7 +12,7 @@ impl Plugin for MixamoPlugin {
             Update,
             (
                 import_mixamo_scene,
-                tick_mixamo_import.run_if(resource_exists::<MixamoImport>()),
+                tick_mixamo_import.run_if(resource_exists::<MixamoImport>),
                 tick_scene_spawning.run_if(in_state(MixamoState::Spawning)),
                 start_mixamo_anim.run_if(in_state(MixamoState::Processing)),
             ),

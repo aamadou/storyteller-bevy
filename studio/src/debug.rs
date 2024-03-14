@@ -4,12 +4,7 @@ use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_mod_picking::debug::DebugPickingMode;
 use space_editor::{
-    prelude::EditorCameraMarker,
-    space_editor_ui::{
-        bottom_menu::BottomMenuPlugin, tools::gizmo::GizmoToolPlugin, EditorDefaultCameraPlugin,
-        EditorGizmoConfigPlugin, EditorPickingPlugin, EditorPluginGroup, EditorUiCore,
-        ShowEditorUi,
-    },
+    prelude::*, space_editor_ui::{tools::gizmo::GizmoToolPlugin, EditorGizmoConfigPlugin, EditorPluginGroup}
 };
 
 use crate::{
@@ -32,13 +27,16 @@ pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(DebugMode(false))
-            .insert_resource(State::new(DebugPickingMode::Disabled))
-            .insert_resource(GizmoConfig {
-                enabled: true,
-                depth_bias: -0.1,
-                line_perspective: false,
-                line_width: 2.,
-                ..default()
+            .insert_resource(DebugPickingMode::Disabled)
+            .add_systems(Startup, |mut config_store: ResMut<GizmoConfigStore>| {
+                let (config, _) = config_store.config_mut::<DefaultGizmoConfigGroup>();
+                *config = GizmoConfig {
+                    enabled: true,
+                    depth_bias: -0.1,
+                    line_perspective: false,
+                    line_width: 2.,
+                    ..default()
+                };
             })
             .add_systems(
                 Update,
@@ -46,7 +44,7 @@ impl Plugin for DebugPlugin {
                     toggle_debug_mode,
                     update_debug_picking_mode
                         .run_if(is_editor)
-                        .run_if(resource_changed::<DebugMode>()),
+                        .run_if(resource_changed::<DebugMode>),
                     update_gizmo_line_thickness,
                     (draw_world_axes, draw_debug_points, draw_skeletal_joints)
                         .after(CameraMotionSystem)
@@ -70,15 +68,13 @@ impl Plugin for DebugPlugin {
                 .disable::<BottomMenuPlugin>()
                 .disable::<GizmoToolPlugin>()
                 .disable::<EditorGizmoConfigPlugin>()
-                .set(space_editor::prelude::SelectedPlugin {
-                    show_selected_wireframe: false,
-                }),
+                .disable::<space_editor::prelude::SelectedPlugin>(),
         );
 
         app.add_systems(Update, sync_editor_camera);
         app.add_systems(
             Update,
-            update_editor_ui_mode.run_if(resource_changed::<DebugMode>()),
+            update_editor_ui_mode.run_if(resource_changed::<DebugMode>),
         );
     }
 }
@@ -104,12 +100,12 @@ fn update_editor_ui_mode(
 
 fn update_debug_picking_mode(
     r_debug: Res<DebugMode>,
-    mut s_debug_picking: ResMut<NextState<DebugPickingMode>>,
+    mut s_debug_picking: ResMut<DebugPickingMode>,
 ) {
-    s_debug_picking.set(match **r_debug {
+    *s_debug_picking = match **r_debug {
         true => DebugPickingMode::Normal,
         false => DebugPickingMode::Disabled,
-    });
+    };
 }
 
 pub fn is_debug_mode(r_debug: Res<DebugMode>) -> bool {
@@ -117,10 +113,11 @@ pub fn is_debug_mode(r_debug: Res<DebugMode>) -> bool {
 }
 
 fn update_gizmo_line_thickness(
-    mut config: ResMut<GizmoConfig>,
+    mut config_store: ResMut<GizmoConfigStore>,
     q_window: Query<&Window, (Changed<Window>, With<PrimaryWindow>)>,
 ) {
     if let Ok(scale_factor) = q_window.get_single().map(|win| win.scale_factor() as f32) {
+        let (config, _) = config_store.config_mut::<DefaultGizmoConfigGroup>();
         config.line_width = 2. * scale_factor;
     }
 }

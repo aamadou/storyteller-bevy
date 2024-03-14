@@ -38,22 +38,22 @@ fn read_command_system(mut commands: Commands, mut change_event: EventWriter<New
     match cmd {
         BlockingCommand::Cube => {
             new_entity
-                .insert(MeshPrimitivePrefab::Cube(1.0))
+                .insert(MeshPrimitive3dPrefab::Cube(1.0))
                 .insert(Name::new("Cube"));
         }
         BlockingCommand::Sphere => {
             new_entity
-                .insert(MeshPrimitivePrefab::Sphere(SpherePrefab { r: 1.0 }))
+                .insert(MeshPrimitive3dPrefab::Sphere(SpherePrefab { r: 1.0 }))
                 .insert(Name::new("Sphere"));
         }
         BlockingCommand::Torus => {
             new_entity
-                .insert(MeshPrimitivePrefab::Torus(TorusPrefab::default()))
+                .insert(MeshPrimitive3dPrefab::Torus(TorusPrefab::default()))
                 .insert(Name::new("Torus"));
         }
         BlockingCommand::Cylinder => {
             new_entity
-                .insert(MeshPrimitivePrefab::Cylinder(CylinderPrefab::default()))
+                .insert(MeshPrimitive3dPrefab::Cylinder(CylinderPrefab::default()))
                 .insert(Name::new("Cylinder"));
         }
     };
