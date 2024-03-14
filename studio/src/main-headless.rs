@@ -107,6 +107,9 @@ fn main() {
                     "zoom" => {
                         app.insert_resource(CameraMotion::Zoom);
                     }
+                    "static" => {
+                        app.insert_resource(CameraMotion::Static);
+                    }
                     _ => panic!("Unsupported camera motion type."),
                 }
 
