@@ -1,6 +1,5 @@
 use bevy::{
     app::Update,
-
     window::{close_on_esc, Window},
 };
 use clap::Parser;
