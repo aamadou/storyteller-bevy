@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::render_resource::Extent3d, transform::components::Transform};
 use clap::{Args, Parser, Subcommand};
-use studio::headless::{start_headless, HeadlessMode};
+use studio::{headless::{start_headless, HeadlessMode}, scene::SceneState};
 
 #[derive(Parser)]
 #[command(name = "StorytellerStudioHeadless")]
@@ -107,7 +107,7 @@ fn main() {
                     _ => panic!("Unsupported camera motion type.")
                 }
                 
-                app.add_systems(Update, update_camera_motion);
+                app.add_systems(Update, update_camera_motion.run_if(in_state(SceneState::Active)));
             }
 
             app
@@ -167,6 +167,8 @@ fn main() {
     app.run();
 }
 
+pub const SPEED : f32 = 0.1;
+
 #[derive(Resource)]
 enum CameraMotion {
     Orbit,
@@ -176,13 +178,16 @@ enum CameraMotion {
 }
 
 pub(crate) fn update_camera_motion(
-    mut camera: Query<&mut Transform, With<Camera>>,
+    mut camera: Query<&mut Transform, (With<Camera>, Without<Parent>)>,
     camera_motion: Res<CameraMotion>,
     time: Res<Time>,
 ) {
+    println!("{}", camera.iter().count());
     let Ok(mut main_cam_transform) = camera.get_single_mut() else {
         return;
     };
+    
+    println!("Updating camera motion");
     
     match *camera_motion {
         CameraMotion::Orbit => {
@@ -196,28 +201,38 @@ pub(crate) fn update_camera_motion(
         }
         CameraMotion::Static => {}
     }
-    main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
+    // main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
 }
 
-fn zoom_camera(main_cam_transform: &Transform, time: &Time<()>)   {
+fn zoom_camera(main_cam_transform: &mut Transform, time: &Time<()>) {
+    let scaled_time = time.elapsed().as_secs_f32() * SPEED;
+    let normalized_cos = (-scaled_time.cos() + 1.0) / 2.0;
+    let start_pos = Vec3::new(0.366, 1.1, 2.5);
+    let end_pos = Vec3::new(0.366, 1.1, -0.5);
     
-    
-    todo!()
+    main_cam_transform.translation = start_pos.lerp(end_pos, normalized_cos);
+    main_cam_transform.rotation = Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0);
 }
 
-fn pan_camera(main_cam_transform: &Transform, time: &Time<()>) {
-    todo!()
+fn pan_camera(main_cam_transform: &mut Transform, time: &Time<()>) {
+    let scaled_time = time.elapsed().as_secs_f32() * SPEED;
+    let normalized_cos = (scaled_time.cos() + 1.0) / 2.0;
+    let start_pos = Vec3::new(1.617, 0.9, 2.177);
+    let end_pos = Vec3::new(-0.365, 0.9, 2.323);
+    
+    main_cam_transform.translation = start_pos.lerp(end_pos, normalized_cos);
+    main_cam_transform.rotation = Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0);
 }
 
 fn orbit_camera(main_cam_transform: &mut Mut<'_, Transform>, time: &Res<'_, Time>) {
-    let scaled_time = time.elapsed().as_secs_f32() * 0.1;
+    let scaled_time = time.elapsed().as_secs_f32() * SPEED;
     let max_angle = std::f32::consts::PI / 2.0;
-    let normalized_sin = (scaled_time.sin() + 1.0) / 2.0;
-    let angle = max_angle * normalized_sin;
+    let normalized_cos = (scaled_time.cos() + 1.0) / 2.0;
+    let angle = max_angle * normalized_cos;
     
-    let t = (time.elapsed().as_secs_f32() / 5.0) % 1.0;
+    // let t = (time.elapsed().as_secs_f32() / 5.0) % 1.0;
     
-    main_cam_transform.translation = Vec3::new(2.2 * angle.cos(), 1.0, 2.5 * angle.sin());
+    main_cam_transform.translation = Vec3::new(-2.2 * angle.cos(), 1.0, 2.5 * angle.sin());
     main_cam_transform.look_at(Vec3::new(0.347, 0.556, -1.0), Vec3::Y);
 }
 
