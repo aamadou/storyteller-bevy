@@ -26,7 +26,7 @@ mod mixamo;
 mod path;
 mod persistance;
 mod remote;
-mod scene;
+pub mod scene;
 pub mod screenshot;
 mod skybox;
 mod ui;

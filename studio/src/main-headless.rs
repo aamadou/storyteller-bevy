@@ -20,11 +20,7 @@ enum Subcommands {
     Scene {
         scene_dir: String,
         #[arg(long)]
-        orbit: bool,
-        #[arg(long, value_parser = clap::value_parser!(f32))]
-        orbit_radius: Option<f32>,
-        #[arg(long, value_parser = clap::value_parser!(f32))]
-        orbit_speed: Option<f32>,
+        camera_motion : Option<String>,
         #[arg(long, short)]
         output_dir: Option<String>,
         #[arg(long)]
@@ -73,9 +69,7 @@ fn main() {
     let mut app = match args.subcommand {
         Subcommands::Scene {
             scene_dir,
-            orbit,
-            orbit_speed,
-            orbit_radius,
+            camera_motion,
             skybox,
             output_dir,
             output_resolution,
@@ -98,15 +92,22 @@ fn main() {
                 frames,
                 output_res,
             );
-            let orbit_speed = orbit_speed.unwrap_or(1.0);
-            let orbit_radius = orbit_radius.unwrap_or(8.0);
 
-            if orbit {
-                app.insert_resource(OrbitSettings {
-                    radius: orbit_radius,
-                    speed: orbit_speed,
-                })
-                .add_systems(Update, orbit_scene);
+            if let Some(camera_motion) = camera_motion {
+                match camera_motion.as_str() {
+                    "orbit" => {
+                        app.insert_resource(CameraMotion::Orbit);
+                    }
+                    "pan" => {
+                        app.insert_resource(CameraMotion::Pan);
+                    }
+                    "zoom" => {
+                        app.insert_resource(CameraMotion::Zoom);
+                    }
+                    _ => panic!("Unsupported camera motion type.")
+                }
+                
+                app.add_systems(Update, update_camera_motion);
             }
 
             app
@@ -167,26 +168,57 @@ fn main() {
 }
 
 #[derive(Resource)]
-struct OrbitSettings {
-    radius: f32,
-    speed: f32,
+enum CameraMotion {
+    Orbit,
+    Pan,
+    Zoom,
+    Static
 }
 
-fn orbit_scene(
+pub(crate) fn update_camera_motion(
     mut camera: Query<&mut Transform, With<Camera>>,
-    orbit_settings: Res<OrbitSettings>,
+    camera_motion: Res<CameraMotion>,
     time: Res<Time>,
 ) {
     let Ok(mut main_cam_transform) = camera.get_single_mut() else {
         return;
     };
-
-    main_cam_transform.translation = Vec3::new(
-        orbit_settings.radius * (time.elapsed_seconds() * orbit_settings.speed).cos(),
-        6.0,
-        orbit_settings.radius * (time.elapsed_seconds() * orbit_settings.speed).sin(),
-    );
+    
+    match *camera_motion {
+        CameraMotion::Orbit => {
+            orbit_camera(&mut main_cam_transform, &time);
+        }
+        CameraMotion::Pan => {
+            pan_camera(&mut main_cam_transform, &time);
+        }
+        CameraMotion::Zoom => {
+            zoom_camera(&mut main_cam_transform, &time);
+        }
+        CameraMotion::Static => {}
+    }
     main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
+}
+
+fn zoom_camera(main_cam_transform: &Transform, time: &Time<()>)   {
+    
+    
+    todo!()
+}
+
+fn pan_camera(main_cam_transform: &Transform, time: &Time<()>) {
+    todo!()
+}
+
+fn orbit_camera(main_cam_transform: &mut Mut<'_, Transform>, time: &Res<'_, Time>) {
+    let scaled_time = time.elapsed().as_secs_f32() * 0.1;
+    let max_angle = std::f32::consts::PI / 2.0;
+    let normalized_sin = (scaled_time.sin() + 1.0) / 2.0;
+    let angle = max_angle * normalized_sin;
+    
+    let t = (time.elapsed().as_secs_f32() / 5.0) % 1.0;
+    
+    main_cam_transform.translation = Vec3::new(2.2 * angle.cos(), 1.0, 2.5 * angle.sin());
+    main_cam_transform.look_at(Vec3::new(0.347, 0.556, -1.0), Vec3::Y);
 }
 
 //==============================================================================
