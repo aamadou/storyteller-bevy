@@ -17,11 +17,11 @@ name = "studio-headless"
 path = "src/main-headless.rs"
 
 [dependencies]
-bevy-inspector-egui = "0.22.0"
-bevy_mod_raycast = "0.16.0"
-bevy_rapier3d = "0.23.0"
-bevy_mod_outline = "0.6.0"
-bevy_web_asset = "0.7.0"
+bevy-inspector-egui = "0.23.0"
+bevy_mod_raycast = "0.17.0"
+bevy_rapier3d = "0.25.0"
+bevy_mod_outline = "0.7.0"
+bevy_web_asset = "0.8.0"
 bitflags = "2.4.0"
 console_error_panic_hook = { version = "0.1.7", optional = true }
 itertools = "0.12.1"
@@ -41,12 +41,12 @@ web-sys = { version = "0.3.65", optional = true, features = [
 ] }
 clap = { version = "4.4.18", features = ["derive"] }
 futures-intrusive = "0.5.0"
-wgpu = "0.17.1"
+wgpu = "0.19.3"
 futures-lite = "2.2.0"
 futures = "0.3.30"
 image = "0.24.8"
 bytemuck = "1.14.1"
-space_editor = {git = "https://github.com/rewin123/space_editor", rev = "ce83f86dc902787ab16213f3209276a784654df6"}
+space_editor = {git = "https://github.com/rewin123/space_editor", rev = "0e27774697ffc8d9006736f8f0a5b939d55de53a"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
 
@@ -72,7 +72,7 @@ desktop = []
 workspace = true
 
 [dependencies.bevy_mod_picking]
-version = "0.17.0"
+version = "0.18.0"
 default-features = false
 features = [
 	"backend_bevy_ui",
