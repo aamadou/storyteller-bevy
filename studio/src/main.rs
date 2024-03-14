@@ -1,8 +1,11 @@
 use bevy::{
-    app::Update, transform::components::Transform, window::{close_on_esc, Window}, prelude::*
+    app::Update,
+    prelude::*,
+    transform::components::Transform,
+    window::{close_on_esc, Window},
 };
 use clap::Parser;
-use studio::{scene::SceneState, screenshot::ScreenShotPlugin, InitAsset, InitParams, StudioMode };
+use studio::{scene::SceneState, screenshot::ScreenShotPlugin, InitAsset, InitParams, StudioMode};
 
 #[derive(Parser)]
 #[command(name = "StorytellerStudio")]
