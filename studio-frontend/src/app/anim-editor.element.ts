@@ -1,5 +1,5 @@
 import * as studio from "@storyteller/studio";
-import { type CameraKeyframesEvent, type SeekTimeChanged, type UpdateAnimationTargets } from "@storyteller/studio";
+import type { EntitySelectEvent, SeekTimeChanged, UpdateAnimationTargets } from "@storyteller/studio";
 import { bind, drag, on } from "@storyteller/framework";
 import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult, PropertyValueMap } from "lit";
 import { customElement, state } from "lit/decorators.js";
@@ -37,9 +37,9 @@ export class AnimEditorElement extends LitElement {
 	
 	@state() track_ordered : string[] = [];
 
-	@state() keyframes : Record<string, number[]> = {};
+	@state() keyframes : Record<string, Keyframe> = {};
 
-	@state() selected_track : string | null = null;
+	@state() selected_track : string | false = false;
 
 	trackCount(): number {
 		return Object.keys(this.tracks).length;
@@ -81,12 +81,39 @@ export class AnimEditorElement extends LitElement {
 		this.tracks = tracks;
 	}
 
+	@on("window:update-keyframes")
+	onUpdateKeyframes({detail: {added, removed}}: studio.UpdateKeyframes): void {
+		let addedKeyframes = Object.keys(added);
+		if (addedKeyframes.length === 0 && removed.length === 0) {
+			return;
+		}
+		console.log("Keyframes Changed");
+		let keyframes = {...this.keyframes};
+		for (let keyframe of addedKeyframes) {
+			keyframes[keyframe] = added[keyframe];
+		}
+
+		this.keyframes = keyframes;
+	}
+
+	
+	@on("window:entity-select")
+	onEntitySelected({ detail: id }: EntitySelectEvent): void {
+		if (id && this.tracks[id]) {
+			this.selected_track = id;
+		} else {
+			this.selected_track = false;
+		}
+	}
+
 	onSidebarResize(event: PointerEvent): void {
 		this.sidebarWidth = Math.max(Math.min(this.sidebarWidth + event.movementX, 512), 128);
 	}
 
 	addKeyframe(): void {
-		studio.addCameraKeyframe(this.playHead);
+		if (this.selected_track) {
+			studio.recordKeyframe([this.selected_track]);
+		}
 	}
 
 	jumpToStart(): void {
@@ -123,6 +150,31 @@ export class AnimEditorElement extends LitElement {
 			'--track-count': `${this.trackCount()}`,
 			'--row-count': `calc(var(--track-count) + 1)`
 		};
+
+		const track_order_hashed : Record<string, number> = {};
+
+		for (const [index, track] of this.track_ordered.entries()) {
+			track_order_hashed[track] = index;
+		}
+
+		const tracklist = this.track_ordered.map((entity) => {
+			let track = this.tracks[entity];
+			let name = track.name ?? track.target_type;
+			let icon = TRACK_ICONS[track.target_type] ?? "minus";
+			return html`
+			<sts-tree class=${`track ` + (this.selected_track === entity ? `selected` : ``)}
+				role="listitem"
+				name=${name}
+				icon=${icon}
+				@click=${() => {
+					studio.select(entity);
+				}}
+			></sts-tree>
+			`;
+		});
+
+		const none_selected = !this.selected_track;
+
 		return html`
 		<div class="sidebar"
 			style=${styleMap({
@@ -136,6 +188,7 @@ export class AnimEditorElement extends LitElement {
 						icon="key"
 						aria-label="Add Keyframe"
 						title="Add Keyframe"
+						?disabled=${none_selected}
 						@click=${this.addKeyframe}
 					></sts-button>
 				</sts-toolbar-group>
@@ -173,18 +226,7 @@ export class AnimEditorElement extends LitElement {
 				</sts-toolbar-group>
 			</sts-toolbar>
 			<div class="tracklist" role="list">
-			${
-				this.track_ordered.map((entity) => {
-					let track = this.tracks[entity];
-					let name = track.name ?? track.target_type;
-					let icon = TRACK_ICONS[track.target_type] ?? "minus";
-					return html!`<sts-tree class="track"
-						role="listitem"
-						name=${name}
-						icon=${icon}
-					></sts-tree>`;
-				})
-			}
+			${tracklist}
 			</div>
 		</div>
 
@@ -202,6 +244,7 @@ export class AnimEditorElement extends LitElement {
 			.clipEnd=${this.clipEnd}
 			.playHead=${bind(this, "playHead")}
 			.keyframes=${bind(this, "keyframes")}
+			.track_ordered=${track_order_hashed}
 		></sts-anim-timeline>
 	`
 	};

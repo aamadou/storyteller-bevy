@@ -23,7 +23,14 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
-    anim::timeline_animation::AnimationTarget, camera_controller::{CameraController, CameraControllerBundle}, change_tracking::{ChangeTracker, ChangeTrackingPlugin}, debug::DebugPoint, headless::{is_headless, is_not_headless, HeadlessSettings}, math::{Combinable, Extrema}, screenshot::ScreenCapture, MainCamera
+    anim::timeline_animation::AnimationTarget,
+    camera_controller::{CameraController, CameraControllerBundle},
+    change_tracking::{ChangeTracker, ChangeTrackingPlugin},
+    debug::DebugPoint,
+    headless::{is_headless, is_not_headless, HeadlessSettings},
+    math::{Combinable, Extrema},
+    screenshot::ScreenCapture,
+    MainCamera,
 };
 
 pub struct ScenePlugin;

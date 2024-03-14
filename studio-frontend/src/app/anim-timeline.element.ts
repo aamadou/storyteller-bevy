@@ -62,7 +62,8 @@ export class AnimTimelineElement extends LitElement {
 	/** The time (in seconds) of the current play-head position */
 	@property({ type: Number }) playHead = 0;
 	/** Keyframe positions (in seconds) */
-	@property({ attribute: false }) keyframes: Record<string, number> = {};
+	@property({ attribute: false }) keyframes: Record<string, studio.Keyframe> = {};
+	@property({ attribute: false }) track_ordered: Record<string, number> = {}
 
 	@state() _selectedKeyframe: string | null = null;
 
@@ -131,8 +132,9 @@ export class AnimTimelineElement extends LitElement {
 		}
 
 		if (Array.from(Object.keys(this.keyframes)).includes(id)) {
+			let keyframe = this.keyframes[id];
 			this._selectedKeyframe = id;
-			this.dispatchEvent(new CustomEvent("playHead-change", { detail: this.keyframes[id]! }));
+			studio.seekTime(keyframe.time);
 		} else {
 			this._selectedKeyframe = null;
 		}
@@ -190,20 +192,12 @@ export class AnimTimelineElement extends LitElement {
 	}
 
 	onKeyframeDrag(id: string, event: PointerEvent): void {
-		const deltaSeconds = event.movementX * this.secondsPerPx.get();
-		const updated = this.keyframes[id] + deltaSeconds;
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const time = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
 
-		studio.updateKeyframe(id, updated);
-
-		const updatedKeyframes = Object.fromEntries(
-			Object
-				.entries(this.keyframes)
-				.map(entry => entry[0] === id
-					? [id, updated]
-					: entry
-				)
-		);
-		this.dispatchEvent(new CustomEvent("keyframes-change", { detail: updatedKeyframes }));
+		studio.moveKeyframeTime(id, time);
 	}
 
 	#updateRenderWidth(): void {
@@ -296,10 +290,6 @@ export class AnimTimelineElement extends LitElement {
 				})}
 				tabindex="-1"
 			>
-				<div class="clip-region"
-					style=${styleMap({
-					})}
-				></div>
 
 				${subdivisions.map(({ seconds, fraction, isMajor}, idx) => {
 					const secondsPercentage = fraction * 100;					
@@ -342,14 +332,17 @@ export class AnimTimelineElement extends LitElement {
 				${repeat(
 					Object.entries(this.keyframes),
 					([id]) => id,
-					([id, keyframe]) => html`
+					([id, keyframe]) => {
+						let row = this.track_ordered[keyframe.target];
+						return html`
 						<div id=${id}
 							class=${classMap({
 								keyframe: true,
-								selected: this._selectedKeyframe === id,
+								selected: this._selectedKeyframe === id
 							})}
 							style=${styleMap({
-								left: `${100 * (keyframe - this.rangeStart) / range}%`
+								left: `${100 * (keyframe.time - this.rangeStart) / range}%`,
+								gridRow: row + 2,
 							})}
 							tabindex="-1"
 							${drag({
@@ -357,7 +350,8 @@ export class AnimTimelineElement extends LitElement {
 							})}
 							@click=${() => this.selectKeyframe(id)}
 						></div>
-					`
+					`;
+					}
 				)}
 			</div>
 		`;

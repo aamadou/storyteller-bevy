@@ -1,6 +1,9 @@
 :host {
 	position: relative;
 	overflow: hidden;
+	display: grid;
+	grid-template-rows: subgrid;
+	grid-row: 1 / span var(--row-count);
 }
 
 *:focus-visible {
@@ -8,19 +11,16 @@
 }
 
 .wrapper {
-	position: absolute;
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-rows: subgrid;
 	inset: 0;
+	grid-row: 1 / span var(--row-count);
 
 	&.panning {
 		cursor: grabbing;
 	}
-}
-
-.clip-region {
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	background: #0004;
 }
 
 .hash {
@@ -37,7 +37,7 @@
 
 .timestamp {
 	position: absolute;
-	top: 8px;
+	grid-row: 1;
 	color: #FFF6;
 	font: {
 		family: "Fira Sans", sans-serif;
@@ -100,8 +100,7 @@
 
 .keyframe {
 	position: absolute;
-	top: 50%;
-	transform: translateX(-4.5px) translateY(-4.5px);
+	transform: translateX(-4.5px);
 
 	&::before {
 		content: "";
