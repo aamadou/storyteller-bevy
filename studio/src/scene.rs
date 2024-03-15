@@ -332,7 +332,8 @@ fn initialiaze_headless(
         },
         CameraControllerBundle::new(focus, camera_xform.translation),
         ScreenCapture::from_out(&headless_settings.output_dir)
-            .with_max_frames(headless_settings.max_frames),
+            //Part of quick hack, see screenshot.rs#261
+            .with_max_frames(headless_settings.max_frames + 3),
     ));
 }
 
