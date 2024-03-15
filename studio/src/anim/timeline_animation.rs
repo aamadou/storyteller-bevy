@@ -1,11 +1,20 @@
+use std::time::Duration;
+
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
         reflect::ReflectMapEntities,
     },
     prelude::*,
+    utils::HashSet,
 };
 
+use bevy_tweening::{
+    lens::{TransformPositionLens, TransformRotationLens, TransformScaleLens},
+    Animator, AnimatorState, EaseFunction, EaseMethod, Sequence, Targetable, Tracks, Tween,
+    TweenCompleted, TweeningPlugin,
+};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 
@@ -31,11 +40,21 @@ impl Plugin for TimelinePlugin {
         app.insert_resource(GlobalSeekTime {
             time: 0.,
             playing: false,
-        });
+            delta: None,
+        })
+        .add_event::<TweenCompleted>();
 
         app.add_systems(PreUpdate, (process_timeline_events, update_tick).chain());
 
-        app.add_systems(Update, process_keyframe_events);
+        app.add_systems(
+            Update,
+            (
+                process_keyframe_events,
+                timeline_bound_component_animator_system::<Transform>,
+            ),
+        );
+
+        app.add_systems(PostUpdate, generate_transform_animation);
 
         #[cfg(feature = "wasm")]
         {
@@ -76,6 +95,7 @@ pub enum KeyframeInteractionEvent {
 pub struct GlobalSeekTime {
     pub time: f32,
     pub playing: bool,
+    pub delta: Option<f32>,
 }
 
 #[derive(Clone, Debug, Copy, Default, Reflect, PartialEq, Serialize, Deserialize)]
@@ -180,15 +200,23 @@ fn process_timeline_events(
     for event in e_timeline_event.read() {
         match event {
             TimelineInteractionEvent::Play => r_global_seek_time.playing = true,
-            TimelineInteractionEvent::Pause => r_global_seek_time.playing = false,
-            TimelineInteractionEvent::Seek(time) => r_global_seek_time.time = *time,
+            TimelineInteractionEvent::Pause => {
+                r_global_seek_time.playing = false;
+            }
+            TimelineInteractionEvent::Seek(time) => {
+                r_global_seek_time.time = *time;
+            }
         }
+        
+        r_global_seek_time.delta = None;
     }
 }
 
 fn update_tick(mut r_global_seek_time: ResMut<GlobalSeekTime>, time: Res<Time>) {
     if r_global_seek_time.playing {
-        r_global_seek_time.time += time.delta_seconds();
+        let delta = time.delta_seconds();
+        r_global_seek_time.time += delta;
+        r_global_seek_time.delta = Some(delta);
     }
 }
 
@@ -222,6 +250,205 @@ fn process_keyframe_events(
                 if let Ok(mut keyframe) = q_keyframes.get_mut(*target) {
                     keyframe.time = *time;
                 }
+            }
+        }
+    }
+}
+
+fn generate_transform_animation(
+    mut commands: Commands,
+    changed: Query<&Keyframe, (With<TransformKeyframe>, Changed<Keyframe>)>,
+    keyframes: Query<(&Keyframe, &Transform, &TransformKeyframe, Entity)>,
+) {
+    let changed_targets = changed
+        .iter()
+        .map(|keyframe| keyframe.target)
+        .collect::<HashSet<_>>();
+    let keyframes = keyframes
+        .iter()
+        .filter(|(keyframe, _, _, _)| changed_targets.contains(&keyframe.target))
+        .group_by(|(keyframe, _, _, _)| keyframe.target);
+
+    for (target, keyframes) in &keyframes {
+        let keyframes = keyframes.sorted_by(|a, b| a.0.time.total_cmp(&b.0.time));
+
+        let (_, _, _, translation, rotation, scale) = keyframes.fold(
+            (
+                Option::<(f32, Vec3)>::None,
+                Option::<(f32, Quat)>::None,
+                Option::<(f32, Vec3)>::None,
+                Vec::<Tween<Transform>>::new(),
+                Vec::<Tween<Transform>>::new(),
+                Vec::<Tween<Transform>>::new(),
+            ),
+            |(
+                last_translation,
+                last_rotation,
+                last_scale,
+                mut translation_list,
+                mut rotation_list,
+                mut scale_list,
+            ),
+             (keyframe, transform, transform_keyframe, _)| {
+                
+                let time = keyframe.time;
+                let translation = transform.translation;
+                let rotation = transform.rotation;
+                let scale = transform.scale;
+
+                info!("Processing Keyframe: {time} previous: {last_rotation:?}");
+
+                if (transform_keyframe.affect_translation) {
+                    let (last_time, start) = match last_translation {
+                        Some(v) => v,
+                        None => (0., translation),
+                    };
+                    info!("Should apply translation");
+                    if (time - last_time).abs() > 0.00001 {
+                        translation_list.push(Tween::new(
+                            EaseMethod::Linear,
+                            Duration::from_secs_f32(time - last_time),
+                            TransformPositionLens {
+                                start,
+                                end: translation,
+                            },
+                        ));
+                    }
+                }
+
+                if (transform_keyframe.affect_rotation) {
+                    let (last_time, start) = match last_rotation {
+                        Some(v) => v,
+                        None => (0., rotation),
+                    };
+
+                    
+
+                info!("Should apply rotation");
+
+                    if (time - last_time).abs() > 0.00001 {
+                        rotation_list.push(Tween::new(
+                            EaseMethod::Linear,
+                            Duration::from_secs_f32(time - last_time),
+                            TransformRotationLens {
+                                start,
+                                end: rotation,
+                            },
+                        ));
+                    }
+                }
+                if (transform_keyframe.affect_scale) {
+                    let (last_time, start) = match last_scale {
+                        Some(v) => v,
+                        None => (0., scale),
+                    };
+                    info!("Should apply scale");
+                    if (time - last_time).abs() > 0.00001 {
+                        scale_list.push(Tween::new(
+                            EaseMethod::Linear,
+                            Duration::from_secs_f32(time - last_time),
+                            TransformScaleLens { start, end: scale },
+                        ));
+                    }
+                }
+
+                let next_translation = if transform_keyframe.affect_translation {
+                    Some((time, translation))
+                } else {
+                    last_translation
+                };
+                let next_rotation = if transform_keyframe.affect_rotation {
+                    Some((time, rotation))
+                } else {
+                    last_rotation
+                };
+                let next_scale = if transform_keyframe.affect_scale {
+                    Some((time, scale))
+                } else {
+                    last_scale
+                };
+
+                (
+                    next_translation,
+                    next_rotation,
+                    next_scale,
+                    translation_list,
+                    rotation_list,
+                    scale_list,
+                )
+            },
+        );
+
+        let mut tracks = Vec::with_capacity(3);
+
+        if !translation.is_empty() {
+            tracks.push(Sequence::new(translation));
+        } else {
+            info!("No translation");
+        }
+        if !rotation.is_empty() {
+            tracks.push(Sequence::new(rotation));
+        }else {
+            info!("No rotation");
+        }
+        if !scale.is_empty() {
+            tracks.push(Sequence::new(scale));
+        }else {
+            info!("No scale");
+        }
+
+        if tracks.is_empty() {
+            commands.entity(target).remove::<Animator<Transform>>();
+        } else {
+            let tracks = Tracks::new(tracks);
+
+            commands.entity(target).insert(Animator::new(tracks));
+        }
+    }
+}
+
+struct ComponentTarget<'a, T: Component>(&'a mut T);
+
+impl<'a, T: Component> ComponentTarget<'a, T> {
+    fn new(target: Mut<'a, T>) -> Self {
+        Self(target.into_inner())
+    }
+}
+
+impl<'a, T: Component> Targetable<T> for ComponentTarget<'a, T> {
+    fn target_mut(&mut self) -> &mut T {
+        self.0
+    }
+}
+
+pub fn timeline_bound_component_animator_system<T: Component>(
+    time: Res<GlobalSeekTime>,
+    mut query: Query<(Entity, &mut T, &mut Animator<T>)>,
+    events: ResMut<Events<TweenCompleted>>,
+) {
+    if time.is_changed() {
+        info!("Animating with time: {time:?}");
+        let mut events: Mut<Events<TweenCompleted>> = events.into();
+        for (entity, target, mut animator) in query.iter_mut() {
+            if animator.tweenable().duration() <= Duration::from_secs_f32(0.0001) {
+                continue;
+            }
+            let mut target = ComponentTarget::new(target);
+            if let Some(delta) = time.delta {
+                info!("Playing animation with delta {delta}");
+                animator.tweenable_mut().tick(
+                    Duration::from_secs_f32(delta),
+                    &mut target,
+                    entity,
+                    &mut events,
+                );
+            } else {
+                info!("setting tween time to {}", time.time);
+                let mut tween = animator
+                    .tweenable_mut();
+                tween.set_elapsed(Duration::from_secs_f32(time.time));
+                info!("Tween time set successfully");
+                tween.tick(Duration::ZERO, &mut target, entity, &mut events);
             }
         }
     }
