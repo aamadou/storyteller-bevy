@@ -39,7 +39,7 @@ export class AnimEditorElement extends LitElement {
 
 	@state() keyframes : Record<string, Keyframe> = {};
 
-	@state() selected_track : string | false = false;
+	@state() selected_track : { track: string } | {outside_entity: string } | false = false;
 
 	trackCount(): number {
 		return Object.keys(this.tracks).length;
@@ -78,6 +78,14 @@ export class AnimEditorElement extends LitElement {
 
 		this.track_ordered = Object.keys(tracks);
 
+		if (typeof this.selected_track === "object") {
+			if ("track" in this.selected_track && !(this.selected_track.track in tracks)) {
+				this.selected_track = { outside_entity: this.selected_track.track};
+			} else if ("outside_entity" in this.selected_track && this.selected_track.outside_entity in tracks) {
+				this.selected_track = { track: this.selected_track.outside_entity};
+			}
+		}
+
 		this.tracks = tracks;
 	}
 
@@ -94,13 +102,32 @@ export class AnimEditorElement extends LitElement {
 		}
 
 		this.keyframes = keyframes;
+
+		let min = 0;
+		let max = 5;
+		for (const keyframe of Object.keys(this.keyframes)) {
+			let time = this.keyframes[keyframe].time;
+			if (typeof time != "number") {
+				continue;
+			}
+			if (time > max) {
+				max = time + 1;
+			}
+		}
+		this.timelineEnd = max;
 	}
 
 	
 	@on("window:entity-select")
 	onEntitySelected({ detail: id }: EntitySelectEvent): void {
-		if (id && this.tracks[id]) {
-			this.selected_track = id;
+		if (id) {
+			if (this.tracks[id]) {
+				this.selected_track = { track: id };
+			} else if (!this.keyframes[id]) {
+				this.selected_track = {outside_entity: id};
+			} else {
+				this.selected_track = false;
+			}
 		} else {
 			this.selected_track = false;
 		}
@@ -111,8 +138,8 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	addKeyframe(): void {
-		if (this.selected_track) {
-			studio.recordKeyframe([this.selected_track]);
+		if (typeof this.selected_track === "object" && "track" in this.selected_track) {
+			studio.recordKeyframe([this.selected_track.track]);
 		}
 	}
 
@@ -123,17 +150,56 @@ export class AnimEditorElement extends LitElement {
 	prevKeyframe(): void {
 		let pos = this.playHead;
 
-		this.playHead = pos;
+		let closest_keyframe = -1 * Infinity;
+
+		for (const keyframe of Object.keys(this.keyframes)) {
+			const time = this.keyframes[keyframe]?.time;
+			if (!time || typeof time != "number") {
+				continue;
+			}
+			if (time < pos && time > closest_keyframe ) {
+				closest_keyframe = time;
+			}
+		}
+
+		if (closest_keyframe < 0) {
+			return;
+		}
+
+		this.playHead = closest_keyframe;
 	}
 
 	nextKeyframe(): void {
+
 		let pos = this.playHead;
 
-		this.playHead = pos;
+		let closest_keyframe = Infinity;
+
+		for (const keyframe of Object.keys(this.keyframes)) {
+			const time = this.keyframes[keyframe]?.time;
+			if (!time || typeof time != "number") {
+				continue;
+			}
+			if (time > pos && time < closest_keyframe ) {
+				closest_keyframe = time;
+			}
+		}
+
+		if (closest_keyframe > this.timelineEnd) {
+			return;
+		}
+
+		this.playHead = closest_keyframe;
 	}
 
 	jumpToEnd(): void {
 		this.playHead = this.clipEnd;
+	}
+
+	addTarget(): void {
+		if (typeof this.selected_track === "object" && "outside_entity" in this.selected_track) {
+			studio.addEntityTrack(this.selected_track.outside_entity);
+		}
 	}
 
 	togglePlaying(): void {
@@ -146,10 +212,6 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	protected override render(): TemplateResult {
-		let track_count = {
-			'--track-count': `${this.trackCount()}`,
-			'--row-count': `calc(var(--track-count) + 1)`
-		};
 
 		const track_order_hashed : Record<string, number> = {};
 
@@ -157,12 +219,21 @@ export class AnimEditorElement extends LitElement {
 			track_order_hashed[track] = index;
 		}
 
+		const selected = typeof this.selected_track === "object" && "track" in this.selected_track ? this.selected_track.track : false;
+		const can_add_selected = typeof this.selected_track === "object" && "outside_entity" in this.selected_track ? this.selected_track.outside_entity : false;
+
+		
+		let track_count = {
+			'--track-count': `${this.trackCount()}`,
+			'--row-count': `calc(var(--track-count) + ${can_add_selected ? 2 : 1})`
+		};
+
 		const tracklist = this.track_ordered.map((entity) => {
 			let track = this.tracks[entity];
 			let name = track.name ?? track.target_type;
 			let icon = TRACK_ICONS[track.target_type] ?? "minus";
 			return html`
-			<sts-tree class=${`track ` + (this.selected_track === entity ? `selected` : ``)}
+			<sts-tree class=${`track ` + (selected === entity ? `selected` : ``)}
 				role="listitem"
 				name=${name}
 				icon=${icon}
@@ -173,7 +244,17 @@ export class AnimEditorElement extends LitElement {
 			`;
 		});
 
-		const none_selected = !this.selected_track;
+		if (can_add_selected) {
+			tracklist.push(html`
+				<sts-tree class=${`track`}
+				role="button"
+				name="animate current selection"
+				icon="plus-large"
+				@click=${this.addTarget}></sts-tree>
+			`);
+		}
+
+		const none_selected = !selected;
 
 		return html`
 		<div class="sidebar"

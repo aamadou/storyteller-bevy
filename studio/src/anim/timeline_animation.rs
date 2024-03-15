@@ -88,6 +88,7 @@ pub enum TimelineInteractionEvent {
 pub enum KeyframeInteractionEvent {
     RecordKeyframe { target: Entity },
     MoveKeyframeTime { target: Entity, time: f32 },
+    AddEntityTrack { target: Entity }
 }
 
 #[derive(Resource, Clone, Copy, Debug, Default, Reflect, Serialize, Deserialize)]
@@ -225,6 +226,7 @@ fn process_keyframe_events(
     mut e_timeline_event: EventReader<KeyframeInteractionEvent>,
     r_global_seek_time: Res<GlobalSeekTime>,
     q_animation_targets: Query<(Entity, &Transform), With<AnimationTarget>>,
+    q_potential_targets: Query<Entity, (With<Transform>, Without<AnimationTarget>)>,
     mut q_keyframes: Query<&mut Keyframe>,
 ) {
     for event in e_timeline_event.read() {
@@ -251,6 +253,14 @@ fn process_keyframe_events(
                     keyframe.time = *time;
                 }
             }
+            KeyframeInteractionEvent::AddEntityTrack { target } => {
+                if let Ok(target) = q_potential_targets.get(*target) {
+                    info!("Adding Animation Target to Entity");
+                    commands.entity(target).insert(AnimationTarget);
+                } else {
+                    warn!("Can't add animation target to entity");
+                }
+            },
         }
     }
 }
@@ -504,6 +514,16 @@ mod wasm {
         KEYFRAME_EVENT.write_message(vec![KeyframeInteractionEvent::MoveKeyframeTime {
             target,
             time,
+        }]);
+    }
+
+    #[wasm_bindgen(js_name = addEntityTrack)]
+    pub fn add_entity_track(entity: String) {
+        let Ok(target) = Entity::from_str(&entity) else {
+            return;
+        };
+        KEYFRAME_EVENT.write_message(vec![KeyframeInteractionEvent::AddEntityTrack {
+            target
         }]);
     }
 
