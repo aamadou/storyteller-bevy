@@ -84,7 +84,7 @@ fn draw_camera_keyframes(
         let t = seek_time.inv_lerp(timestamp_a.0, timestamp_b.0);
         let (_, rot_a, pos_a) = xform_a.to_scale_rotation_translation();
         let (_, rot_b, pos_b) = xform_b.to_scale_rotation_translation();
-        let pos = t.lerp(pos_a, pos_b);
+        let pos = pos_a.lerp(pos_b, t);
         let rot = Quat::slerp(rot_a, rot_b, t);
 
         gizmos.sphere(pos, rot, 0.25, Color::WHITE);

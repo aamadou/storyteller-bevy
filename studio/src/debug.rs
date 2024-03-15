@@ -69,6 +69,7 @@ impl Plugin for DebugPlugin {
                 .disable::<BottomMenuPlugin>()
                 .disable::<GizmoToolPlugin>()
                 .disable::<EditorGizmoConfigPlugin>()
+                .disable::<MeshlessVisualizerPlugin>()
                 .disable::<space_editor::prelude::SelectedPlugin>(),
         );
 

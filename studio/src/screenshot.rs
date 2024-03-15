@@ -55,13 +55,15 @@ impl Plugin for ScreenShotPlugin {
                 core_3d::graph::Core3d,
                 ScreenCaptureNode,
             )
-            .add_render_graph_edges(
+            .add_render_graph_edge(
                 core_3d::graph::Core3d,
-                &[
-                    core_3d::graph::Node3d::Tonemapping,
-                    ScreenCaptureNode,
-                    core_3d::graph::Node3d::EndMainPassPostProcessing,
-                ],
+                core_3d::graph::Node3d::Tonemapping,
+                ScreenCaptureNode,
+            )
+            .add_render_graph_edge(
+                core_3d::graph::Core3d,
+                ScreenCaptureNode,
+                core_3d::graph::Node3d::EndMainPassPostProcessing,
             );
     }
 }

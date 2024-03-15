@@ -1,11 +1,29 @@
+use std::ops::{Deref, DerefMut};
+
 use bevy::{
+    app::{App, Plugin, PostUpdate, Update},
+    asset::{Asset, AssetApp, AssetEvent, Assets, Handle},
+    core::Name,
     ecs::{
-        query::{QueryData, QueryFilter, WorldQuery},
-        system::Command,
+        component::Component,
+        entity::Entity,
+        event::{Event, EventReader, EventWriter},
+        query::{QueryData, QueryFilter, With, Without, WorldQuery},
+        schedule::{apply_deferred, IntoSystemConfigs},
+        system::{Command, Commands, Query, Res, Resource},
+        world::World,
     },
-    prelude::*,
-    transform::TransformSystem,
+    hierarchy::{BuildWorldChildren, Children},
+    math::{EulerRot, Quat, Vec3},
+    reflect::{Reflect, TypePath},
+    render::color::Color,
+    time::{Time, Timer, TimerMode},
+    transform::{
+        components::{GlobalTransform, Transform},
+        TransformSystem,
+    },
 };
+use space_editor::space_prefab::ext::{in_state, resource_exists, Deref, DerefMut, SpatialBundle};
 use studio_bvh::{frames::Frame, ChannelType};
 
 mod error;
