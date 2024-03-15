@@ -114,7 +114,10 @@ export class AnimEditorElement extends LitElement {
 				max = time + 1;
 			}
 		}
+		this.clipStart = min;
+		this.clipEnd = max;
 		this.timelineEnd = max;
+		this.timelineStart = min;
 	}
 
 	
