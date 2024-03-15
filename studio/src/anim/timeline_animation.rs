@@ -11,8 +11,8 @@ use bevy::{
 
 use bevy_tweening::{
     lens::{TransformPositionLens, TransformRotationLens, TransformScaleLens},
-    Animator, AnimatorState, EaseFunction, EaseMethod, Sequence, Targetable, Tracks, Tween,
-    TweenCompleted, TweeningPlugin,
+    Animator, EaseMethod, Sequence, Targetable, Tracks, Tween,
+    TweenCompleted,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -207,7 +207,7 @@ fn process_timeline_events(
                 r_global_seek_time.time = *time;
             }
         }
-        
+
         r_global_seek_time.delta = None;
     }
 }
@@ -290,7 +290,6 @@ fn generate_transform_animation(
                 mut scale_list,
             ),
              (keyframe, transform, transform_keyframe, _)| {
-                
                 let time = keyframe.time;
                 let translation = transform.translation;
                 let rotation = transform.rotation;
@@ -298,7 +297,7 @@ fn generate_transform_animation(
 
                 info!("Processing Keyframe: {time} previous: {last_rotation:?}");
 
-                if (transform_keyframe.affect_translation) {
+                if transform_keyframe.affect_translation {
                     let (last_time, start) = match last_translation {
                         Some(v) => v,
                         None => (0., translation),
@@ -316,15 +315,13 @@ fn generate_transform_animation(
                     }
                 }
 
-                if (transform_keyframe.affect_rotation) {
+                if transform_keyframe.affect_rotation {
                     let (last_time, start) = match last_rotation {
                         Some(v) => v,
                         None => (0., rotation),
                     };
 
-                    
-
-                info!("Should apply rotation");
+                    info!("Should apply rotation");
 
                     if (time - last_time).abs() > 0.00001 {
                         rotation_list.push(Tween::new(
@@ -337,7 +334,7 @@ fn generate_transform_animation(
                         ));
                     }
                 }
-                if (transform_keyframe.affect_scale) {
+                if transform_keyframe.affect_scale {
                     let (last_time, start) = match last_scale {
                         Some(v) => v,
                         None => (0., scale),
@@ -388,12 +385,12 @@ fn generate_transform_animation(
         }
         if !rotation.is_empty() {
             tracks.push(Sequence::new(rotation));
-        }else {
+        } else {
             info!("No rotation");
         }
         if !scale.is_empty() {
             tracks.push(Sequence::new(scale));
-        }else {
+        } else {
             info!("No scale");
         }
 
@@ -444,8 +441,7 @@ pub fn timeline_bound_component_animator_system<T: Component>(
                 );
             } else {
                 info!("setting tween time to {}", time.time);
-                let mut tween = animator
-                    .tweenable_mut();
+                let tween = animator.tweenable_mut();
                 tween.set_elapsed(Duration::from_secs_f32(time.time));
                 info!("Tween time set successfully");
                 tween.tick(Duration::ZERO, &mut target, entity, &mut events);
