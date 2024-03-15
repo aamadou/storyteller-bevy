@@ -24,6 +24,8 @@ enum Subcommands {
         scene_dir: String,
         #[arg(long)]
         camera_motion: Option<String>,
+        #[arg(long)]
+        camera_motion_speed: Option<f32>,
         #[arg(long, short)]
         output_dir: Option<String>,
         #[arg(long)]
@@ -73,6 +75,7 @@ fn main() {
         Subcommands::Scene {
             scene_dir,
             camera_motion,
+            camera_motion_speed,
             skybox,
             output_dir,
             output_resolution,
@@ -97,15 +100,16 @@ fn main() {
             );
 
             if let Some(camera_motion) = camera_motion {
+                let camera_motion_speed = camera_motion_speed.unwrap_or(1.0);
                 match camera_motion.as_str() {
                     "orbit" => {
-                        app.insert_resource(CameraMotion::Orbit);
+                        app.insert_resource(CameraMotion::Orbit(camera_motion_speed));
                     }
                     "pan" => {
-                        app.insert_resource(CameraMotion::Pan);
+                        app.insert_resource(CameraMotion::Pan(camera_motion_speed));
                     }
                     "zoom" => {
-                        app.insert_resource(CameraMotion::Zoom);
+                        app.insert_resource(CameraMotion::Zoom(camera_motion_speed));
                     }
                     "static" => {
                         app.insert_resource(CameraMotion::Static);
@@ -176,13 +180,11 @@ fn main() {
     app.run();
 }
 
-pub const SPEED: f32 = 0.1;
-
 #[derive(Resource)]
 enum CameraMotion {
-    Orbit,
-    Pan,
-    Zoom,
+    Orbit(f32),
+    Pan(f32),
+    Zoom(f32),
     Static,
 }
 
@@ -199,22 +201,25 @@ pub(crate) fn update_camera_motion(
     println!("Updating camera motion");
 
     match *camera_motion {
-        CameraMotion::Orbit => {
-            orbit_camera(&mut main_cam_transform, &time);
+        CameraMotion::Orbit(speed) => {
+            orbit_camera(&mut main_cam_transform, &time, speed);
         }
-        CameraMotion::Pan => {
-            pan_camera(&mut main_cam_transform, &time);
+        CameraMotion::Pan(speed) => {
+            pan_camera(&mut main_cam_transform, &time, speed);
         }
-        CameraMotion::Zoom => {
-            zoom_camera(&mut main_cam_transform, &time);
+        CameraMotion::Zoom(speed) => {
+            zoom_camera(&mut main_cam_transform, &time, speed);
         }
-        CameraMotion::Static => {}
+        CameraMotion::Static => {
+            main_cam_transform.translation = Vec3::new(0.340, 1.1, -0.5);
+            main_cam_transform.rotation = Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0);
+        }
     }
     // main_cam_transform.look_at(Vec3::ZERO, Vec3::Y);
 }
 
-fn zoom_camera(main_cam_transform: &mut Transform, time: &Time<()>) {
-    let scaled_time = time.elapsed().as_secs_f32() * SPEED;
+fn zoom_camera(main_cam_transform: &mut Transform, time: &Time<()>, speed : f32) {
+    let scaled_time = time.elapsed().as_secs_f32() * speed;
     let normalized_cos = (-scaled_time.cos() + 1.0) / 2.0;
     let start_pos = Vec3::new(0.366, 1.1, 2.5);
     let end_pos = Vec3::new(0.366, 1.1, -0.5);
@@ -223,18 +228,18 @@ fn zoom_camera(main_cam_transform: &mut Transform, time: &Time<()>) {
     main_cam_transform.rotation = Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0);
 }
 
-fn pan_camera(main_cam_transform: &mut Transform, time: &Time<()>) {
-    let scaled_time = time.elapsed().as_secs_f32() * SPEED;
-    let normalized_cos = (scaled_time.cos() + 1.0) / 2.0;
-    let start_pos = Vec3::new(1.617, 0.9, 2.177);
-    let end_pos = Vec3::new(-0.365, 0.9, 2.323);
+fn pan_camera(main_cam_transform: &mut Transform, time: &Time<()>, speed : f32) {
+    let scaled_time = time.elapsed().as_secs_f32() * speed;
+    let normalized_cos = (-scaled_time.cos() + 1.0) / 2.0;
+    let start_pos = Vec3::new(0.676, 1.1, 0.119);
+    let end_pos = Vec3::new(0.067, 1.1, 0.121);
 
     main_cam_transform.translation = start_pos.lerp(end_pos, normalized_cos);
     main_cam_transform.rotation = Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, 0.0);
 }
 
-fn orbit_camera(main_cam_transform: &mut Mut<'_, Transform>, time: &Res<'_, Time>) {
-    let scaled_time = time.elapsed().as_secs_f32() * SPEED;
+fn orbit_camera(main_cam_transform: &mut Mut<'_, Transform>, time: &Res<'_, Time>, speed : f32) {
+    let scaled_time = time.elapsed().as_secs_f32() * speed;
     let max_angle = std::f32::consts::PI / 2.0;
     let normalized_cos = (scaled_time.cos() + 1.0) / 2.0;
     let angle = max_angle * normalized_cos;
