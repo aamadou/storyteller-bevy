@@ -1,7 +1,7 @@
 use bevy::{
     math::vec3,
     prelude::*,
-    render::{mesh::Indices, primitives::Aabb, render_resource::PrimitiveTopology},
+    render::{mesh::Indices, primitives::Aabb, render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
 };
 
 pub struct Cone {
@@ -45,8 +45,8 @@ impl From<Cone> for Mesh {
 
         positions.push(vec3(0., c.length, 0.));
 
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_indices(Some(Indices::U32(indices)));
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::all());
+        mesh.insert_indices(Indices::U32(indices));
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
 
         mesh
@@ -104,8 +104,8 @@ impl From<Plane2Sided> for Mesh {
             2, 3, 1,
         ];
 
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-        mesh.set_indices(Some(Indices::U32(indices)));
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::all());
+        mesh.insert_indices(Indices::U32(indices));
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
 
         mesh

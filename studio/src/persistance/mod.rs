@@ -31,11 +31,11 @@ impl EditorTab for DebugPersistanceTab {
         world: &mut World,
     ) {
         if ui.button("Save").clicked() {
-            world.send_event(EditorEvent::Save(EditorPrefabPath::MemoryCahce));
+            world.send_event(EditorEvent::Save(EditorPrefabPath::MemoryCache));
         }
 
         if ui.button("Load").clicked() {
-            world.send_event(EditorEvent::Load(EditorPrefabPath::MemoryCahce));
+            world.send_event(EditorEvent::Load(EditorPrefabPath::MemoryCache));
         }
 
         if ui.button("Clear level").clicked() {
@@ -68,7 +68,7 @@ mod wasm {
 
     pub(super) fn forward_save_scene_events(mut ew_editor_events: EventWriter<EditorEvent>) {
         if SAVE_SCENE.take_message().is_some() {
-            ew_editor_events.send(EditorEvent::Save(EditorPrefabPath::MemoryCahce));
+            ew_editor_events.send(EditorEvent::Save(EditorPrefabPath::MemoryCache));
         }
     }
 

@@ -6,7 +6,7 @@ pub struct MixamoPlugin;
 impl Plugin for MixamoPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<MixamoImportEvent>();
-        app.add_state::<MixamoState>();
+        app.init_state::<MixamoState>();
 
         app.add_systems(
             Update,
