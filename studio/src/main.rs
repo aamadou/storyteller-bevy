@@ -1,9 +1,8 @@
 use bevy::{
-    app::Update,
-    window::{close_on_esc, Window},
+    app::Update, ecs::{query::With, system::Query}, window::{close_on_esc, Window}, prelude::*
 };
 use clap::Parser;
-use studio::{screenshot::ScreenShotPlugin, InitAsset, InitParams, StudioMode};
+use studio::{anim::Skeleton, scene::{tag_scene_elements, SceneState}, screenshot::ScreenShotPlugin, InitAsset, InitParams, StudioMode};
 
 #[derive(Parser)]
 #[command(name = "StorytellerStudio")]
@@ -37,7 +36,30 @@ fn main() {
 
     // Add any additional systems, resources, etc. for local debugging
     app.add_systems(Update, close_on_esc);
+    app.add_systems(Update, add_anim);
     app.add_plugins(ScreenShotPlugin);
 
     app.run();
+}
+
+fn add_anim(
+    mut commands : Commands,
+    skeletons : Query<Entity, Added<Skeleton>>,
+    asset_server : Res<AssetServer>,
+) {
+    let bvh_anim : Handle<AnimationClip> = asset_server.load("mocap/shuffle.bvh");
+    
+    if skeletons.iter().count() > 0 {
+        println!("Adding animation to skeletons {}", skeletons.iter().count());
+    }
+    
+    for skeleton in skeletons.iter() {
+        let mut animation_player = AnimationPlayer::default();
+        animation_player.play(bvh_anim.clone());
+        println!("{:?}", skeleton);
+        commands.entity(skeleton).insert((
+            animation_player,
+            bvh_anim.clone()
+        ));
+    }
 }

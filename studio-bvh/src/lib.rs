@@ -525,6 +525,10 @@ impl Bvh {
     pub fn joints_mut(&mut self) -> JointsMut<'_> {
         JointsMut::iter_root(&mut self.joints[..])
     }
+    
+    pub fn joints_len(&self) -> usize {
+        self.joints.len()
+    }
 
     /// Returns a `Frames` iterator over the frames of the bvh.
     ///

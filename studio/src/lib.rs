@@ -10,7 +10,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-mod anim;
+pub mod anim;
 mod bvh;
 mod camera_controller;
 mod change_tracking;
@@ -26,7 +26,7 @@ mod mixamo;
 mod path;
 mod persistance;
 mod remote;
-mod scene;
+pub mod scene;
 pub mod screenshot;
 mod skybox;
 mod ui;
@@ -92,6 +92,7 @@ impl PluginGroup for CommonPlugins {
             .add(WorldGridPlugin)
             .add(PersistancePlugin)
             .add(AnimPlugin)
+            .add(BvhPlugin)
     }
 }
 

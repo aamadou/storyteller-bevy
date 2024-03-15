@@ -488,10 +488,12 @@ impl<'a> Iterator for Joints<'a> {
                     return None;
                 }
 
-                Some(Joint {
+                let next = Some(Joint {
                     index: *current,
                     joints: self.joints,
-                })
+                });
+                *current += 1;
+                next
             }
             JointIterType::Sequence(ref mut joints) => {
                 let Some(next) = joints.pop_front() else {

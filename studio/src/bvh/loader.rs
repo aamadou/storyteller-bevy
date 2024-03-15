@@ -1,7 +1,7 @@
 use bevy::{
     animation::{AnimationClip, EntityPath, Keyframes, VariableCurve}, asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext}, core::Name, math::{Quat, Vec3}, utils::BoxedFuture
 };
-use studio_bvh::Joint;
+use studio_bvh::{joint, Joint};
 
 use crate::anim::RetargetMap;
 
@@ -28,11 +28,13 @@ impl AssetLoader for BvhLoader {
             let mut buf = vec![];
             reader.read_to_end(&mut buf).await.anyhow()?;
             let bvh = studio_bvh::from_bytes(&buf).anyhow()?;
+            // println!("{:?}", bvh.joints_len());
             
             let mut anim_clip = AnimationClip::default();
             
-            for joint in bvh.joints() {
+            for (index, joint) in bvh.joints().enumerate() {
                 let path = get_entity_path(&joint, &RetargetMap::default());
+                println!("{} - {:?}", index, path);
                 let mut timestamps = Vec::new();
                 let mut motions = Vec::new();
                 let mut rotations = Vec::new();
@@ -54,16 +56,16 @@ impl AssetLoader for BvhLoader {
                     }
                     
                     motions.push(frame_pos);
-                    rotations.push(Quat::from_euler(bevy::math::EulerRot::ZXY, frame_rot.x, frame_rot.y, frame_rot.z));
+                    rotations.push(Quat::from_euler(bevy::math::EulerRot::ZXY, frame_rot.x.to_radians(), frame_rot.y.to_radians(), frame_rot.z.to_radians()));
                 }
                 
-                if joint.is_root() {
-                    let motion_curve = VariableCurve {
-                        keyframe_timestamps: timestamps.clone(),
-                        keyframes: Keyframes::Translation(motions),
-                    };
-                    anim_clip.add_curve_to_path(path.clone(), motion_curve);
-                }
+                // if joint.is_root() {
+                //     let motion_curve = VariableCurve {
+                //         keyframe_timestamps: timestamps.clone(),
+                //         keyframes: Keyframes::Translation(motions),
+                //     };
+                //     anim_clip.add_curve_to_path(path.clone(), motion_curve);
+                // }
                 
                 let rotation_curve = VariableCurve {
                     keyframe_timestamps: timestamps,
@@ -91,6 +93,7 @@ pub fn get_entity_path(current_joint : &Joint, retarget_map : &RetargetMap) -> E
         path
     } else {
         let mut path = EntityPath::default();
+        path.parts.push("Mannequin_gamerig".into());
         path.parts.push(Name::new(name));
         path
     }

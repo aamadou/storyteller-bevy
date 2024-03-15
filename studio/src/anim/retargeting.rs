@@ -234,8 +234,8 @@ pub struct RetargetMap {
 impl RetargetMap {
     const MOCAP_NET: [(&'static str, &'static str); 80] = [
         // Spine
-        ("LowerBack", "DEF-spine"),
         ("hip", "DEF-spine"),
+        ("LowerBack", "DEF-spine.001"),
         ("abdomen", "DEF-spine.002"),
         ("chest", "DEF-spine.003"),
         ("Neck", "DEF-spine.004"),

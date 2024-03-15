@@ -376,7 +376,7 @@ fn init_scene_loading(
     }
 }
 
-fn tag_scene_elements(
+pub fn tag_scene_elements(
     mut cmd: Commands,
     // A "glTF mesh" is actually a container for one or more "glTF primitives",
     // which is basically a bundle of vertices paired with the material used to
