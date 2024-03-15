@@ -46,8 +46,7 @@ impl Plugin for GizmoPlugin {
         app.add_systems(
             PreUpdate,
             spawn_gizmo_camera.run_if(
-                any_with_component::<MainCamera>
-                    .and_then(not(any_with_component::<GizmoCamera>)),
+                any_with_component::<MainCamera>.and_then(not(any_with_component::<GizmoCamera>)),
             ),
         );
         app.add_systems(

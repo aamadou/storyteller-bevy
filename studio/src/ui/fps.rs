@@ -1,5 +1,7 @@
 use bevy::{
-    a11y::accesskit::TextAlign, diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin}, prelude::*
+    a11y::accesskit::TextAlign,
+    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
+    prelude::*,
 };
 
 use crate::debug::DebugMode;
@@ -35,7 +37,7 @@ fn layout(mut cmd: Commands) {
         position_type: PositionType::Absolute,
         right: Val::Px(16.),
         bottom: Val::Px(16.),
-        
+
         ..default()
     });
 

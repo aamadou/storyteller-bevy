@@ -302,7 +302,9 @@ pub(super) fn on_rotate(
                 }
 
                 let view_plane_normal = (cam_xform.translation() - p1).normalize();
-                let hit_dist = ray.intersect_plane(p1, Plane3d::new(view_plane_normal)).unwrap();
+                let hit_dist = ray
+                    .intersect_plane(p1, Plane3d::new(view_plane_normal))
+                    .unwrap();
                 let p2 = ray.origin + ray.direction * hit_dist;
                 let drag_dist = (p2 - p1).length();
                 // TODO: Sensitivity could use some tuning

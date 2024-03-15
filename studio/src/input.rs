@@ -90,7 +90,10 @@ impl From<Selection> for Action {
 
 // TODO: Make the bindings of raw device inputs to InputActions configurable
 
-fn translate_selection_events(keyboard: Res<ButtonInput<KeyCode>>, mut input: EventWriter<InputAction>) {
+fn translate_selection_events(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut input: EventWriter<InputAction>,
+) {
     if keyboard.just_pressed(KeyCode::Escape) {
         input.send(InputAction(Lifecycle::Start, Selection::Clear.into()));
     } else if keyboard.just_released(KeyCode::Escape) {
@@ -110,7 +113,10 @@ fn translate_selection_events(keyboard: Res<ButtonInput<KeyCode>>, mut input: Ev
     }
 }
 
-fn translate_debug_toggle(keyboard: Res<ButtonInput<KeyCode>>, mut input: EventWriter<InputAction>) {
+fn translate_debug_toggle(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut input: EventWriter<InputAction>,
+) {
     if keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight) {
         if keyboard.just_pressed(KeyCode::Backquote) {
             input.send(InputAction(Lifecycle::Start, Action::ToggleDebug));
@@ -232,7 +238,14 @@ fn translate_fps_camera_events(
 ) {
     // Camera Translation (FPS-like)
     use KeyCode::*;
-    let wasd_keys = [KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD, KeyCode::KeyE, KeyCode::KeyQ];
+    let wasd_keys = [
+        KeyCode::KeyW,
+        KeyCode::KeyA,
+        KeyCode::KeyS,
+        KeyCode::KeyD,
+        KeyCode::KeyE,
+        KeyCode::KeyQ,
+    ];
     let wasd_keys_set = wasd_keys.into_iter().collect::<HashSet<_>>();
 
     // A little unfortunate that `get_pressed()` doesn't just return a reference

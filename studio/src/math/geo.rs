@@ -1,7 +1,10 @@
 use bevy::{
     math::vec3,
     prelude::*,
-    render::{mesh::Indices, primitives::Aabb, render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
+    render::{
+        mesh::Indices, primitives::Aabb, render_asset::RenderAssetUsages,
+        render_resource::PrimitiveTopology,
+    },
 };
 
 pub struct Cone {

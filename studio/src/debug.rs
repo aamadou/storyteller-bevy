@@ -4,7 +4,8 @@ use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
 use bevy_mod_picking::debug::DebugPickingMode;
 use space_editor::{
-    prelude::*, space_editor_ui::{tools::gizmo::GizmoToolPlugin, EditorGizmoConfigPlugin, EditorPluginGroup}
+    prelude::*,
+    space_editor_ui::{tools::gizmo::GizmoToolPlugin, EditorGizmoConfigPlugin, EditorPluginGroup},
 };
 
 use crate::{

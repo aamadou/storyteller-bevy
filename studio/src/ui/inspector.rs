@@ -10,7 +10,11 @@ use bevy::{
 use serde::{Deserialize, Serialize};
 use serde_json::*;
 use space_editor::{
-    space_editor_ui::{editor_tab::{EditorTab, EditorTabName}, ui_plugin::EditorUiAppExt}, space_prefab::component::MeshPrimitive3dPrefab,
+    space_editor_ui::{
+        editor_tab::{EditorTab, EditorTabName},
+        ui_plugin::EditorUiAppExt,
+    },
+    space_prefab::component::MeshPrimitive3dPrefab,
 };
 use wasm_bindgen::prelude::*;
 

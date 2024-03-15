@@ -3,7 +3,8 @@ use bevy::{
     core_pipeline::{
         bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
         fxaa::Fxaa,
-        tonemapping::Tonemapping, Skybox,
+        tonemapping::Tonemapping,
+        Skybox,
     },
     gltf::Gltf,
     math::vec2,
@@ -111,7 +112,7 @@ pub struct SkyboxHolder(pub Option<Skybox>);
 fn attach_skybox(
     mut cmd: Commands,
     mut skybox_holder: ResMut<SkyboxHolder>,
-    mut q_camera: Query<Entity, (With<Camera3d>, Without<Skybox>)>
+    mut q_camera: Query<Entity, (With<Camera3d>, Without<Skybox>)>,
 ) {
     let Some(skybox) = skybox_holder.0.as_ref() else {
         return;

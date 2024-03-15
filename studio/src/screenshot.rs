@@ -1,9 +1,10 @@
+use bevy::render::render_graph::RenderSubGraph;
 use bevy::{
     app::AppExit,
     core_pipeline::{core_3d, prepass::ViewPrepassTextures},
     prelude::*,
     render::{
-        render_graph::{RenderGraphApp, ViewNode, ViewNodeRunner},
+        render_graph::{RenderGraphApp, RenderLabel, ViewNode, ViewNodeRunner},
         render_resource::{
             Buffer, BufferDescriptor, BufferUsages, ImageCopyBuffer, ImageDataLayout, MapMode,
         },
@@ -52,13 +53,13 @@ impl Plugin for ScreenShotPlugin {
             //Render Graph Additions
             .add_render_graph_node::<ViewNodeRunner<ScreenCaptureNode>>(
                 core_3d::graph::Core3d,
-                ScreenCaptureNode::NAME,
+                ScreenCaptureNode,
             )
             .add_render_graph_edges(
                 core_3d::graph::Core3d,
                 &[
                     core_3d::graph::Node3d::Tonemapping,
-                    ScreenCaptureNode::NAME,
+                    ScreenCaptureNode,
                     core_3d::graph::Node3d::EndMainPassPostProcessing,
                 ],
             );
@@ -206,12 +207,8 @@ fn prepare_screen_capture_buffers(
 //                        Screen Shot View Node
 //==============================================================================
 
-#[derive(Default)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel, Default)]
 struct ScreenCaptureNode;
-
-impl ScreenCaptureNode {
-    pub const NAME: &'static str = "ScreenCaptureNode";
-}
 
 impl ViewNode for ScreenCaptureNode {
     type ViewQuery = (

@@ -99,8 +99,8 @@ fn spawn_skybox(
     // Add components to the scene camera
     cmd.entity(q_camera.single()).insert((
         Skybox {
-            image : skybox_assets.cubemap.clone(),
-            brightness: 1.0
+            image: skybox_assets.cubemap.clone(),
+            brightness: 1.0,
         },
         EnvironmentMapLight {
             diffuse_map: skybox_assets.env_diffuse.clone(),

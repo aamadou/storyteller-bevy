@@ -1,5 +1,8 @@
 use bevy::{
-    ecs::entity::{EntityHashMap, EntityHashSet}, math::Affine3A, prelude::*, render::{mesh::skinning::SkinnedMesh, view::NoFrustumCulling}
+    ecs::entity::{EntityHashMap, EntityHashSet},
+    math::Affine3A,
+    prelude::*,
+    render::{mesh::skinning::SkinnedMesh, view::NoFrustumCulling},
 };
 use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 

@@ -113,6 +113,9 @@ trait IntoError<Output> {
 
 impl IntoError<AssetReaderError> for reqwest::Error {
     fn into(self) -> AssetReaderError {
-        AssetReaderError::Io(Arc::new(std::io::Error::new(ErrorKind::Other, format!("{self}"))))
+        AssetReaderError::Io(Arc::new(std::io::Error::new(
+            ErrorKind::Other,
+            format!("{self}"),
+        )))
     }
 }
