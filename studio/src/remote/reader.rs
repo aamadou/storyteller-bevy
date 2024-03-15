@@ -1,4 +1,4 @@
-use std::{io::ErrorKind, path::Path};
+use std::{io::ErrorKind, path::Path, sync::Arc};
 
 use bevy::{
     asset::io::{AssetReader, AssetReaderError, PathStream, Reader, VecReader},
@@ -26,10 +26,10 @@ impl AssetReader for RemoteAssetReader {
             let token = path
                 .ext_file_prefix()
                 .ok_or_else(|| {
-                    AssetReaderError::Io(std::io::Error::new(
+                    AssetReaderError::Io(Arc::new(std::io::Error::new(
                         ErrorKind::Other,
                         format!("Failed to parse token from '{path:?}'"),
-                    ))
+                    )))
                 })?
                 .to_str()
                 .unwrap();
@@ -45,10 +45,10 @@ impl AssetReader for RemoteAssetReader {
                     .json::<GetMediaFileSuccessResponse>()
                     .await
                     .map_err(IntoError::<AssetReaderError>::into),
-                other => Err(AssetReaderError::Io(std::io::Error::new(
+                other => Err(AssetReaderError::Io(Arc::new(std::io::Error::new(
                     ErrorKind::Other,
                     format!("Status Code from endpoint: {other}"),
-                ))),
+                )))),
             }?;
 
             let url = format!(
@@ -74,10 +74,10 @@ impl AssetReader for RemoteAssetReader {
                     .map_err(IntoError::<AssetReaderError>::into)?
                     .into_iter()
                     .collect::<Vec<_>>()),
-                other => Err(AssetReaderError::Io(std::io::Error::new(
+                other => Err(AssetReaderError::Io(Arc::new(std::io::Error::new(
                     ErrorKind::Other,
                     format!("Status Code from bucket URL: {other}"),
-                ))),
+                )))),
             }?;
 
             let reader: Box<Reader> = Box::new(VecReader::new(bytes));
@@ -113,6 +113,6 @@ trait IntoError<Output> {
 
 impl IntoError<AssetReaderError> for reqwest::Error {
     fn into(self) -> AssetReaderError {
-        AssetReaderError::Io(std::io::Error::new(ErrorKind::Other, format!("{self}")))
+        AssetReaderError::Io(Arc::new(std::io::Error::new(ErrorKind::Other, format!("{self}"))))
     }
 }

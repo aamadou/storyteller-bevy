@@ -261,7 +261,7 @@ pub(super) fn on_scale(
             let plane_vector = axis_ws.cross(axis_tan);
 
             // Find the intersection of the camera-to-world ray against that plane
-            let Some(hit_dist) = ray.intersect_plane(origin_ws, plane_vector) else {
+            let Some(hit_dist) = ray.intersect_plane(origin_ws, Plane3d::new(plane_vector)) else {
                 return;
             };
             let hit_point = ray.origin + ray.direction * hit_dist;
@@ -299,7 +299,7 @@ pub(super) fn on_scale(
                 .affine()
                 .transform_vector3(*plane_normal)
                 .normalize();
-            let Some(hit_dist) = ray.intersect_plane(origin_ws, normal_ws) else {
+            let Some(hit_dist) = ray.intersect_plane(origin_ws, Plane3d::new(normal_ws)) else {
                 return;
             };
             let hit_point = ray.origin + ray.direction * hit_dist;

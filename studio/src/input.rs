@@ -97,9 +97,9 @@ fn translate_selection_events(keyboard: Res<ButtonInput<KeyCode>>, mut input: Ev
         input.send(InputAction(Lifecycle::Stop, Selection::Clear.into()));
     }
 
-    if keyboard.just_pressed(KeyCode::F) {
+    if keyboard.just_pressed(KeyCode::KeyF) {
         input.send(InputAction(Lifecycle::Start, Selection::Focus.into()));
-    } else if keyboard.just_released(KeyCode::F) {
+    } else if keyboard.just_released(KeyCode::KeyF) {
         input.send(InputAction(Lifecycle::Stop, Selection::Focus.into()));
     }
 
@@ -112,9 +112,9 @@ fn translate_selection_events(keyboard: Res<ButtonInput<KeyCode>>, mut input: Ev
 
 fn translate_debug_toggle(keyboard: Res<ButtonInput<KeyCode>>, mut input: EventWriter<InputAction>) {
     if keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight) {
-        if keyboard.just_pressed(KeyCode::Grave) {
+        if keyboard.just_pressed(KeyCode::Backquote) {
             input.send(InputAction(Lifecycle::Start, Action::ToggleDebug));
-        } else if keyboard.just_released(KeyCode::Grave) {
+        } else if keyboard.just_released(KeyCode::Backquote) {
             input.send(InputAction(Lifecycle::Stop, Action::ToggleDebug));
         }
     }
@@ -232,7 +232,7 @@ fn translate_fps_camera_events(
 ) {
     // Camera Translation (FPS-like)
     use KeyCode::*;
-    let wasd_keys = [KeyCode::W, KeyCode::A, KeyCode::S, KeyCode::D, KeyCode::E, KeyCode::Q];
+    let wasd_keys = [KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD, KeyCode::KeyE, KeyCode::KeyQ];
     let wasd_keys_set = wasd_keys.into_iter().collect::<HashSet<_>>();
 
     // A little unfortunate that `get_pressed()` doesn't just return a reference
@@ -247,12 +247,12 @@ fn translate_fps_camera_events(
         let mut mvmt = Vec3::ZERO;
 
         #[rustfmt::skip] {
-        if wasd_keys_pressed.contains(&KeyCode::W) { mvmt.z -= 1.; }
-        if wasd_keys_pressed.contains(&KeyCode::A) { mvmt.x -= 1.; }
-        if wasd_keys_pressed.contains(&KeyCode::S) { mvmt.z += 1.; }
-        if wasd_keys_pressed.contains(&KeyCode::D) { mvmt.x += 1.; }
-        if wasd_keys_pressed.contains(&KeyCode::E) { mvmt.y += 1.; }
-        if wasd_keys_pressed.contains(&KeyCode::Q) { mvmt.y -= 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyW) { mvmt.z -= 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyA) { mvmt.x -= 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyS) { mvmt.z += 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyD) { mvmt.x += 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyE) { mvmt.y += 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyQ) { mvmt.y -= 1.; }
         };
 
         let mvmt = mvmt.normalize_or_zero();
@@ -335,7 +335,7 @@ fn read_mouse_delta(
 // TODO: Make it configurable
 fn send_undo_event(mut events: EventWriter<UndoRedo>, keyboard: Res<ButtonInput<KeyCode>>) {
     if keyboard.pressed(KeyCode::ControlLeft)
-        && keyboard.just_pressed(KeyCode::Z)
+        && keyboard.just_pressed(KeyCode::KeyZ)
         && !keyboard.pressed(KeyCode::ShiftLeft)
     {
         events.send(UndoRedo::Undo);
@@ -343,7 +343,7 @@ fn send_undo_event(mut events: EventWriter<UndoRedo>, keyboard: Res<ButtonInput<
     }
 
     if keyboard.pressed(KeyCode::ControlLeft)
-        && keyboard.just_pressed(KeyCode::Z)
+        && keyboard.just_pressed(KeyCode::KeyZ)
         && keyboard.pressed(KeyCode::ShiftLeft)
     {
         events.send(UndoRedo::Redo);

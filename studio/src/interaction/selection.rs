@@ -20,7 +20,7 @@ impl Plugin for SelectionPlugin {
                 Update,
                 (
                     update_selection,
-                    process_delete_inputs.run_if(resource_exists::<Selection>()),
+                    process_delete_inputs.run_if(resource_exists::<Selection>),
                 ),
             )
             .add_systems(

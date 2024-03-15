@@ -129,7 +129,7 @@ pub fn animate_bvh(
                 }
             }
 
-            anim.timer.percent()
+            anim.timer.fraction()
         } else {
             0.
         };

@@ -28,7 +28,7 @@ pub(crate) fn nearest_common_ancestor(
     q_parents: &Query<Option<&Parent>>,
 ) -> Option<Entity> {
     // Find the depth of each entity in the tree
-    let mut depths: EntityHashMap<Entity, usize> = EntityHashMap::default();
+    let mut depths = EntityHashMap::default();
     for &ent in entities {
         depths.insert(ent, find_depth(ent, q_parents));
     }
@@ -40,7 +40,7 @@ pub(crate) fn nearest_common_ancestor(
 
     // Traverse up the tree from each entity until we find each one's ancestor
     // at the level of lowest_depth
-    let mut equalized: EntityHashSet<Entity> = EntityHashSet::default();
+    let mut equalized = EntityHashSet::default();
     for ent in entities {
         let mut depth = depths[ent];
         let mut result = *ent;
@@ -60,7 +60,7 @@ pub(crate) fn nearest_common_ancestor(
     //       by adding a some kind of mode switch to this function's parameters.
 
     // Walk up the tree from each of those entities until we find the common ancestor
-    let mut parents: EntityHashSet<Entity> = EntityHashSet::default();
+    let mut parents = EntityHashSet::default();
     loop {
         for &ent in equalized.iter() {
             if let Some(parent) = find_parent(ent, q_parents) {

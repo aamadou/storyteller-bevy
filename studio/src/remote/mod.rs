@@ -16,7 +16,7 @@ impl Plugin for RemoteAssetPlugin {
             AssetSourceId::Name("remote".into()),
             AssetSource::build()
                 .with_reader(|| Box::new(RemoteAssetReader))
-                .with_writer(|| None),
+                .with_writer(|_| None),
         );
     }
 }

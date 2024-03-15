@@ -302,7 +302,7 @@ pub(super) fn on_rotate(
                 }
 
                 let view_plane_normal = (cam_xform.translation() - p1).normalize();
-                let hit_dist = ray.intersect_plane(p1, view_plane_normal).unwrap();
+                let hit_dist = ray.intersect_plane(p1, Plane3d::new(view_plane_normal)).unwrap();
                 let p2 = ray.origin + ray.direction * hit_dist;
                 let drag_dist = (p2 - p1).length();
                 // TODO: Sensitivity could use some tuning
@@ -366,7 +366,7 @@ pub(super) fn on_rotate(
             };
 
             // Find the world-space p2, if possible
-            let Some(hit_dist) = ray.intersect_plane(p0, axis_ws) else {
+            let Some(hit_dist) = ray.intersect_plane(p0, Plane3d::new(axis_ws)) else {
                 // This could fail if the axis of rotation is nearly
                 // perpendicular to the view direction
                 return;

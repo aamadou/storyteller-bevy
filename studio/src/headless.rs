@@ -8,7 +8,7 @@ use wgpu::Extent3d;
 
 use crate::{
     bvh::{BvhAnimCompleteEvent, TestBvh},
-    scene::SceneState,
+    scene::{SceneState, SkyboxHolder},
     screenshot::{ScreenCapture, ScreenShotPlugin},
     BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera,
     MixamoImportEvent, MixamoPlugin, SkyboxId, StudioMode, WorldGridPlugin,
@@ -72,12 +72,11 @@ pub fn start_headless(
         HeadlessMode::Scene(scene, skybox) => {
             app.add_systems(
                 Startup,
-                move |mut cmd: Commands, mut ew: EventWriter<EditorEvent>| {
-                    cmd.insert_resource(Skybox {
-                        image : skybox.clone(),
-                        brightness: 1.0
-                    });
-                    ew.send(EditorEvent::Load(EditorPrefabPath::File(scene.clone())))
+                move |mut cmd: Commands, mut ew: EventWriter<EditorEvent>, mut asset_server: Res<AssetServer>| {
+
+                    cmd.insert_resource(SkyboxHolder(Some(Skybox { image: asset_server.load(skybox.clone()), brightness: 1.0 })));
+
+                    ew.send(EditorEvent::Load(EditorPrefabPath::File(scene.clone())));
                 },
             );
         }

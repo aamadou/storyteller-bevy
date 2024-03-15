@@ -100,7 +100,7 @@ fn process_skinned_meshes(
     // ```
     // Building this hashmap before processing each joint avoids redundancy in
     // the common case where the same joints are bound to multiple skinned meshes
-    let mut joint_collections = EntityHashMap::<Entity, EntityHashSet<Entity>>::default();
+    let mut joint_collections = EntityHashMap::<EntityHashSet>::default();
     for (ent, skinned_mesh) in q_skinned_meshes.iter() {
         cmd.entity(ent)
             .insert(NoFrustumCulling)
