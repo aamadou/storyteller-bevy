@@ -10,10 +10,12 @@ import "./icon.element";
 export class ButtonElement extends LitElement {
 	static override styles = unsafeCSS(styles);
 
+	@property({ reflect: true })
+	override role = "button";
+
 	@property() icon?: string;
 	@property({ type: Boolean }) disabled = false;
 
-	override role = "button";
 	override tabIndex = 0;
 
 	protected override willUpdate(changes: PropertyValues<this>): void {
@@ -35,9 +37,13 @@ export class ButtonElement extends LitElement {
 	}
 
 	protected override render = () => html`
-		${this.icon
-			? html`<sts-icon icon=${this.icon} aria-hidden="true"></sts-icon>`
-			: nothing}
+		${this.icon ? html`
+			<sts-icon
+				part="icon"
+				icon=${this.icon}
+				aria-hidden="true"
+			></sts-icon>
+		` : nothing}
 		<slot></slot>
 	`
 }
