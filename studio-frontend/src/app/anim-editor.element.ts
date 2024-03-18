@@ -159,7 +159,11 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	jumpToStart(): void {
-		this.playHead = this.clipStart;
+		if (Math.abs(this.playHead - this.clipStart) < 0.0001) {
+			this.playHead = 0;
+		} else {
+			this.playHead = this.clipStart;
+		}
 	}
 
 	prevKeyframe(): void {
@@ -178,7 +182,7 @@ export class AnimEditorElement extends LitElement {
 		}
 
 		if (closest_keyframe < 0) {
-			return;
+			closest_keyframe = 0;
 		}
 
 		this.playHead = closest_keyframe;
@@ -244,7 +248,7 @@ export class AnimEditorElement extends LitElement {
 		
 		let timeline_css_variables = {
 			'--track-count': `${this.trackCount()}`,
-			'--row-count': `calc(var(--track-count) + ${can_add_selected ? 2 : 1})`,
+			'--row-count': `calc(var(--track-count) + ${can_add_selected ? 3 : 2})`,
 			'--clip-end': `${clip_end * 100}%`,
 			'--clip-start': `${clip_start * 100}%`
 		};

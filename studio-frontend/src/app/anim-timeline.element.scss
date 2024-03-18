@@ -23,6 +23,14 @@
 	&.panning {
 		cursor: grabbing;
 	}
+
+	.zoom-controls {
+		grid-row: var(--row-count);
+		background: rgba(0,0,0,1);
+		height: 10px;
+		width: 100%;
+		z-index: 1;
+	}
 }
 
 .hash {
