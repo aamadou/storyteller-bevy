@@ -205,7 +205,7 @@ fn process_timeline_events(
                 r_global_seek_time.playing = false;
             }
             TimelineInteractionEvent::Seek(time) => {
-                r_global_seek_time.time = *time;
+                r_global_seek_time.time = time.max(0.);
             }
         }
 
@@ -316,7 +316,7 @@ fn generate_transform_animation(
                     if (time - last_time).abs() > 0.00001 {
                         translation_list.push(Tween::new(
                             EaseMethod::Linear,
-                            Duration::from_secs_f32(time - last_time),
+                            Duration::from_secs_f32((time - last_time).max(0.00001)),
                             TransformPositionLens {
                                 start,
                                 end: translation,
@@ -336,7 +336,7 @@ fn generate_transform_animation(
                     if (time - last_time).abs() > 0.00001 {
                         rotation_list.push(Tween::new(
                             EaseMethod::Linear,
-                            Duration::from_secs_f32(time - last_time),
+                            Duration::from_secs_f32((time - last_time).max(0.00001)),
                             TransformRotationLens {
                                 start,
                                 end: rotation,
@@ -353,7 +353,7 @@ fn generate_transform_animation(
                     if (time - last_time).abs() > 0.00001 {
                         scale_list.push(Tween::new(
                             EaseMethod::Linear,
-                            Duration::from_secs_f32(time - last_time),
+                            Duration::from_secs_f32((time - last_time).max(0.00001)),
                             TransformScaleLens { start, end: scale },
                         ));
                     }
@@ -433,7 +433,7 @@ pub fn timeline_bound_component_animator_system<T: Component>(
     mut query: Query<(Entity, &mut T, &mut Animator<T>)>,
     events: ResMut<Events<TweenCompleted>>,
 ) {
-    if time.is_changed() {
+    if time.is_changed() && time.time >= 0.0 {
         info!("Animating with time: {time:?}");
         let mut events: Mut<Events<TweenCompleted>> = events.into();
         for (entity, target, mut animator) in query.iter_mut() {
@@ -452,7 +452,7 @@ pub fn timeline_bound_component_animator_system<T: Component>(
             } else {
                 info!("setting tween time to {}", time.time);
                 let tween = animator.tweenable_mut();
-                tween.set_elapsed(Duration::from_secs_f32(time.time));
+                tween.set_elapsed(Duration::from_secs_f32(time.time.max(0.)));
                 info!("Tween time set successfully");
                 tween.tick(Duration::ZERO, &mut target, entity, &mut events);
             }

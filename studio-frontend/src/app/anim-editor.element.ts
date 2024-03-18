@@ -28,7 +28,7 @@ export class AnimEditorElement extends LitElement {
 	@state() timelineEnd = 5;
 
 	@state() clipStart = 0;
-	@state() clipEnd = 15_000;
+	@state() clipEnd = 0;
 
 	@state() playHead = 0;
 	@state() playing = false;
@@ -103,21 +103,22 @@ export class AnimEditorElement extends LitElement {
 
 		this.keyframes = keyframes;
 
-		let min = 0;
-		let max = 5;
+		let min = Infinity
+		let max = -Infinity;
 		for (const keyframe of Object.keys(this.keyframes)) {
 			let time = this.keyframes[keyframe].time;
 			if (typeof time != "number") {
 				continue;
 			}
 			if (time > max) {
-				max = time + 1;
+				max = time;
+			}
+			if (time < min) {
+				min = time;
 			}
 		}
-		this.clipStart = min;
-		this.clipEnd = max;
-		this.timelineEnd = max;
-		this.timelineStart = min;
+		this.clipStart = Math.max(min, 0.);
+		this.clipEnd = Math.max(max, min);
 	}
 
 	
@@ -134,6 +135,17 @@ export class AnimEditorElement extends LitElement {
 		} else {
 			this.selected_track = false;
 		}
+	}
+
+	@on("rangeStart-change")
+	onRangeStartChange({detail}: {detail:number}): void {
+		this.timelineStart = detail;
+	}
+
+	
+	@on("rangeEnd-change")
+	onRangeEndChange({detail}: {detail:number}): void {
+		this.timelineStart = detail;
 	}
 
 	onSidebarResize(event: PointerEvent): void {
@@ -225,10 +237,16 @@ export class AnimEditorElement extends LitElement {
 		const selected = typeof this.selected_track === "object" && "track" in this.selected_track ? this.selected_track.track : false;
 		const can_add_selected = typeof this.selected_track === "object" && "outside_entity" in this.selected_track ? this.selected_track.outside_entity : false;
 
+		let length = this.timelineEnd - this.timelineStart;
+		let clip_start = (this.clipStart - this.timelineStart) / length;
+		let clip_end = (this.clipEnd - this.timelineStart) / length;
+
 		
-		let track_count = {
+		let timeline_css_variables = {
 			'--track-count': `${this.trackCount()}`,
-			'--row-count': `calc(var(--track-count) + ${can_add_selected ? 2 : 1})`
+			'--row-count': `calc(var(--track-count) + ${can_add_selected ? 2 : 1})`,
+			'--clip-end': `${clip_end * 100}%`,
+			'--clip-start': `${clip_start * 100}%`
 		};
 
 		const tracklist = this.track_ordered.map((entity) => {
@@ -263,7 +281,7 @@ export class AnimEditorElement extends LitElement {
 		<div class="sidebar"
 			style=${styleMap({
 				width: `${this.sidebarWidth}px`,
-				...track_count
+				...timeline_css_variables
 			})}
 		>
 			<sts-toolbar>
@@ -314,14 +332,14 @@ export class AnimEditorElement extends LitElement {
 			</div>
 		</div>
 
-		<div class="divider" style=${styleMap(track_count)}
+		<div class="divider" style=${styleMap(timeline_css_variables)}
 			${drag({
 				move: this.onSidebarResize,
 			})}
 		></div>
 
 		<sts-anim-timeline class="timeline"
-		style=${styleMap(track_count)}
+		style=${styleMap(timeline_css_variables)}
 			.rangeStart=${bind(this, "timelineStart")}
 			.rangeEnd=${bind(this, "timelineEnd")}
 			.clipStart=${this.clipStart}

@@ -18,6 +18,8 @@
 	inset: 0;
 	grid-row: 1 / span var(--row-count);
 
+	background: linear-gradient(90deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.2) calc(var(--clip-start) - 1px), rgba(255,255,255,0.1) var(--clip-start), rgba(255,255,255,0.1) var(--clip-end), rgba(0,0,0,0.2) calc(var(--clip-end) + 1px));
+
 	&.panning {
 		cursor: grabbing;
 	}

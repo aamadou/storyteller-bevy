@@ -58,6 +58,12 @@ export class AnimTimelineElement extends LitElement {
 	@property({ type: Number }) rangeStart = 0;
 	/** The time (in seconds) at the right edge of the timeline view */
 	@property({ type: Number }) rangeEnd = 5;
+	
+	
+	/** The time (in seconds) at the start of the clip */
+	@property({ type: Number }) clipStart = 0;
+	/** The time (in seconds) at the end of the clip */
+	@property({ type: Number }) clipEnd = 5;
 
 	/** The time (in seconds) of the current play-head position */
 	@property({ type: Number }) playHead = 0;
@@ -151,8 +157,8 @@ export class AnimTimelineElement extends LitElement {
 
 		const deltaTimeScale = delta * 0.001 * currentRange;
 
-		const rangeStart = this.rangeStart - deltaTimeScale * focusPoint;
-		const rangeEnd = this.rangeEnd + deltaTimeScale * (1 - focusPoint);
+		const rangeStart = Math.max(this.rangeStart - deltaTimeScale * focusPoint, 0.);
+		const rangeEnd = Math.max(this.rangeEnd + deltaTimeScale * (1 - focusPoint), rangeStart + 0.01);
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
@@ -174,8 +180,8 @@ export class AnimTimelineElement extends LitElement {
 		const deltaChange = deltaPx * 0.001;
 		const scaledChange = (this.rangeEnd - this.rangeStart) * deltaChange;
 
-		const rangeStart = this.rangeStart - scaledChange;
-		const rangeEnd = this.rangeEnd - scaledChange;
+		const rangeStart = Math.max(this.rangeStart - scaledChange, 0);
+		const rangeEnd = Math.max(this.rangeEnd - scaledChange, rangeStart + 0.01);
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
