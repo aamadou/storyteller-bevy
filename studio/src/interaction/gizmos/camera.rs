@@ -23,6 +23,7 @@ pub(super) fn spawn_gizmo_camera(
                 camera: Camera {
                     hdr: true,
                     order: 1,
+                    clear_color: ClearColorConfig::None,
                     ..default()
                 },
                 ..default()

@@ -59,18 +59,18 @@ impl Plugin for DebugPlugin {
             EditorPluginGroup
                 .build()
                 .disable::<EditorUiCore>()
-                .add_before::<EditorDefaultCameraPlugin, _>(EditorUiCore {
+                .add_before::<GameViewPlugin, _>(EditorUiCore {
                     disable_no_editor_cams: false,
                 })
-                .disable::<EguiPlugin>()
+                // .disable::<EguiPlugin>()
                 .disable::<DefaultInspectorConfigPlugin>()
                 .disable::<EditorPickingPlugin>()
                 .disable::<EditorDefaultCameraPlugin>()
-                .disable::<BottomMenuPlugin>()
+                // .disable::<BottomMenuPlugin>()
                 .disable::<GizmoToolPlugin>()
-                .disable::<EditorGizmoConfigPlugin>()
-                .disable::<MeshlessVisualizerPlugin>()
-                .disable::<space_editor::prelude::SelectedPlugin>(),
+                // .disable::<EditorGizmoConfigPlugin>()
+                // .disable::<MeshlessVisualizerPlugin>()
+                // .disable::<space_editor::prelude::SelectedPlugin>(),
         );
 
         app.add_systems(Update, sync_editor_camera);
