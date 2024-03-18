@@ -2,7 +2,7 @@ use bevy::{
     app::Update, ecs::{query::With, system::Query}, window::{close_on_esc, Window}, prelude::*
 };
 use clap::Parser;
-use studio::{anim::Skeleton, scene::{tag_scene_elements, SceneState}, screenshot::ScreenShotPlugin, InitAsset, InitParams, StudioMode};
+use studio::{anim::Skeleton, scene::{tag_scene_elements, SceneState}, screenshot::ScreenShotPlugin, InitAsset, InitParams, MixamoImportEvent, MixamoPlugin, StudioMode};
 
 #[derive(Parser)]
 #[command(name = "StorytellerStudio")]
@@ -39,6 +39,11 @@ fn main() {
     app.add_systems(Update, add_anim);
     app.add_plugins(ScreenShotPlugin);
 
+    app.add_plugins(MixamoPlugin);
+    app.add_systems(Startup, move |mut mixamo_load_event : EventWriter<MixamoImportEvent>| {
+        mixamo_load_event.send(MixamoImportEvent("mocap/hip-hop-dancing.gltf".into()))
+    });
+    
     app.run();
 }
 

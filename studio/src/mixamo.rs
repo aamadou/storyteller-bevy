@@ -1,6 +1,6 @@
 use bevy::{gltf::Gltf, prelude::*, scene::InstanceId};
 
-use crate::anim::RetargetSource;
+use crate::anim::{LoadedAnimations, RetargetSource};
 
 pub struct MixamoPlugin;
 impl Plugin for MixamoPlugin {
@@ -97,6 +97,8 @@ fn tick_scene_spawning(
     r_scene_spawner: Res<SceneSpawner>,
     r_mixamo_scene: Res<MixamoScene>,
     mut st_next: ResMut<NextState<MixamoState>>,
+    mut loaded_animations : ResMut<LoadedAnimations>,
+    ra_gltfs: Res<Assets<Gltf>>,
 ) {
     if r_scene_spawner.instance_is_ready(**r_mixamo_scene) {
         st_next.set(MixamoState::Processing);
@@ -112,11 +114,14 @@ fn start_mixamo_anim(
     r_scene_spawner: Res<SceneSpawner>,
     q_names: Query<&Name>,
     mut st_next: ResMut<NextState<MixamoState>>,
+    mut loaded_animations : ResMut<LoadedAnimations>,
 ) {
     let gltf = ra_gltfs.get(&**r_mixamo_import).unwrap();
     let src_anim_handle = gltf.animations[0].clone();
     let src_anim = ra_animations.get(src_anim_handle.clone()).unwrap();
-
+    
+    loaded_animations.animations.push(src_anim_handle.clone());
+    
     let Some(src_root) = r_scene_spawner
         .iter_instance_entities(**r_mixamo_scene)
         .find(|ent| match q_names.get(*ent) {

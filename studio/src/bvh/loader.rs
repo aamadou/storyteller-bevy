@@ -28,13 +28,12 @@ impl AssetLoader for BvhLoader {
             let mut buf = vec![];
             reader.read_to_end(&mut buf).await.anyhow()?;
             let bvh = studio_bvh::from_bytes(&buf).anyhow()?;
-            // println!("{:?}", bvh.joints_len());
             
             let mut anim_clip = AnimationClip::default();
             
             for (index, joint) in bvh.joints().enumerate() {
                 let path = get_entity_path(&joint, &RetargetMap::default());
-                println!("{} - {:?}", index, path);
+                // println!("{} - {:?}", index, path);
                 let mut timestamps = Vec::new();
                 let mut motions = Vec::new();
                 let mut rotations = Vec::new();

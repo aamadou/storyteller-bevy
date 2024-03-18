@@ -2,11 +2,11 @@ use bevy::{
     math::Affine3A,
     prelude::*,
     render::{mesh::skinning::SkinnedMesh, view::NoFrustumCulling},
-    utils::{EntityHashMap, EntityHashSet},
+    utils::{EntityHashMap, EntityHashSet, HashMap},
 };
 use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 
-use crate::{hierarchy, scene::SceneElement};
+use crate::{hierarchy, interaction::Selected, scene::SceneElement};
 pub use retargeting::*;
 
 mod camera;
@@ -26,15 +26,22 @@ impl Plugin for AnimPlugin {
             .register_type::<BindPoseGlobal>()
             .editor_registry::<BindPoseGlobal>()
             .register_type::<InvBindPose>()
-            .editor_registry::<InvBindPose>();
+            .editor_registry::<InvBindPose>()
+            .register_type::<LoadedAnimations>()
+        ;
 
         app.add_systems(Update, process_skinned_meshes);
         app.insert_resource(GlobalSeekTime(0.));
 
         app.add_plugins((retargeting::RetargetingPlugin, camera::CameraAnimPlugin));
+        
+        //Stuff for animation atachment
+        app.add_systems(PostUpdate, check_selected_for_animation);
 
         #[cfg(feature = "wasm")]
         app.add_systems(Update, wasm::update_global_seek_time);
+        
+        app.init_resource::<LoadedAnimations>();
     }
 }
 
@@ -146,6 +153,39 @@ fn process_skinned_meshes(
                 BindPoseGlobal(bind_pose_global.affine()),
                 InvBindPose(bind_pose_global.affine().inverse()),
             ));
+        }
+    }
+}
+
+//==============================================================================
+//        Loaded anims
+//==============================================================================
+
+#[derive(Resource, Default, Reflect)]
+#[reflect(Resource)]
+pub struct LoadedAnimations {
+    pub animations : Vec<Handle<AnimationClip>>
+}
+
+//==============================================================================
+//        Animation attachment
+//==============================================================================
+
+fn check_selected_for_animation(
+    selected : Query<&Name, (With<SkeletalJoint>, Added<Selected>)>,
+    loaded_animations : Res<LoadedAnimations>,
+    animation_assets : Res<Assets<AnimationClip>>,
+) {
+    for name in selected.iter() {
+        println!("Thing selected");
+        let animations = loaded_animations.animations.iter()
+            .map(|handle| animation_assets.get(handle).unwrap());
+        
+        for animation in animations {
+            println!("Animation Compatible: {}", animation.compatible_with(name));
+            if animation.compatible_with(name) {
+                println!("Compatible animation: {:?}", animation);
+            }
         }
     }
 }
