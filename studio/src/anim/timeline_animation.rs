@@ -290,7 +290,7 @@ fn process_keyframe_events(
 
 fn generate_transform_animation(
     mut commands: Commands,
-    changed: Query<&Keyframe, (With<TransformKeyframe>, Changed<Keyframe>)>,
+    changed: Query<&Keyframe, (With<TransformKeyframe>, Or<(Changed<Keyframe>, Changed<Transform>)>)>,
     keyframes: Query<(&Keyframe, &Transform, &TransformKeyframe, Entity), Without<MarkedForDeletion>>,
     removed: Query<&Keyframe, With<MarkedForDeletion>>,
 ) {
