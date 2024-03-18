@@ -101,6 +101,10 @@ export class AnimEditorElement extends LitElement {
 			keyframes[keyframe] = added[keyframe];
 		}
 
+		for (let keyframe of removed) {
+			delete keyframes[keyframe];
+		}
+
 		this.keyframes = keyframes;
 
 		let min = Infinity

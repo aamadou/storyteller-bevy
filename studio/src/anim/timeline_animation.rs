@@ -11,14 +11,13 @@ use bevy::{
 
 use bevy_tweening::{
     lens::{TransformPositionLens, TransformRotationLens, TransformScaleLens},
-    Animator, EaseMethod, Sequence, Targetable, Tracks, Tween,
-    TweenCompleted,
+    Animator, EaseMethod, Sequence, Targetable, Tracks, Tween, TweenCompleted,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 
-use crate::interaction::Selectable;
+use crate::interaction::{MarkedForDeletion, Selectable};
 
 pub struct TimelinePlugin;
 
@@ -53,6 +52,7 @@ impl Plugin for TimelinePlugin {
                 timeline_bound_component_animator_system::<Transform>,
             ),
         );
+        
 
         app.add_systems(PostUpdate, generate_transform_animation);
 
@@ -77,6 +77,8 @@ impl Plugin for TimelinePlugin {
     }
 }
 
+const MIN_KEYFRAME_DISTANCE: f32 = 0.01;
+
 #[derive(Event, Clone, Copy, Debug)]
 pub enum TimelineInteractionEvent {
     Play,
@@ -88,7 +90,7 @@ pub enum TimelineInteractionEvent {
 pub enum KeyframeInteractionEvent {
     RecordKeyframe { target: Entity },
     MoveKeyframeTime { target: Entity, time: f32 },
-    AddEntityTrack { target: Entity }
+    AddEntityTrack { target: Entity },
 }
 
 #[derive(Resource, Clone, Copy, Debug, Default, Reflect, Serialize, Deserialize)]
@@ -227,29 +229,50 @@ fn process_keyframe_events(
     r_global_seek_time: Res<GlobalSeekTime>,
     q_animation_targets: Query<(Entity, &Transform), With<AnimationTarget>>,
     q_potential_targets: Query<Entity, (With<Transform>, Without<AnimationTarget>)>,
-    mut q_keyframes: Query<&mut Keyframe>,
+    mut q_keyframes: Query<(Entity, &mut Keyframe)>,
 ) {
     for event in e_timeline_event.read() {
         info!("Processing Keyframe Event {event:?}");
         match event {
             KeyframeInteractionEvent::RecordKeyframe { target } => {
                 if let Ok((target, transform)) = q_animation_targets.get(*target) {
-                    commands.spawn((
-                        SpatialBundle {
-                            transform: *transform,
-                            ..Default::default()
-                        },
-                        Selectable,
-                        Keyframe {
-                            target,
-                            time: r_global_seek_time.time,
-                        },
-                        TransformKeyframe::default(),
-                    ));
+                    let mut existing = None;
+                    for (entity, keyframe) in q_keyframes.iter_mut() {
+                        if keyframe.target == target
+                            && (keyframe.time - r_global_seek_time.time).abs()
+                                < MIN_KEYFRAME_DISTANCE
+                        {
+                            existing = Some(entity);
+                            break;
+                        }
+                    }
+                    if let Some(existing) = existing {
+                        commands.entity(existing).insert((
+                            *transform,
+                            TransformKeyframe::default(),
+                            Keyframe {
+                                target,
+                                time: r_global_seek_time.time,
+                            },
+                        ));
+                    } else {
+                        commands.spawn((
+                            SpatialBundle {
+                                transform: *transform,
+                                ..Default::default()
+                            },
+                            Selectable,
+                            Keyframe {
+                                target,
+                                time: r_global_seek_time.time,
+                            },
+                            TransformKeyframe::default(),
+                        ));
+                    }
                 }
             }
             KeyframeInteractionEvent::MoveKeyframeTime { target, time } => {
-                if let Ok(mut keyframe) = q_keyframes.get_mut(*target) {
+                if let Ok((_, mut keyframe)) = q_keyframes.get_mut(*target) {
                     keyframe.time = *time;
                 }
             }
@@ -260,7 +283,7 @@ fn process_keyframe_events(
                 } else {
                     warn!("Can't add animation target to entity");
                 }
-            },
+            }
         }
     }
 }
@@ -268,11 +291,16 @@ fn process_keyframe_events(
 fn generate_transform_animation(
     mut commands: Commands,
     changed: Query<&Keyframe, (With<TransformKeyframe>, Changed<Keyframe>)>,
-    keyframes: Query<(&Keyframe, &Transform, &TransformKeyframe, Entity)>,
+    keyframes: Query<(&Keyframe, &Transform, &TransformKeyframe, Entity), Without<MarkedForDeletion>>,
+    removed: Query<&Keyframe, With<MarkedForDeletion>>,
 ) {
     let changed_targets = changed
         .iter()
         .map(|keyframe| keyframe.target)
+        .chain(removed.iter().map(|keyframe| {
+            info!("Processing a removed keyframe {keyframe:?}");
+            keyframe.target
+        }))
         .collect::<HashSet<_>>();
     let keyframes = keyframes
         .iter()
@@ -467,13 +495,11 @@ mod wasm {
     use wasm_bindgen::prelude::*;
 
     use crate::{
-        scene::SceneElement,
-        wasm::{FromStr, StaticBuffer, WasmMessageBuffer},
+        interaction::MarkedForDeletion, scene::SceneElement, wasm::{FromStr, StaticBuffer, WasmMessageBuffer}
     };
 
     use super::{
-        AnimationTarget, EaseType, GlobalSeekTime, Keyframe, KeyframeInteractionEvent,
-        TimedAnimationClipAsset, TimelineInteractionEvent, TransformKeyframe,
+        AnimationTarget, EaseType, GlobalSeekTime, Keyframe, KeyframeInteractionEvent, TimedAnimationClipAsset, TimelineInteractionEvent, TransformKeyframe
     };
 
     static SEEK_TIME: WasmMessageBuffer<TimelineInteractionEvent> = WasmMessageBuffer::new();
@@ -522,9 +548,7 @@ mod wasm {
         let Ok(target) = Entity::from_str(&entity) else {
             return;
         };
-        KEYFRAME_EVENT.write_message(vec![KeyframeInteractionEvent::AddEntityTrack {
-            target
-        }]);
+        KEYFRAME_EVENT.write_message(vec![KeyframeInteractionEvent::AddEntityTrack { target }]);
     }
 
     pub(super) fn update_global_seek_time(
@@ -734,7 +758,7 @@ mod wasm {
             (Entity, &Keyframe, &TimedAnimationClipAsset),
             Or<(Changed<Keyframe>, Changed<TimedAnimationClipAsset>)>,
         >,
-        mut removed: bevy::prelude::RemovedComponents<Keyframe>,
+        removed: Query<Entity, With<MarkedForDeletion>>,
     ) -> Result<(), String> {
         let Ok(window) = q_window.get_single() else {
             return Ok(());
@@ -775,7 +799,7 @@ mod wasm {
             }))
             .collect::<Result<HashMap<_, _>, String>>()?;
 
-        let removed = removed.read().map(|v| format!("{v:?}")).collect::<Vec<_>>();
+        let removed = removed.iter().map(|v| format!("{v:?}")).collect::<Vec<_>>();
 
         if added.is_empty() && removed.is_empty() {
             return Ok(());
