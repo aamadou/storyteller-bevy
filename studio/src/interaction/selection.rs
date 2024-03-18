@@ -184,10 +184,7 @@ fn process_delete_inputs(
     }
 }
 
-fn finalize_delete(
-    mut cmd: Commands,
-    q: Query<Entity, With<MarkedForDeletion>>
-) {
+fn finalize_delete(mut cmd: Commands, q: Query<Entity, With<MarkedForDeletion>>) {
     for entity in &q {
         cmd.entity(entity).despawn_recursive();
     }

@@ -52,7 +52,6 @@ impl Plugin for TimelinePlugin {
                 timeline_bound_component_animator_system::<Transform>,
             ),
         );
-        
 
         app.add_systems(PostUpdate, generate_transform_animation);
 
@@ -79,6 +78,7 @@ impl Plugin for TimelinePlugin {
 
 const MIN_KEYFRAME_DISTANCE: f32 = 0.01;
 
+#[allow(dead_code)]
 #[derive(Event, Clone, Copy, Debug)]
 pub enum TimelineInteractionEvent {
     Play,
@@ -86,6 +86,7 @@ pub enum TimelineInteractionEvent {
     Seek(f32),
 }
 
+#[allow(dead_code)]
 #[derive(Event, Clone, Copy, Debug)]
 pub enum KeyframeInteractionEvent {
     RecordKeyframe { target: Entity },
@@ -290,8 +291,17 @@ fn process_keyframe_events(
 
 fn generate_transform_animation(
     mut commands: Commands,
-    changed: Query<&Keyframe, (With<TransformKeyframe>, Or<(Changed<Keyframe>, Changed<Transform>)>)>,
-    keyframes: Query<(&Keyframe, &Transform, &TransformKeyframe, Entity), Without<MarkedForDeletion>>,
+    changed: Query<
+        &Keyframe,
+        (
+            With<TransformKeyframe>,
+            Or<(Changed<Keyframe>, Changed<Transform>)>,
+        ),
+    >,
+    keyframes: Query<
+        (&Keyframe, &Transform, &TransformKeyframe, Entity),
+        Without<MarkedForDeletion>,
+    >,
     removed: Query<&Keyframe, With<MarkedForDeletion>>,
 ) {
     let changed_targets = changed
@@ -495,11 +505,14 @@ mod wasm {
     use wasm_bindgen::prelude::*;
 
     use crate::{
-        interaction::MarkedForDeletion, scene::SceneElement, wasm::{FromStr, StaticBuffer, WasmMessageBuffer}
+        interaction::MarkedForDeletion,
+        scene::SceneElement,
+        wasm::{FromStr, StaticBuffer, WasmMessageBuffer},
     };
 
     use super::{
-        AnimationTarget, EaseType, GlobalSeekTime, Keyframe, KeyframeInteractionEvent, TimedAnimationClipAsset, TimelineInteractionEvent, TransformKeyframe
+        AnimationTarget, EaseType, GlobalSeekTime, Keyframe, KeyframeInteractionEvent,
+        TimedAnimationClipAsset, TimelineInteractionEvent, TransformKeyframe,
     };
 
     static SEEK_TIME: WasmMessageBuffer<TimelineInteractionEvent> = WasmMessageBuffer::new();

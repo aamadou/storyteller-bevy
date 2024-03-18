@@ -9,7 +9,6 @@ use space_editor::space_prefab::editor_registry::EditorRegistryExt;
 use crate::{hierarchy, scene::SceneElement};
 pub use retargeting::*;
 
-mod camera;
 mod retargeting;
 pub mod timeline_animation;
 
@@ -33,7 +32,6 @@ impl Plugin for AnimPlugin {
 
         app.add_plugins((
             retargeting::RetargetingPlugin,
-            camera::CameraAnimPlugin,
             timeline_animation::TimelinePlugin,
         ));
     }
