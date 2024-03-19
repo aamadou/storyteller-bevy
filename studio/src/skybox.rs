@@ -47,12 +47,20 @@ fn load_skybox(mut cmd: Commands, assets: Res<AssetServer>, id: Res<SkyboxId>) {
             brightness: 1.0,
         })
     } else {
-        let paths = SkyboxPaths::new(id);
-        cmd.insert_resource(SkyboxAssets {
-            cubemap: assets.load(paths.cubemap),
-            env_diffuse: assets.load(paths.env_diffuse),
-            env_specular: assets.load(paths.env_specular),
+
+        let color = Color::hex("AAAAAA").unwrap();
+        cmd.insert_resource(ClearColor(color));
+        cmd.insert_resource(AmbientLight {
+            color,
+            brightness: 1.0,
         });
+
+        // let paths = SkyboxPaths::new(id);
+        // cmd.insert_resource(SkyboxAssets {
+        //     cubemap: assets.load(paths.cubemap),
+        //     env_diffuse: assets.load(paths.env_diffuse),
+        //     env_specular: assets.load(paths.env_specular),
+        // });
     }
 }
 
@@ -86,31 +94,31 @@ fn spawn_skybox(
     skybox_assets: Res<SkyboxAssets>,
     q_camera: Query<Entity, With<MainCamera>>,
 ) {
-    // Configure the skybox texture as a cubemap
-    let image = images.get_mut(&skybox_assets.cubemap).unwrap();
-    if image.texture_descriptor.array_layer_count() == 1 {
-        image.reinterpret_stacked_2d_as_array(6);
-        image.texture_view_descriptor = Some(TextureViewDescriptor {
-            dimension: Some(TextureViewDimension::Cube),
-            ..default()
-        });
-    }
+    // // Configure the skybox texture as a cubemap
+    // let image = images.get_mut(&skybox_assets.cubemap).unwrap();
+    // if image.texture_descriptor.array_layer_count() == 1 {
+    //     image.reinterpret_stacked_2d_as_array(6);
+    //     image.texture_view_descriptor = Some(TextureViewDescriptor {
+    //         dimension: Some(TextureViewDimension::Cube),
+    //         ..default()
+    //     });
+    // }
 
-    // Add components to the scene camera
-    cmd.entity(q_camera.single()).insert((
-        Skybox {
-            image: skybox_assets.cubemap.clone(),
-            brightness: 1.0,
-        },
-        EnvironmentMapLight {
-            diffuse_map: skybox_assets.env_diffuse.clone(),
-            specular_map: skybox_assets.env_specular.clone(),
-            intensity: 1.0,
-        },
-    ));
+    // // Add components to the scene camera
+    // cmd.entity(q_camera.single()).insert((
+    //     Skybox {
+    //         image: skybox_assets.cubemap.clone(),
+    //         brightness: 10.0,
+    //     },
+    //     EnvironmentMapLight {
+    //         diffuse_map: skybox_assets.env_diffuse.clone(),
+    //         specular_map: skybox_assets.env_specular.clone(),
+    //         intensity: 10.0,
+    //     },
+    // ));
 
-    // Remove the intermediate resource
-    cmd.remove_resource::<SkyboxAssets>();
+    // // Remove the intermediate resource
+    // cmd.remove_resource::<SkyboxAssets>();
 }
 
 struct SkyboxPaths {

@@ -175,7 +175,9 @@ fn check_loading(
             if let Some((load_state, dep_load_state, rec_load_state)) =
                 asset_server.get_load_states(h.id())
             {
-                let is_loaded = dep_load_state == DependencyLoadState::Loaded;
+                let is_loaded = dep_load_state == DependencyLoadState::Loaded
+                    || rec_load_state == RecursiveDependencyLoadState::Loaded
+                    || load_state == LoadState::Loaded;
 
                 let is_failed = dep_load_state == DependencyLoadState::Failed
                     || rec_load_state == RecursiveDependencyLoadState::Failed

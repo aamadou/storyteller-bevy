@@ -46,7 +46,7 @@ futures-lite = "2.2.0"
 futures = "0.3.30"
 image = "0.24.8"
 bytemuck = "1.14.1"
-space_editor = {git = "https://github.com/rewin123/space_editor", rev = "0e27774697ffc8d9006736f8f0a5b939d55de53a"}
+space_editor = {git = "https://github.com/rewin123/space_editor", rev = "e191880bdfc7498a1c93d6efd98393c462990dea"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
 

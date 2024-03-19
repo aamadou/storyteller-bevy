@@ -86,7 +86,7 @@ impl PluginGroup for CommonPlugins {
             .add(InspectorPlugin)
             .add(InterpolationPlugin)
             .add(ScenePlugin)
-            .add(SkyboxPlugin)
+            // .add(SkyboxPlugin)
             .add(StudioInputPlugin)
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)

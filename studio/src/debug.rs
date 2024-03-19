@@ -70,7 +70,7 @@ impl Plugin for DebugPlugin {
                 .disable::<GizmoToolPlugin>()
                 // .disable::<EditorGizmoConfigPlugin>()
                 // .disable::<MeshlessVisualizerPlugin>()
-                // .disable::<space_editor::prelude::SelectedPlugin>(),
+                .disable::<space_editor::prelude::SelectedPlugin>(),
         );
 
         app.add_systems(Update, sync_editor_camera);
