@@ -43,7 +43,7 @@ async function main() {
 		if (!wasmBindgenInstalled) {
 			await run("cargo", [
 				"install", "-f", "wasm-bindgen-cli",
-				"--version", "0.2.88",
+				"--version", "0.2.92",
 			], {
 				shell: true,
 				cwd: workspaceRoot,
