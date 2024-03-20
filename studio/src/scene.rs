@@ -150,7 +150,7 @@ fn check_loading(
     // We will always be initializing the scene with _something_, so if the
     // `LoadingQueue` is empty when we're in `SceneState::None`, it just means
     // our startup routine hasn't yet gotten to the point of processing any
-    // `Handle<T>`s yet.
+    // `Handle<T>`s.
     if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading {
         st_next.set(SceneState::Active);
         return;
