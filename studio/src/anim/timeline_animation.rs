@@ -669,6 +669,7 @@ mod wasm {
     }
 
     #[derive(Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
     struct TransformKeframeInfo {
         entity: String,
         target: String,
