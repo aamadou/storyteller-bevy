@@ -4,6 +4,7 @@ use bevy::{
     app::{AppExit, ScheduleRunnerPlugin},
     prelude::*,
 };
+use bevy_web_asset::WebAssetPlugin;
 use space_editor::prelude::{EditorEvent, EditorPrefabPath};
 use wgpu::Extent3d;
 
@@ -12,7 +13,7 @@ use crate::{
     scene::SceneState,
     screenshot::{ScreenCapture, ScreenShotPlugin},
     BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera,
-    MixamoImportEvent, MixamoPlugin, SkyboxId, StudioMode, WorldGridPlugin,
+    MixamoImportEvent, MixamoPlugin, RemoteAssetPlugin, SkyboxId, StudioMode, WorldGridPlugin,
 };
 
 #[derive(Debug, Resource, Clone)]
@@ -42,6 +43,8 @@ pub fn start_headless(
 
     app.add_plugins((
         ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / fps as f64)),
+        WebAssetPlugin,
+        RemoteAssetPlugin,
         DefaultPlugins.set(WindowPlugin {
             primary_window: None,
             exit_condition: bevy::window::ExitCondition::DontExit,
