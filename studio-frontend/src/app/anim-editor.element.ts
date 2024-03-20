@@ -39,7 +39,7 @@ export class AnimEditorElement extends LitElement {
 
 	@state() keyframes : Record<string, Keyframe> = {};
 
-	@state() selected_track : { track: string } | {outside_entity: string } | false = false;
+	@state() selectedTrack?: { track: string } | { outsideEntity: string };
 
 	trackCount(): number {
 		return Object.keys(this.tracks).length;
