@@ -3,7 +3,10 @@
 	border-radius: 8px;
 	background: #0006;
 	backdrop-filter: blur(16px);
-	grid-template-columns: [sidebar-start] min-content [sidebar-end divider-start] 8px [divider-end timeline-start] 1fr [timeline-end];
+	grid-template-columns:
+		[sidebar-start] min-content [sidebar-end
+		divider-start] 8px [divider-end
+		timeline-start] 1fr [timeline-end];
 	padding: 8px;
 	row-gap: 8px;
 }
