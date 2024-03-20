@@ -1,6 +1,6 @@
 import * as studio from "@storyteller/studio";
 import type { EntitySelectEvent, SeekTimeChanged, UpdateAnimationTargets, Keyframe } from "@storyteller/studio";
-import { bind, drag, inject, on } from "@storyteller/framework";
+import { bind, drag, inject, on, provide } from "@storyteller/framework";
 import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult, PropertyValueMap } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
@@ -12,6 +12,7 @@ import "./anim-timeline.element";
 
 import styles from "./anim-editor.element.scss?inline";
 import { SCENE_DATA_PROVIDER, type SceneDataProvider } from "@storyteller/studio-web/scene-data-provider";
+import { TREE_SELECTION_PROVIDER, TreeSelectionProvider } from "@storyteller/studio-ui/tree";
 
 const TRACK_ICONS : Record<string, string> = {
 	camera: "video",
@@ -27,7 +28,9 @@ function isOutsideEntity(
 }
 
 @customElement("sts-anim-editor")
-export class AnimEditorElement extends LitElement {
+@provide(TREE_SELECTION_PROVIDER)
+export class AnimEditorElement extends LitElement
+implements TreeSelectionProvider {
     @inject(SCENE_DATA_PROVIDER)  
     sceneData?: SceneDataProvider;
 	
@@ -56,9 +59,24 @@ export class AnimEditorElement extends LitElement {
 		return Object.keys(this.tracks).length;
 	}
 
+	get selectedId() {
+		return !isOutsideEntity(this.selectedTrack) && this.selectedTrack?.track || null;
+	}
+
 	protected override update(changes: PropertyValues<this>): void {
 		if (changes.has("playHead"))
 			studio.seekTime(this.playHead);
+
+		if (changes.has("selectedTrack")) {
+			const treeSelectionChanges: PropertyValues<TreeSelectionProvider> = new Map();
+			const prevSelectedTrack = changes.get("selectedTrack");
+			const prevTreeSelection = !isOutsideEntity(prevSelectedTrack) && prevSelectedTrack?.track || null;
+			treeSelectionChanges.set("selectedId", prevTreeSelection);
+
+			this.dispatchEvent(new CustomEvent("property-changes", {
+				detail: treeSelectionChanges,
+			}));
+		}
 
 		super.update(changes);
 	}
@@ -271,15 +289,16 @@ export class AnimEditorElement extends LitElement {
 		const tracklist = this.track_ordered.map((entity) => {
 			let track = this.tracks[entity];
 			let name = track.name ?? track.target_type;
-			let icon = TRACK_ICONS[track.target_type] ?? "minus";
+			let icon = this.sceneData?.entityMap.get(entity)?.icon ?? "minus";
 			return html`
-			<sts-tree class=${`track ` + (selected === entity ? `selected` : ``)}
+			<sts-tree class="track"
 				role="listitem"
 				name=${name}
 				icon=${icon}
-				@click=${() => {
+				@tree-select=${() => {
 					studio.select(entity);
 				}}
+				.id=${entity}
 			></sts-tree>
 			`;
 		});
