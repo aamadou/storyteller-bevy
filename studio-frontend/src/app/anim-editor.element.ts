@@ -89,11 +89,11 @@ export class AnimEditorElement extends LitElement {
 
 		this.track_ordered = Object.keys(tracks);
 
-		if (typeof this.selected_track === "object") {
-			if ("track" in this.selected_track && !(this.selected_track.track in tracks)) {
-				this.selected_track = { outside_entity: this.selected_track.track};
-			} else if ("outside_entity" in this.selected_track && this.selected_track.outside_entity in tracks) {
-				this.selected_track = { track: this.selected_track.outside_entity};
+		if (typeof this.selectedTrack === "object") {
+			if ("track" in this.selectedTrack && !(this.selectedTrack.track in tracks)) {
+				this.selectedTrack = { outsideEntity: this.selectedTrack.track};
+			} else if ("outsideEntity" in this.selectedTrack && this.selectedTrack.outsideEntity in tracks) {
+				this.selectedTrack = { track: this.selectedTrack.outsideEntity};
 			}
 		}
 
@@ -141,14 +141,14 @@ export class AnimEditorElement extends LitElement {
 	onEntitySelected({ detail: id }: EntitySelectEvent): void {
 		if (id) {
 			if (this.tracks[id]) {
-				this.selected_track = { track: id };
+				this.selectedTrack = { track: id };
 			} else if (!this.keyframes[id]) {
-				this.selected_track = {outside_entity: id};
+				this.selectedTrack = {outsideEntity: id};
 			} else {
-				this.selected_track = false;
+				this.selectedTrack = undefined;
 			}
 		} else {
-			this.selected_track = false;
+			this.selectedTrack = undefined;
 		}
 	}
 
@@ -168,8 +168,8 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	addKeyframe(): void {
-		if (typeof this.selected_track === "object" && "track" in this.selected_track) {
-			studio.recordKeyframe([this.selected_track.track]);
+		if (typeof this.selectedTrack === "object" && "track" in this.selectedTrack) {
+			studio.recordKeyframe([this.selectedTrack.track]);
 		}
 	}
 
@@ -231,8 +231,8 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	addTarget(): void {
-		if (typeof this.selected_track === "object" && "outside_entity" in this.selected_track) {
-			studio.addEntityTrack(this.selected_track.outside_entity);
+		if (typeof this.selectedTrack === "object" && "outsideEntity" in this.selectedTrack) {
+			studio.addEntityTrack(this.selectedTrack.outsideEntity);
 		}
 	}
 
