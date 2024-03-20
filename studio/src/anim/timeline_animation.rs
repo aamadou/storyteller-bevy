@@ -594,7 +594,7 @@ mod wasm {
 
     export interface UpdateAnimationTargets extends CustomEvent {
         type: "update-animation-targets",
-        details: {
+        detail: {
             added: Record<string, { name?: string, target_type: 'camera' | 'transform' | 'light' | 'bone' | 'skeleton' | 'mesh' } >,
             removed: string[]
         }
