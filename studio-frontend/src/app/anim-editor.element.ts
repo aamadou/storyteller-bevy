@@ -242,8 +242,12 @@ export class AnimEditorElement extends LitElement {
 			track_order_hashed[track] = index;
 		}
 
-		const selected = typeof this.selected_track === "object" && "track" in this.selected_track ? this.selected_track.track : false;
-		const can_add_selected = typeof this.selected_track === "object" && "outside_entity" in this.selected_track ? this.selected_track.outside_entity : false;
+		const selected = !isOutsideEntity(this.selectedTrack)
+			? this.selectedTrack.track
+			: false;
+		const canAddSelected = isOutsideEntity(this.selectedTrack)
+			? this.selectedTrack.outsideEntity
+			: false;
 
 		let length = this.timelineEnd - this.timelineStart;
 		let clip_start = (this.clipStart - this.timelineStart) / length;
