@@ -18,7 +18,7 @@ import { ImageInfo, LcmClient } from "./lcm-client";
 
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/loading";
-// import "@storyteller/studio-web/scene-data-provider";
+import "@storyteller/studio-web/scene-data-provider";
 import "@storyteller/studio-web/scene-hierarchy";
 import "@storyteller/studio-web/studio";
 import "@storyteller/studio-web/transform-toolbar";
