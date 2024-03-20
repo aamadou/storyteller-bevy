@@ -90,9 +90,9 @@ export class AnimEditorElement extends LitElement {
 		this.track_ordered = Object.keys(tracks);
 
 		if (typeof this.selectedTrack === "object") {
-			if ("track" in this.selectedTrack && !(this.selectedTrack.track in tracks)) {
+			if (!isOutsideEntity(this.selectedTrack) && !(this.selectedTrack.track in tracks)) {
 				this.selectedTrack = { outsideEntity: this.selectedTrack.track};
-			} else if ("outsideEntity" in this.selectedTrack && this.selectedTrack.outsideEntity in tracks) {
+			} else if (isOutsideEntity(this.selectedTrack) && this.selectedTrack.outsideEntity in tracks) {
 				this.selectedTrack = { track: this.selectedTrack.outsideEntity};
 			}
 		}
@@ -231,7 +231,7 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	addTarget(): void {
-		if (typeof this.selectedTrack === "object" && "outsideEntity" in this.selectedTrack) {
+		if (isOutsideEntity(this.selectedTrack)) {
 			studio.addEntityTrack(this.selectedTrack.outsideEntity);
 		}
 	}
