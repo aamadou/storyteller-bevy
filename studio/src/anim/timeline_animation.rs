@@ -595,7 +595,7 @@ mod wasm {
     export interface UpdateAnimationTargets extends CustomEvent {
         type: "update-animation-targets",
         detail: {
-            added: Record<string, { name?: string, target_type: 'camera' | 'transform' | 'light' | 'bone' | 'skeleton' | 'mesh' } >,
+            added: Record<string, { name?: string, target_type: SceneElement } >,
             removed: string[]
         }
     }
@@ -639,17 +639,10 @@ mod wasm {
     }
     "#;
 
-    const CAMERA: &str = "camera";
-    const TRANSFORM: &str = "transform";
-    const LIGHT: &str = "light";
-    const BONE: &str = "bone";
-    const SKELETON: &str = "skeleton";
-    const MESH: &str = "mesh";
-
     #[derive(Serialize, Deserialize)]
     struct AddedAnimationTargetRecordItem {
         name: Option<String>,
-        target_type: String,
+        target_type: SceneElement,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -715,7 +708,7 @@ mod wasm {
                     format!("{entity:?}"),
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
-                        target_type: TRANSFORM.to_owned(),
+                        target_type: SceneElement::Generic,
                     },
                 )
             })
@@ -724,7 +717,7 @@ mod wasm {
                     format!("{entity:?}"),
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
-                        target_type: CAMERA.to_owned(),
+                        target_type: SceneElement::Camera,
                     },
                 )
             }))
@@ -733,15 +726,7 @@ mod wasm {
                     format!("{entity:?}"),
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
-                        target_type: match element {
-                            SceneElement::Generic => TRANSFORM,
-                            SceneElement::Mesh => MESH,
-                            SceneElement::Skeleton => SKELETON,
-                            SceneElement::Bone => BONE,
-                            SceneElement::Light => LIGHT,
-                            SceneElement::Camera => CAMERA,
-                        }
-                        .to_string(),
+                        target_type: *element,
                     },
                 )
             }))

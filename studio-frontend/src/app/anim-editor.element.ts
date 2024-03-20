@@ -1,6 +1,6 @@
 import * as studio from "@storyteller/studio";
-import type { EntitySelectEvent, SeekTimeChanged, UpdateAnimationTargets } from "@storyteller/studio";
-import { bind, drag, on } from "@storyteller/framework";
+import type { EntitySelectEvent, SeekTimeChanged, UpdateAnimationTargets, Keyframe } from "@storyteller/studio";
+import { bind, drag, inject, on } from "@storyteller/framework";
 import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult, PropertyValueMap } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
@@ -11,6 +11,7 @@ import "@storyteller/studio-ui/tree";
 import "./anim-timeline.element";
 
 import styles from "./anim-editor.element.scss?inline";
+import { SCENE_DATA_PROVIDER, type SceneDataProvider } from "@storyteller/studio-web/scene-data-provider";
 
 const TRACK_ICONS : Record<string, string> = {
 	camera: "video",
@@ -18,8 +19,18 @@ const TRACK_ICONS : Record<string, string> = {
 	light: "light"
 };
 
+function isOutsideEntity(
+	value?: { track: string } | { outsideEntity: string }
+): value is { outsideEntity: string } {
+	if (value == null) return false;
+	return "outsideEntity" in value;
+}
+
 @customElement("sts-anim-editor")
 export class AnimEditorElement extends LitElement {
+    @inject(SCENE_DATA_PROVIDER)  
+    sceneData?: SceneDataProvider;
+	
 	static override styles = unsafeCSS(styles);
 
 	@state() sidebarWidth = 256;
@@ -33,7 +44,7 @@ export class AnimEditorElement extends LitElement {
 	@state() playHead = 0;
 	@state() playing = false;
 
-	@state() tracks : Record<string, {name?: string, target_type: string }> = {};
+	@state() tracks : Record<string, {name?: string, target_type: studio.SceneElement }> = {};
 	
 	@state() track_ordered : string[] = [];
 
@@ -243,7 +254,7 @@ export class AnimEditorElement extends LitElement {
 		}
 
 		const selected = typeof this.selected_track === "object" && "track" in this.selected_track ? this.selected_track.track : false;
-		const can_add_selected = typeof this.selected_track === "object" && "outside_entity" in this.selected_track ? this.selected_track.outside_entity : false;
+		const canAddSelected = typeof this.selected_track === "object" && "outside_entity" in this.selected_track ? this.selected_track.outside_entity : false;
 
 		let length = this.timelineEnd - this.timelineStart;
 		let clip_start = (this.clipStart - this.timelineStart) / length;
@@ -252,7 +263,7 @@ export class AnimEditorElement extends LitElement {
 		
 		let timeline_css_variables = {
 			'--track-count': `${this.trackCount()}`,
-			'--row-count': `calc(var(--track-count) + ${can_add_selected ? 3 : 2})`,
+			'--row-count': `calc(var(--track-count) + ${canAddSelected ? 3 : 2})`,
 			'--clip-end': `${clip_end * 100}%`,
 			'--clip-start': `${clip_start * 100}%`
 		};
@@ -273,7 +284,7 @@ export class AnimEditorElement extends LitElement {
 			`;
 		});
 
-		if (can_add_selected) {
+		if (canAddSelected) {
 			tracklist.push(html`
 				<sts-tree class=${`track`}
 				role="button"
