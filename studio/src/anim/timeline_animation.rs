@@ -588,7 +588,7 @@ mod wasm {
         type: "seek-time-changed";
         detail: {
             time: number,
-            playing: bool
+            playing: boolean
         };
     }
 
