@@ -180,8 +180,13 @@ export class AnimTimelineElement extends LitElement {
 		const deltaChange = deltaPx * 0.001;
 		const scaledChange = (this.rangeEnd - this.rangeStart) * deltaChange;
 
-		const rangeStart = Math.max(this.rangeStart - scaledChange, 0);
-		const rangeEnd = Math.max(this.rangeEnd - scaledChange, rangeStart + 0.01);
+		let rangeStart = this.rangeStart - scaledChange;
+		let rangeEnd = Math.max(this.rangeEnd - scaledChange, rangeStart + 0.01);
+
+		if (rangeStart < 0) {
+			rangeEnd = this.rangeEnd - this.rangeStart;
+			rangeStart = 0;
+		}
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
