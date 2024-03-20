@@ -625,7 +625,7 @@ mod wasm {
     export interface UpdateKeyframes extends CustomEvent {
         type: "update-keyframes",
         details: {
-            added: Record<string, Keyframe)>,
+            added: Record<string, Keyframe>,
             removed: string[]
         }
     }
