@@ -277,7 +277,7 @@ export class AnimEditorElement extends LitElement {
 			tracklist.push(html`
 				<sts-tree class=${`track`}
 				role="button"
-				name="animate current selection"
+				.name=${`Add Track: ${this.sceneData?.selectedObject?.name ?? canAddSelected}`}
 				icon="plus-large"
 				@click=${this.addTarget}></sts-tree>
 			`);
