@@ -86,6 +86,13 @@ implements TreeSelectionProvider {
 		console.log("Seek Time Changed", time, playing);
 		this.playHead = time;
 		this.playing = playing;
+
+		if (this.playHead < this.timelineStart) {
+			this.timelineStart = this.playHead - (this.timelineEnd - this.timelineStart) * 0.05;
+		}
+		if (this.playHead > this.timelineEnd) {
+			this.timelineEnd = this.playHead + (this.timelineEnd - this.timelineStart) * 0.05;
+		}
 	}
 
 	@on("window:update-animation-targets")
@@ -170,17 +177,6 @@ implements TreeSelectionProvider {
 		}
 	}
 
-	@on("rangeStart-change")
-	onRangeStartChange({detail}: {detail:number}): void {
-		this.timelineStart = detail;
-	}
-
-	
-	@on("rangeEnd-change")
-	onRangeEndChange({detail}: {detail:number}): void {
-		this.timelineStart = detail;
-	}
-
 	onSidebarResize(event: PointerEvent): void {
 		this.sidebarWidth = Math.max(Math.min(this.sidebarWidth + event.movementX, 512), 128);
 	}
@@ -237,7 +233,7 @@ implements TreeSelectionProvider {
 			}
 		}
 
-		if (closest_keyframe > this.timelineEnd) {
+		if (closest_keyframe > this.clipEnd) {
 			return;
 		}
 
