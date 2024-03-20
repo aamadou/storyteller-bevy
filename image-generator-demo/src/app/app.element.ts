@@ -18,6 +18,7 @@ import { ImageInfo, LcmClient } from "./lcm-client";
 
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/loading";
+// import "@storyteller/studio-web/scene-data-provider";
 import "@storyteller/studio-web/scene-hierarchy";
 import "@storyteller/studio-web/studio";
 import "@storyteller/studio-web/transform-toolbar";
@@ -173,6 +174,7 @@ export class AppElement extends LitElement {
 
 	protected override render = () => html`
 		<sts-canvas-provider class="app-root">
+		<sts-scene-data-provider>
 			<div
 				class="hierarchy-wrapper"
 				style=${styleMap({ width: `${this.hierarchyWidth}px` })}
@@ -297,6 +299,7 @@ export class AppElement extends LitElement {
 			${this.loading ? html`
 				<sts-loading></sts-loading>
 			` : nothing}
+		</sts-scene-data-provider>
 		</sts-canvas-provider>
 	`
 }
