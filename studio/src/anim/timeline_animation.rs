@@ -15,7 +15,7 @@ use bevy_tweening::{
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use space_editor::space_prefab::editor_registry::EditorRegistryExt;
+use space_editor::{prelude::PrefabMarker, space_prefab::editor_registry::EditorRegistryExt};
 
 use crate::interaction::{MarkedForDeletion, Selectable};
 
@@ -33,6 +33,7 @@ impl Plugin for TimelinePlugin {
             .editor_registry::<Keyframe>()
             .register_type::<KeyframeOrder>()
             .editor_registry::<KeyframeOrder>()
+            .register_type::<EaseType>()
             .add_event::<TimelineInteractionEvent>()
             .add_event::<KeyframeInteractionEvent>();
 
@@ -258,6 +259,7 @@ fn process_keyframe_events(
                         ));
                     } else {
                         commands.spawn((
+                            PrefabMarker,
                             SpatialBundle {
                                 transform: *transform,
                                 ..Default::default()

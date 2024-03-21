@@ -17,10 +17,7 @@ impl RemoteAssetReader {
     const API_BASE_URL: &'static str = "https://api.fakeyou.com/v1/media_files/file";
     const BUCKET_BASE_URL: &'static str = "https://storage.googleapis.com/vocodes-public";
 
-    async fn load<'a>(
-        &'a self,
-        path: &'a Path,
-    ) -> Result<Box<Reader<'a>>, AssetReaderError> {
+    async fn load<'a>(&'a self, path: &'a Path) -> Result<Box<Reader<'a>>, AssetReaderError> {
         let token = path
             .ext_file_prefix()
             .ok_or_else(|| {
@@ -88,9 +85,7 @@ impl AssetReader for RemoteAssetReader {
         &'a self,
         path: &'a Path,
     ) -> BoxedFuture<'a, Result<Box<Reader<'a>>, AssetReaderError>> {
-        let unboxed = async move {
-            self.load(path).await
-        };
+        let unboxed = async move { self.load(path).await };
         if cfg!(not(feature = "wasm")) {
             info!("wasm mode not detected");
             // NB: Headless mode (server rendering) is running without a Tokio runtime.
