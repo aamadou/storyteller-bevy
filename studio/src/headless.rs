@@ -9,7 +9,12 @@ use space_editor::prelude::{EditorEvent, EditorPrefabPath};
 use wgpu::Extent3d;
 
 use crate::{
-    anim::timeline_animation::{Keyframe, TimelineInteractionEvent}, bvh::{BvhAnimCompleteEvent, TestBvh}, scene::SceneState, screenshot::{ScreenCapture, ScreenShotPlugin}, BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera, MixamoImportEvent, MixamoPlugin, RemoteAssetPlugin, SkyboxId, StudioMode, WorldGridPlugin
+    anim::timeline_animation::{Keyframe, TimelineInteractionEvent},
+    bvh::{BvhAnimCompleteEvent, TestBvh},
+    scene::SceneState,
+    screenshot::{ScreenCapture, ScreenShotPlugin},
+    BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera,
+    MixamoImportEvent, MixamoPlugin, RemoteAssetPlugin, SkyboxId, StudioMode, WorldGridPlugin,
 };
 
 #[derive(Debug, Resource, Clone)]
@@ -57,7 +62,7 @@ pub fn start_headless(
             close_when_requested: true,
         }),
         ScreenShotPlugin,
-        CommonPlugins.build().disable::<WorldGridPlugin>()
+        CommonPlugins.build().disable::<WorldGridPlugin>(),
     ));
 
     match mode {
@@ -142,7 +147,7 @@ impl Default for HeadlessSettings {
             output_dir: "./screen_shots/".to_string(),
             max_frames: u32::MAX,
             fps: 24.0,
-            frame_delta: 1.0 / 24.0
+            frame_delta: 1.0 / 24.0,
         }
     }
 }
@@ -189,13 +194,15 @@ fn start_timeline_animation(
     keyframes: Query<&Keyframe>,
     camera: Query<Entity, With<MainCamera>>,
     mut commands: Commands,
-    mut ev: EventWriter<TimelineInteractionEvent>
+    mut ev: EventWriter<TimelineInteractionEvent>,
 ) {
     if keyframes.is_empty() {
         return;
     }
     commands.remove_resource::<CameraMotion>();
-    let total_time = keyframes.iter().fold(0f32, |previous, keyframe| previous.max(keyframe.time));
+    let total_time = keyframes
+        .iter()
+        .fold(0f32, |previous, keyframe| previous.max(keyframe.time));
     let frames = (total_time * headless_settings.fps).ceil() as u32;
     headless_settings.max_frames = frames;
     ev.send(TimelineInteractionEvent::Play);
@@ -204,5 +211,5 @@ fn start_timeline_animation(
         ScreenCapture::from_out(&headless_settings.output_dir)
             //Part of quick hack, see screenshot.rs#261
             .with_max_frames(headless_settings.max_frames + 3),
-        );
+    );
 }

@@ -1,10 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
 use bevy::{
-    ecs::{
-        entity::{EntityMapper, MapEntities},
-        reflect::ReflectMapEntities,
-    },
     prelude::*,
     utils::{hashbrown::HashMap, HashSet},
 };
@@ -14,10 +10,13 @@ use bevy_tweening::{
     Animator, EaseMethod, Sequence, Targetable, Tracks, Tween, TweenCompleted,
 };
 use itertools::Itertools;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use space_editor::{prelude::PrefabMarker, space_prefab::editor_registry::EditorRegistryExt};
 
-use crate::{headless::HeadlessSettings, interaction::{MarkedForDeletion, Selectable}, StudioMode};
+use crate::{
+    headless::HeadlessSettings,
+    interaction::{MarkedForDeletion, Selectable},
+};
 
 pub struct TimelinePlugin;
 
@@ -135,7 +134,7 @@ impl Default for TransformKeyframe {
 #[reflect(Component)]
 pub struct Keyframe {
     target: AnimationTarget,
-    pub time: f32
+    pub time: f32,
 }
 
 #[derive(Component, Clone, Debug, Default, Reflect, PartialEq, Eq, PartialOrd, Ord)]
@@ -152,7 +151,7 @@ impl Default for Keyframe {
     fn default() -> Self {
         Self {
             time: Default::default(),
-            target: AnimationTarget::Unknown
+            target: AnimationTarget::Unknown,
         }
     }
 }
@@ -189,14 +188,16 @@ impl Default for TimedAnimationClipAsset {
     }
 }
 
-#[derive(Component, Clone, Debug, Default, Reflect, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
+#[derive(
+    Component, Clone, Debug, Default, Reflect, PartialEq, Eq, Hash, Copy, Serialize, Deserialize,
+)]
 #[reflect(Component)]
 #[serde(try_from = "&str", into = "String")]
 pub enum AnimationTarget {
     #[default]
     Unknown,
     MainCamera,
-    Uuid(uuid::Uuid)
+    Uuid(uuid::Uuid),
 }
 
 impl AnimationTarget {
@@ -210,7 +211,7 @@ impl ToString for AnimationTarget {
         match self {
             Self::Unknown => "unknown".to_string(),
             Self::MainCamera => "MainCamera".to_string(),
-            Self::Uuid(uuid) => uuid.to_string()
+            Self::Uuid(uuid) => uuid.to_string(),
         }
     }
 }
@@ -262,11 +263,15 @@ fn process_timeline_events(
     }
 }
 
-fn update_tick(mut r_global_seek_time: ResMut<GlobalSeekTime>, time: Res<Time>, headless_settings: Option<Res<HeadlessSettings>>) {
+fn update_tick(
+    mut r_global_seek_time: ResMut<GlobalSeekTime>,
+    time: Res<Time>,
+    headless_settings: Option<Res<HeadlessSettings>>,
+) {
     if r_global_seek_time.playing {
         let delta = match headless_settings {
             Some(headless_settings) => headless_settings.frame_delta,
-            None => time.delta_seconds()
+            None => time.delta_seconds(),
         };
         r_global_seek_time.time += delta;
         r_global_seek_time.delta = Some(delta);
@@ -285,7 +290,8 @@ fn process_keyframe_events(
         info!("Processing Keyframe Event {event:?}");
         match event {
             KeyframeInteractionEvent::RecordKeyframe { target } => {
-                if let Ok((target, transform, animation_target)) = q_animation_targets.get(*target) {
+                if let Ok((_target, transform, animation_target)) = q_animation_targets.get(*target)
+                {
                     let mut existing = None;
                     for (entity, keyframe) in q_keyframes.iter_mut() {
                         if keyframe.target == *animation_target
@@ -356,7 +362,10 @@ fn generate_transform_animation(
     valid_targets: Query<(Entity, &AnimationTarget)>,
     removed: Query<&Keyframe, With<MarkedForDeletion>>,
 ) {
-    let available_targets = valid_targets.iter().map(|(e,a)| (*a,e)).collect::<HashMap<_,_>>();
+    let available_targets = valid_targets
+        .iter()
+        .map(|(e, a)| (*a, e))
+        .collect::<HashMap<_, _>>();
     let changed_targets = changed
         .iter()
         .map(|keyframe| keyframe.target)
@@ -364,12 +373,12 @@ fn generate_transform_animation(
             info!("Processing a removed keyframe {keyframe:?}");
             keyframe.target
         }))
-        .chain(added_targets.iter().map(|(_,a)| *a))
+        .chain(added_targets.iter().map(|(_, a)| *a))
         .collect::<HashSet<_>>();
     let keyframes = keyframes
         .iter()
-        .filter(|(keyframe, _,_,_)| changed_targets.contains(&keyframe.target))
-        .group_by(|(keyframe,_, _, _)| keyframe.target);
+        .filter(|(keyframe, _, _, _)| changed_targets.contains(&keyframe.target))
+        .group_by(|(keyframe, _, _, _)| keyframe.target);
 
     for (target, keyframes) in &keyframes {
         let Some(target) = available_targets.get(&target) else {
@@ -703,7 +712,7 @@ mod wasm {
     struct AddedAnimationTargetRecordItem {
         name: Option<String>,
         target_type: SceneElement,
-        animation_target: AnimationTarget
+        animation_target: AnimationTarget,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -742,7 +751,10 @@ mod wasm {
 
     pub(super) fn notify_updated_animation_targets(
         q_window: Query<&Window, With<PrimaryWindow>>,
-        q_cameras: Query<(Entity, Option<&Name>, &AnimationTarget), (Added<AnimationTarget>, With<Camera>)>,
+        q_cameras: Query<
+            (Entity, Option<&Name>, &AnimationTarget),
+            (Added<AnimationTarget>, With<Camera>),
+        >,
         q_scene_elements: Query<
             (Entity, Option<&Name>, &SceneElement, &AnimationTarget),
             (Added<AnimationTarget>, Without<Camera>),
@@ -770,7 +782,7 @@ mod wasm {
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
                         target_type: SceneElement::Generic,
-                        animation_target: *target
+                        animation_target: *target,
                     },
                 )
             })
@@ -780,20 +792,24 @@ mod wasm {
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
                         target_type: SceneElement::Camera,
-                        animation_target: *target
+                        animation_target: *target,
                     },
                 )
             }))
-            .chain(q_scene_elements.iter().map(|(entity, name, element, target)| {
-                (
-                    format!("{entity:?}"),
-                    AddedAnimationTargetRecordItem {
-                        name: name.map(|v| v.to_string()),
-                        target_type: *element,
-                        animation_target: *target
-                    },
-                )
-            }))
+            .chain(
+                q_scene_elements
+                    .iter()
+                    .map(|(entity, name, element, target)| {
+                        (
+                            format!("{entity:?}"),
+                            AddedAnimationTargetRecordItem {
+                                name: name.map(|v| v.to_string()),
+                                target_type: *element,
+                                animation_target: *target,
+                            },
+                        )
+                    }),
+            )
             .collect::<HashMap<_, _>>();
 
         let removed = removed.read().map(|v| format!("{v:?}")).collect::<Vec<_>>();

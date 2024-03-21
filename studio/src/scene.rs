@@ -57,15 +57,17 @@ impl Plugin for ScenePlugin {
             )
             .add_systems(
                 Update,
-                (init_object_loading, init_scene_import, init_scene_loading, start_capture.run_if(is_headless))
+                (
+                    init_object_loading,
+                    init_scene_import,
+                    init_scene_loading,
+                    start_capture.run_if(is_headless),
+                )
                     .in_set(SceneSpawnerSystem),
             )
             .add_systems(
                 OnEnter(SceneState::Active),
-                (
-                    tag_scene_elements,
-                    frame_scene_in_view,
-                )
+                (tag_scene_elements, frame_scene_in_view)
                     .chain()
                     .in_set(SceneSpawnerSystem),
             );
@@ -338,7 +340,7 @@ fn initialiaze_headless(
             },
             ..default()
         },
-        CameraControllerBundle::new(focus, camera_xform.translation)
+        CameraControllerBundle::new(focus, camera_xform.translation),
     ));
 }
 
