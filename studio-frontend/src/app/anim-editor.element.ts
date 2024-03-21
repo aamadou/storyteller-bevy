@@ -1,7 +1,7 @@
 import * as studio from "@storyteller/studio";
-import { type CameraKeyframesEvent } from "@storyteller/studio";
-import { bind, drag, on } from "@storyteller/framework";
-import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult } from "lit";
+import type { EntitySelectEvent, SeekTimeChanged, UpdateAnimationTargets, Keyframe } from "@storyteller/studio";
+import { bind, drag, inject, on, provide } from "@storyteller/framework";
+import { LitElement, type PropertyValues, html, unsafeCSS, TemplateResult, PropertyValueMap } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { styleMap } from "lit/directives/style-map.js";
 
@@ -11,32 +11,170 @@ import "@storyteller/studio-ui/tree";
 import "./anim-timeline.element";
 
 import styles from "./anim-editor.element.scss?inline";
+import { SCENE_DATA_PROVIDER, type SceneDataProvider } from "@storyteller/studio-web/scene-data-provider";
+import { TREE_SELECTION_PROVIDER, TreeSelectionProvider } from "@storyteller/studio-ui/tree";
+
+const TRACK_ICONS : Record<string, string> = {
+	camera: "video",
+	transform: "up-down-left-right",
+	light: "light"
+};
+
+function isOutsideEntity(
+	value?: { track: string } | { outsideEntity: string }
+): value is { outsideEntity: string } {
+	if (value == null) return false;
+	return "outsideEntity" in value;
+}
 
 @customElement("sts-anim-editor")
-export class AnimEditorElement extends LitElement {
+@provide(TREE_SELECTION_PROVIDER)
+export class AnimEditorElement extends LitElement
+implements TreeSelectionProvider {
+    @inject(SCENE_DATA_PROVIDER)  
+    sceneData?: SceneDataProvider;
+	
 	static override styles = unsafeCSS(styles);
 
 	@state() sidebarWidth = 256;
 
 	@state() timelineStart = 0;
-	@state() timelineEnd = 5_000;
+	@state() timelineEnd = 5;
 
 	@state() clipStart = 0;
-	@state() clipEnd = 15_000;
+	@state() clipEnd = 0;
 
 	@state() playHead = 0;
-	@state() keyframes: Record<string, number> = {};
+	@state() playing = false;
+
+	@state() tracks : Record<string, {name?: string, target_type: studio.SceneElement }> = {};
+	
+	@state() track_ordered : string[] = [];
+
+	@state() keyframes : Record<string, Keyframe> = {};
+
+	@state() selectedTrack?: { track: string } | { outsideEntity: string };
+
+	trackCount(): number {
+		return Object.keys(this.tracks).length;
+	}
+
+	get selectedId() {
+		return !isOutsideEntity(this.selectedTrack) && this.selectedTrack?.track || null;
+	}
 
 	protected override update(changes: PropertyValues<this>): void {
 		if (changes.has("playHead"))
 			studio.seekTime(this.playHead);
 
+		if (changes.has("selectedTrack")) {
+			const treeSelectionChanges: PropertyValues<TreeSelectionProvider> = new Map();
+			const prevSelectedTrack = changes.get("selectedTrack");
+			const prevTreeSelection = !isOutsideEntity(prevSelectedTrack) && prevSelectedTrack?.track || null;
+			treeSelectionChanges.set("selectedId", prevTreeSelection);
+
+			this.dispatchEvent(new CustomEvent("property-changes", {
+				detail: treeSelectionChanges,
+			}));
+		}
+
 		super.update(changes);
 	}
 
-	@on("window:camera-keyframes")
-	onCameraKeyframeChanges({ detail: keyframes }: CameraKeyframesEvent): void {
+	@on("window:seek-time-changed")
+	onSeekTimeChanged({ detail: {time, playing} }: SeekTimeChanged ): void {
+		console.log("Seek Time Changed", time, playing);
+		this.playHead = time;
+		this.playing = playing;
+
+		if (this.playHead < this.timelineStart) {
+			this.timelineStart = this.playHead - (this.timelineEnd - this.timelineStart) * 0.05;
+		}
+		if (this.playHead > this.timelineEnd) {
+			this.timelineEnd = this.playHead + (this.timelineEnd - this.timelineStart) * 0.05;
+		}
+	}
+
+	@on("window:update-animation-targets")
+	onUpdateAnimationTargets({detail: { added, removed}}: UpdateAnimationTargets) : void {
+		let addedKeys = Object.keys(added);
+		if (addedKeys.length === 0 && removed.length === 0) {
+			return;
+		}
+		console.log("Animation Targets Changed");
+		let tracks = {...this.tracks};
+		for (let track_entity of addedKeys) {
+			let track = added[track_entity];
+			tracks[track_entity] = track;
+		}
+		
+		for (let track_entity of removed) {
+			delete tracks[track_entity];
+		}
+
+		this.track_ordered = Object.keys(tracks);
+
+		if (typeof this.selectedTrack === "object") {
+			if (!isOutsideEntity(this.selectedTrack) && !(this.selectedTrack.track in tracks)) {
+				this.selectedTrack = { outsideEntity: this.selectedTrack.track};
+			} else if (isOutsideEntity(this.selectedTrack) && this.selectedTrack.outsideEntity in tracks) {
+				this.selectedTrack = { track: this.selectedTrack.outsideEntity};
+			}
+		}
+
+		this.tracks = tracks;
+	}
+
+	@on("window:update-keyframes")
+	onUpdateKeyframes({detail: {added, removed}}: studio.UpdateKeyframes): void {
+		let addedKeyframes = Object.keys(added);
+		if (addedKeyframes.length === 0 && removed.length === 0) {
+			return;
+		}
+		console.log("Keyframes Changed");
+		let keyframes = {...this.keyframes};
+		for (let keyframe of addedKeyframes) {
+			keyframes[keyframe] = added[keyframe];
+		}
+
+		for (let keyframe of removed) {
+			delete keyframes[keyframe];
+		}
+
 		this.keyframes = keyframes;
+
+		let min = Infinity
+		let max = -Infinity;
+		for (const keyframe of Object.keys(this.keyframes)) {
+			let time = this.keyframes[keyframe].time;
+			if (typeof time != "number") {
+				continue;
+			}
+			if (time > max) {
+				max = time;
+			}
+			if (time < min) {
+				min = time;
+			}
+		}
+		this.clipStart = Math.max(min, 0.);
+		this.clipEnd = Math.max(max, min);
+	}
+
+	
+	@on("window:entity-select")
+	onEntitySelected({ detail: id }: EntitySelectEvent): void {
+		if (id) {
+			if (this.tracks[id]) {
+				this.selectedTrack = { track: id };
+			} else if (!this.keyframes[id]) {
+				this.selectedTrack = {outsideEntity: id};
+			} else {
+				this.selectedTrack = undefined;
+			}
+		} else {
+			this.selectedTrack = undefined;
+		}
 	}
 
 	onSidebarResize(event: PointerEvent): void {
@@ -44,47 +182,140 @@ export class AnimEditorElement extends LitElement {
 	}
 
 	addKeyframe(): void {
-		studio.addCameraKeyframe(this.playHead);
+		if (typeof this.selectedTrack === "object" && "track" in this.selectedTrack) {
+			studio.recordKeyframe([this.selectedTrack.track]);
+		}
 	}
 
 	jumpToStart(): void {
-		this.playHead = this.clipStart;
+		if (Math.abs(this.playHead - this.clipStart) < 0.0001) {
+			this.playHead = 0;
+		} else {
+			this.playHead = this.clipStart;
+		}
 	}
 
 	prevKeyframe(): void {
 		let pos = this.playHead;
 
-		const keyframes = Array.from(Object.values(this.keyframes)).sort((a, b) => b - a);
-		for (let keyframe of keyframes) {
-			pos = keyframe;
-			if (keyframe < this.playHead)
-				break;
+		let closest_keyframe = -1 * Infinity;
+
+		for (const keyframe of Object.keys(this.keyframes)) {
+			const time = this.keyframes[keyframe]?.time;
+			if (!time || typeof time != "number") {
+				continue;
+			}
+			if (time < pos && time > closest_keyframe ) {
+				closest_keyframe = time;
+			}
 		}
 
-		this.playHead = pos;
+		if (closest_keyframe < 0) {
+			closest_keyframe = 0;
+		}
+
+		this.playHead = closest_keyframe;
 	}
 
 	nextKeyframe(): void {
+
 		let pos = this.playHead;
 
-		const keyframes = Array.from(Object.values(this.keyframes)).sort((a, b) => a - b);
-		for (let keyframe of keyframes) {
-			pos = keyframe;
-			if (keyframe > this.playHead)
-				break;
+		let closest_keyframe = Infinity;
+
+		for (const keyframe of Object.keys(this.keyframes)) {
+			const time = this.keyframes[keyframe]?.time;
+			if (!time || typeof time != "number") {
+				continue;
+			}
+			if (time > pos && time < closest_keyframe ) {
+				closest_keyframe = time;
+			}
 		}
 
-		this.playHead = pos;
+		if (closest_keyframe > this.clipEnd) {
+			return;
+		}
+
+		this.playHead = closest_keyframe;
 	}
 
 	jumpToEnd(): void {
 		this.playHead = this.clipEnd;
 	}
 
-	protected override render = (): TemplateResult => html`
+	addTarget(): void {
+		if (isOutsideEntity(this.selectedTrack)) {
+			studio.addEntityTrack(this.selectedTrack.outsideEntity);
+		}
+	}
+
+	togglePlaying(): void {
+		console.log("toggling play");
+		if (this.playing) {
+			studio.pause();
+		} else {
+			studio.play();
+		}
+	}
+
+	protected override render(): TemplateResult {
+
+		const track_order_hashed : Record<string, number> = {};
+
+		for (const [index, track] of this.track_ordered.entries()) {
+			track_order_hashed[track] = index;
+		}
+
+		const selected = !isOutsideEntity(this.selectedTrack) && this.selectedTrack?.track || false;
+		const canAddSelected = isOutsideEntity(this.selectedTrack) && this.selectedTrack.outsideEntity || false;
+
+		let length = this.timelineEnd - this.timelineStart;
+		let clip_start = (this.clipStart - this.timelineStart) / length;
+		let clip_end = (this.clipEnd - this.timelineStart) / length;
+
+		
+		let timeline_css_variables = {
+			'--track-count': `${this.trackCount()}`,
+			'--row-count': `calc(var(--track-count) + ${canAddSelected ? 3 : 2})`,
+			'--clip-end': `${clip_end * 100}%`,
+			'--clip-start': `${clip_start * 100}%`
+		};
+
+		const tracklist = this.track_ordered.map((entity) => {
+			let track = this.tracks[entity];
+			let name = track.name ?? track.target_type;
+			let icon = this.sceneData?.entityMap.get(entity)?.icon ?? "minus";
+			return html`
+			<sts-tree class="track"
+				role="listitem"
+				name=${name}
+				icon=${icon}
+				@tree-select=${() => {
+					studio.select(entity);
+				}}
+				.id=${entity}
+			></sts-tree>
+			`;
+		});
+
+		if (canAddSelected) {
+			tracklist.push(html`
+				<sts-tree class=${`track`}
+				role="button"
+				.name=${`Add Track: ${this.sceneData?.selectedObject?.name ?? canAddSelected}`}
+				icon="plus-large"
+				@click=${this.addTarget}></sts-tree>
+			`);
+		}
+
+		const none_selected = !selected;
+
+		return html`
 		<div class="sidebar"
 			style=${styleMap({
 				width: `${this.sidebarWidth}px`,
+				...timeline_css_variables
 			})}
 		>
 			<sts-toolbar>
@@ -93,6 +324,7 @@ export class AnimEditorElement extends LitElement {
 						icon="key"
 						aria-label="Add Keyframe"
 						title="Add Keyframe"
+						?disabled=${none_selected}
 						@click=${this.addKeyframe}
 					></sts-button>
 				</sts-toolbar-group>
@@ -110,9 +342,10 @@ export class AnimEditorElement extends LitElement {
 						@click=${this.prevKeyframe}
 					></sts-button>
 					<sts-button class="play"
-						icon="play"
+						icon=${this.playing ? "pause" : "play" }
 						aria-label="Play"
 						title="Play"
+						@click=${this.togglePlaying}
 					></sts-button>
 					<sts-button
 						icon="fwd-step"
@@ -129,32 +362,27 @@ export class AnimEditorElement extends LitElement {
 				</sts-toolbar-group>
 			</sts-toolbar>
 			<div class="tracklist" role="list">
-				<sts-tree class="track"
-					role="listitem"
-					name="Camera"
-					icon="video"
-				></sts-tree>
-				<sts-tree class="track"
-					role="listitem"
-					name="Camera Target"
-					icon="crosshairs"
-				></sts-tree>
+			${tracklist}
 			</div>
 		</div>
 
-		<div class="divider"
+		<div class="divider" style=${styleMap(timeline_css_variables)}
 			${drag({
 				move: this.onSidebarResize,
 			})}
 		></div>
 
 		<sts-anim-timeline class="timeline"
+		style=${styleMap(timeline_css_variables)}
 			.rangeStart=${bind(this, "timelineStart")}
 			.rangeEnd=${bind(this, "timelineEnd")}
 			.clipStart=${this.clipStart}
 			.clipEnd=${this.clipEnd}
 			.playHead=${bind(this, "playHead")}
 			.keyframes=${bind(this, "keyframes")}
+			.track_ordered=${track_order_hashed}
 		></sts-anim-timeline>
-	`;
-}
+	`
+	};
+};
+

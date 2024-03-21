@@ -23,6 +23,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
+    anim::timeline_animation::AnimationTarget,
     camera_controller::{CameraController, CameraControllerBundle},
     change_tracking::{ChangeTracker, ChangeTrackingPlugin},
     debug::DebugPoint,
@@ -105,6 +106,7 @@ impl Plugin for ScenePlugin {
 fn minimal_scene_setup(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Directional Light"),
+        AnimationTarget,
         DirectionalLightBundle {
             directional_light: DirectionalLight {
                 shadows_enabled: false,
@@ -269,6 +271,7 @@ fn initialize(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
+        AnimationTarget,
         ChangeTracker,
         Camera3dBundle {
             transform: camera_xform,
@@ -325,6 +328,7 @@ fn initialiaze_headless(
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
+        AnimationTarget,
         Camera3dBundle {
             transform: camera_xform,
             tonemapping: Tonemapping::BlenderFilmic,

@@ -54,8 +54,8 @@ export class AppElement extends LitElement {
 	@state() inspectorWidth = 320;
 	@state() hierarchyHeight?: number;
 
+	#enableAnimTimeline = true; // TODO
 	private api = new StorytellerApi();
-	#enableAnimTimeline = false; // TODO
 
 	#addToSceneButtonRef = createRef<ButtonElement>();
 	#mediaLibraryRef = createRef<DialogElement>();
@@ -136,7 +136,8 @@ export class AppElement extends LitElement {
 		this.showHelp = !this.showHelp;
 	}
 
-	protected override render = () => html`
+	protected override render() {
+		return html`
 		<sts-overlay-provider>
 		<sts-canvas-provider class="app-root">
 		<sts-scene-data-provider>
@@ -290,4 +291,5 @@ export class AppElement extends LitElement {
 		</sts-canvas-provider>
 		</sts-overlay-provider>
 	`;
+	}
 }

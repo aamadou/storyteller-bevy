@@ -27,6 +27,7 @@ impl Plugin for SelectionPlugin {
                 PostUpdate,
                 draw_selection_outline.run_if(resource_changed_or_removed::<Selection>()),
             )
+            .add_systems(First, finalize_delete)
             .add_systems(
                 OnEnter(SceneState::Active),
                 (apply_deferred, tag_scene_elements)
@@ -158,6 +159,9 @@ fn update_selection(
     }
 }
 
+#[derive(Component)]
+pub struct MarkedForDeletion;
+
 fn process_delete_inputs(
     mut cmd: Commands,
     mut er_input: EventReader<InputAction>,
@@ -172,11 +176,17 @@ fn process_delete_inputs(
     }) {
         let entity = **r_selection;
 
-        cmd.entity(entity).despawn_recursive();
+        cmd.entity(entity).insert(MarkedForDeletion);
         cmd.remove_resource::<Selection>();
         ew_changes.send(NewChange {
             change: Arc::new(RemovedEntity { entity }),
         });
+    }
+}
+
+fn finalize_delete(mut cmd: Commands, q: Query<Entity, With<MarkedForDeletion>>) {
+    for entity in &q {
+        cmd.entity(entity).despawn_recursive();
     }
 }
 

@@ -1,21 +1,30 @@
 :host {
-	display: flex;
+	display: grid;
 	border-radius: 8px;
 	background: #0006;
 	backdrop-filter: blur(16px);
+	grid-template-columns:
+		[sidebar-start] min-content [sidebar-end
+		divider-start] 8px [divider-end
+		timeline-start] 1fr [timeline-end];
+	padding: 8px;
+	row-gap: 8px;
 }
-
-.sidebar, .timeline { padding: 8px; }
-.sidebar { padding-inline-end: 0; }
-.timeline { padding-inline-start: 0; }
 
 .sidebar {
 	flex: 0 0 auto;
 	width: 256px;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
+	display: grid;
 	overflow: hidden;
+	grid-column: sidebar;
+	grid-row: 1 / span var(--row-count);
+	grid-template-rows: subgrid;
+}
+
+.timeline {
+	grid-column: timeline;
+	grid-row: 1 / span var(--row-count);
+	grid-template-rows: subgrid;
 }
 
 .btn-keyframe {
@@ -28,7 +37,11 @@
 	background: #7A2C34E3;
 	color: #FFF;
 
-	&:hover {
+	&.disabled {
+		opacity: 0.25;
+	}
+
+	&:not(.disabled):hover {
 		background: #90363F;
 	}
 }
@@ -58,6 +71,8 @@
 }
 
 .divider {
+	grid-column: divider;
+	grid-row: 1 / span var(--row-count);
 	position: relative;
 	flex: 0 0 8px;
 	margin: {
@@ -83,6 +98,25 @@
 	}
 }
 
-.timeline {
-	flex: 1 0 0;
+.tracklist {
+	display: grid;
+	grid-template-columns: subgrid;
+	grid-row: 2 / span var(--track-count);
+
+	
+	.track {
+		&:hover {
+			background: #0000001F;
+		}
+
+		&.selected {
+			background: #7A2C34E3;
+			color: #FFF;
+			font-weight: 500;
+
+			&:hover {
+				background: #90363F !important;
+			}
+		}
+	}
 }
