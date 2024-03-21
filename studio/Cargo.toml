@@ -15,6 +15,7 @@ path = "src/main.rs"
 [[bin]]
 name = "studio-headless"
 path = "src/main-headless.rs"
+required-features = ["headless_cli"]
 
 [dependencies]
 bevy-inspector-egui = "0.22.0"
@@ -69,6 +70,7 @@ wasm = [
 	"bevy_rapier3d/wasm-bindgen",
 ]
 desktop = []
+headless_cli = []
 
 [dependencies.bevy]
 workspace = true
