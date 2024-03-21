@@ -8,7 +8,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::*;
+use serde_json::{self, json, Map as JsonMap, Value as JsonValue};
 use space_editor::{
     space_editor_ui::{
         editor_tab::{EditorTab, EditorTabName},
@@ -189,7 +189,7 @@ impl EditorTab for TestInspectorTab {
             CHANGE_FROM_UI.write_message(UpdateField {
                 component: "bevy_transform::components::transform::Transform".to_string(),
                 reflect_path: ".translation.x".to_string(),
-                value: serde_json::Value::from(0.0),
+                value: JsonValue::from(0.0),
             });
         }
     }
@@ -316,7 +316,7 @@ fn update_field_by_ui(world: &mut World) {
 
 #[derive(Resource, Serialize, Deserialize, Default, Clone)]
 pub struct EntityDescription {
-    pub components: HashMap<String, Value>,
+    pub components: HashMap<String, JsonValue>,
 }
 
 fn update_inspect_by_select_change<T: Component + Reflect + GetTypeRegistration>(
@@ -524,11 +524,11 @@ fn update_description(
         .components
         .iter()
         .map(|(name, v)| {
-            let mut value = Value::Object(Map::new());
+            let mut value = JsonValue::Object(JsonMap::new());
             value
                 .as_object_mut()
                 .unwrap()
-                .insert("name".to_string(), Value::String(name.to_string()));
+                .insert("name".to_string(), JsonValue::String(name.to_string()));
             value
                 .as_object_mut()
                 .unwrap()
@@ -546,24 +546,33 @@ fn update_description(
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateField {
     pub component: String,
     pub reflect_path: String,
-    pub value: serde_json::Value,
+    pub value: JsonValue,
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const EVENT_DECLARATION: &str = r#"
 
-export interface InspectorChanged extends CustomEvent {
+export interface InspectorChangedEvent extends CustomEvent {
     detail: string | null;
 }
 
 declare global {
-export interface HTMLElementEventMap {
-    "inspector-changed": InspectorChanged;
+    export interface HTMLElementEventMap {
+        "inspector-changed": InspectorChangedEvent;
+    }
 }
+
+export interface UpdateField<T> {
+    component: string;
+    reflectPath: string;
+    value: T;
 }
+
+export function updateComponentField<T>(params: UpdateField<T>): void;
 "#;
 
 pub(super) fn notify_changed(q_window: &Window, msg: String) {
@@ -575,11 +584,9 @@ pub(super) fn notify_changed(q_window: &Window, msg: String) {
 
 static CHANGE_FROM_UI: WasmMessageBuffer<UpdateField> = WasmMessageBuffer::new();
 
-#[wasm_bindgen(js_name = changeValue)]
-pub fn change_value(msg: JsValue) {
-    let Ok(msg) = serde_wasm_bindgen::from_value(msg) else {
-        error!("Failed to parse message");
-        return;
-    };
+#[wasm_bindgen(js_name = updateComponentField, skip_typescript)]
+pub fn update_component_field(msg: JsValue) -> Result<(), JsValue> {
+    let msg = serde_wasm_bindgen::from_value(msg)?;
     CHANGE_FROM_UI.write_message(msg);
+    Ok(())
 }

@@ -46,6 +46,7 @@ export class TextFieldElement extends FormFieldBaseElement {
 		` : nothing}
 		<input
 			class="input"
+			part="input"
 			.type=${this.fieldType}
 			placeholder=${ifDefined(this.placeholder)}
 			.value=${this.value}
