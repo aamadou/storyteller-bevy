@@ -2,11 +2,12 @@ import fs from "node:fs";
 import url from "node:url";
 import path from "node:path";
 import { rimraf } from "rimraf";
-import which from "which";
 
 import copyAssets from "./copy-assets.mjs";
 import handleError from "./handle-error.mjs";
-import run from "./run.mjs";
+import run, { wasmBindgenCliVersion } from "./run.mjs";
+
+const WASM_BINDGEN_CLI_VERSION = "0.2.92";
 
 async function main() {
 	try {
@@ -39,11 +40,11 @@ async function main() {
 			stdio,
 		});
 
-		const wasmBindgenInstalled = Boolean(await which("wasm-bindgen", { nothrow: true }));
-		if (!wasmBindgenInstalled) {
+		const wbVersion = await wasmBindgenCliVersion();
+		if (!wbVersion || !wbVersion.includes(WASM_BINDGEN_CLI_VERSION)) {
 			await run("cargo", [
 				"install", "-f", "wasm-bindgen-cli",
-				"--version", "0.2.88",
+				"--version", WASM_BINDGEN_CLI_VERSION,
 			], {
 				shell: true,
 				cwd: workspaceRoot,
