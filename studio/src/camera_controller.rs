@@ -6,8 +6,8 @@ use bevy::{
 };
 
 use crate::{
-    input::{Action, CameraMotion, InputAction, Lifecycle, Selection},
-    interaction::Selected,
+    input::{self, Action, CameraMotion, InputAction, Lifecycle},
+    interaction::Selection,
     math::{
         Easing, InterpPosition, InterpVelocity, Interpolation, InterpolationSystem, NearlyEq,
         NearlyZero, Velocity,
@@ -155,20 +155,25 @@ fn process_physical_inputs(
 
 fn process_focus_inputs(
     mut cmd: Commands,
+    r_selection: Option<Res<Selection>>,
     mut input: EventReader<InputAction>,
     mut q_camera: Query<(Entity, &CameraController, &mut Velocity)>,
     q_interp_vel: Query<&InterpVelocity>,
     mut q_interp_pos: Query<&mut InterpPosition>,
-    q_selected_xform: Query<&GlobalTransform, With<Selected>>,
+    q_global_xforms: Query<&GlobalTransform>,
 ) {
+    let Some(selection) = r_selection else {
+        return;
+    };
+
     if input.read().any(|action| {
         matches!(
             action,
-            InputAction(Lifecycle::Stop, Action::Selection(Selection::Focus))
+            InputAction(Lifecycle::Stop, Action::Selection(input::Selection::Focus))
         )
     }) {
-        let Ok(target) = q_selected_xform
-            .get_single()
+        let Ok(target) = q_global_xforms
+            .get(**selection)
             .map(|xform| xform.translation())
         else {
             return;
