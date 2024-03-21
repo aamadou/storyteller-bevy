@@ -91,11 +91,13 @@ impl AssetReader for RemoteAssetReader {
         let unboxed = async move {
             self.load(path).await
         };
-        if cfg!(headless_cli) {
+        if cfg!(not(feature = "wasm")) {
+            info!("wasm mode not detected");
             // NB: Headless mode (server rendering) is running without a Tokio runtime.
             // The reqwest HTTP client requires async-compat to function at runtime.
             Box::pin(Compat::new(unboxed))
         } else {
+            info!("wasm mode");
             Box::pin(unboxed)
         }
     }
