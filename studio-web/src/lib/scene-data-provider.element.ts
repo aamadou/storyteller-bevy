@@ -6,7 +6,7 @@ import {
 	type EntityMultiSpawnEvent,
 	type EntitySelectEvent,
 	type EntitySpawnEvent,
-	type InspectorChanged,
+	type InspectorChangedEvent,
 } from "@storyteller/studio";
 import { TREE_SELECTION_PROVIDER, TreeSelectionProvider } from "@storyteller/studio-ui/tree";
 import { match } from "@storyteller/utility";
@@ -109,7 +109,7 @@ export class SceneDataProviderElement
 	}
 
 	@on("window:inspector-changed")
-	onInspectorChanged({ detail: json }: InspectorChanged): void {
+	onInspectorChanged({ detail: json }: InspectorChangedEvent): void {
 		this._components = json ? JSON.parse(json) : [];
 	}
 
