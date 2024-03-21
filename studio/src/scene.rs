@@ -106,7 +106,7 @@ impl Plugin for ScenePlugin {
 fn minimal_scene_setup(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Directional Light"),
-        AnimationTarget,
+        AnimationTarget::new(),
         DirectionalLightBundle {
             directional_light: DirectionalLight {
                 shadows_enabled: false,
@@ -271,7 +271,7 @@ fn initialize(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
-        AnimationTarget,
+        AnimationTarget::MainCamera,
         ChangeTracker,
         Camera3dBundle {
             transform: camera_xform,
@@ -328,7 +328,7 @@ fn initialiaze_headless(
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
-        AnimationTarget,
+        AnimationTarget::MainCamera,
         Camera3dBundle {
             transform: camera_xform,
             tonemapping: Tonemapping::BlenderFilmic,

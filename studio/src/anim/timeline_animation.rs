@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
 use bevy::{
     ecs::{
@@ -6,7 +6,7 @@ use bevy::{
         reflect::ReflectMapEntities,
     },
     prelude::*,
-    utils::HashSet,
+    utils::{hashbrown::HashMap, HashSet},
 };
 
 use bevy_tweening::{
@@ -14,7 +14,7 @@ use bevy_tweening::{
     Animator, EaseMethod, Sequence, Targetable, Tracks, Tween, TweenCompleted,
 };
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use space_editor::{prelude::PrefabMarker, space_prefab::editor_registry::EditorRegistryExt};
 
 use crate::interaction::{MarkedForDeletion, Selectable};
@@ -34,6 +34,7 @@ impl Plugin for TimelinePlugin {
             .register_type::<KeyframeOrder>()
             .editor_registry::<KeyframeOrder>()
             .register_type::<EaseType>()
+            .register_type::<uuid::Uuid>()
             .add_event::<TimelineInteractionEvent>()
             .add_event::<KeyframeInteractionEvent>();
 
@@ -131,10 +132,10 @@ impl Default for TransformKeyframe {
 }
 
 #[derive(Component, Clone, Debug, Reflect, PartialEq)]
-#[reflect(Component, MapEntities)]
+#[reflect(Component)]
 pub struct Keyframe {
-    target: Entity,
-    time: f32,
+    target: AnimationTarget,
+    time: f32
 }
 
 #[derive(Component, Clone, Debug, Default, Reflect, PartialEq, Eq, PartialOrd, Ord)]
@@ -147,17 +148,11 @@ impl PartialOrd for Keyframe {
     }
 }
 
-impl MapEntities for Keyframe {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.target = entity_mapper.get_or_reserve(self.target);
-    }
-}
-
 impl Default for Keyframe {
     fn default() -> Self {
         Self {
-            target: Entity::PLACEHOLDER,
             time: Default::default(),
+            target: AnimationTarget::Unknown
         }
     }
 }
@@ -194,9 +189,59 @@ impl Default for TimedAnimationClipAsset {
     }
 }
 
-#[derive(Component, Clone, Debug, Default, Reflect)]
+#[derive(Component, Clone, Debug, Default, Reflect, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
 #[reflect(Component)]
-pub struct AnimationTarget;
+#[serde(try_from = "&str", into = "String")]
+pub enum AnimationTarget {
+    #[default]
+    Unknown,
+    MainCamera,
+    Uuid(uuid::Uuid)
+}
+
+impl AnimationTarget {
+    pub fn new() -> Self {
+        Self::Uuid(uuid::Uuid::new_v4())
+    }
+}
+
+impl ToString for AnimationTarget {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Unknown => "unknown".to_string(),
+            Self::MainCamera => "MainCamera".to_string(),
+            Self::Uuid(uuid) => uuid.to_string()
+        }
+    }
+}
+
+impl From<AnimationTarget> for String {
+    fn from(val: AnimationTarget) -> Self {
+        val.to_string()
+    }
+}
+
+impl TryFrom<&str> for AnimationTarget {
+    type Error = uuid::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
+impl FromStr for AnimationTarget {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "unknown" {
+            Ok(Self::Unknown)
+        } else if s == "MainCamera" {
+            Ok(Self::MainCamera)
+        } else {
+            Ok(Self::Uuid(s.parse()?))
+        }
+    }
+}
 
 fn process_timeline_events(
     mut e_timeline_event: EventReader<TimelineInteractionEvent>,
@@ -229,7 +274,7 @@ fn process_keyframe_events(
     mut commands: Commands,
     mut e_timeline_event: EventReader<KeyframeInteractionEvent>,
     r_global_seek_time: Res<GlobalSeekTime>,
-    q_animation_targets: Query<(Entity, &Transform), With<AnimationTarget>>,
+    q_animation_targets: Query<(Entity, &Transform, &AnimationTarget)>,
     q_potential_targets: Query<Entity, (With<Transform>, Without<AnimationTarget>)>,
     mut q_keyframes: Query<(Entity, &mut Keyframe)>,
 ) {
@@ -237,10 +282,10 @@ fn process_keyframe_events(
         info!("Processing Keyframe Event {event:?}");
         match event {
             KeyframeInteractionEvent::RecordKeyframe { target } => {
-                if let Ok((target, transform)) = q_animation_targets.get(*target) {
+                if let Ok((target, transform, animation_target)) = q_animation_targets.get(*target) {
                     let mut existing = None;
                     for (entity, keyframe) in q_keyframes.iter_mut() {
-                        if keyframe.target == target
+                        if keyframe.target == *animation_target
                             && (keyframe.time - r_global_seek_time.time).abs()
                                 < MIN_KEYFRAME_DISTANCE
                         {
@@ -253,8 +298,8 @@ fn process_keyframe_events(
                             *transform,
                             TransformKeyframe::default(),
                             Keyframe {
-                                target,
                                 time: r_global_seek_time.time,
+                                target: *animation_target,
                             },
                         ));
                     } else {
@@ -266,8 +311,8 @@ fn process_keyframe_events(
                             },
                             Selectable,
                             Keyframe {
-                                target,
                                 time: r_global_seek_time.time,
+                                target: *animation_target,
                             },
                             TransformKeyframe::default(),
                         ));
@@ -282,7 +327,7 @@ fn process_keyframe_events(
             KeyframeInteractionEvent::AddEntityTrack { target } => {
                 if let Ok(target) = q_potential_targets.get(*target) {
                     info!("Adding Animation Target to Entity");
-                    commands.entity(target).insert(AnimationTarget);
+                    commands.entity(target).insert(AnimationTarget::new());
                 } else {
                     warn!("Can't add animation target to entity");
                 }
@@ -304,10 +349,11 @@ fn generate_transform_animation(
         (&Keyframe, &Transform, &TransformKeyframe, Entity),
         Without<MarkedForDeletion>,
     >,
-    added_targets: Query<Entity, Added<AnimationTarget>>,
-    valid_targets: Query<Entity, With<AnimationTarget>>,
+    added_targets: Query<(Entity, &AnimationTarget), Added<AnimationTarget>>,
+    valid_targets: Query<(Entity, &AnimationTarget)>,
     removed: Query<&Keyframe, With<MarkedForDeletion>>,
 ) {
+    let available_targets = valid_targets.iter().map(|(e,a)| (*a,e)).collect::<HashMap<_,_>>();
     let changed_targets = changed
         .iter()
         .map(|keyframe| keyframe.target)
@@ -315,18 +361,20 @@ fn generate_transform_animation(
             info!("Processing a removed keyframe {keyframe:?}");
             keyframe.target
         }))
-        .chain(added_targets.iter())
+        .chain(added_targets.iter().map(|(_,a)| *a))
         .collect::<HashSet<_>>();
     let keyframes = keyframes
         .iter()
-        .filter(|(keyframe, _, _, _)| changed_targets.contains(&keyframe.target))
-        .group_by(|(keyframe, _, _, _)| keyframe.target);
+        .filter(|(keyframe, _,_,_)| changed_targets.contains(&keyframe.target))
+        .group_by(|(keyframe,_, _, _)| keyframe.target);
 
     for (target, keyframes) in &keyframes {
-        if !valid_targets.contains(target) {
+        let Some(target) = available_targets.get(&target) else {
             info!("No valid target.");
             continue;
-        }
+        };
+        let target = *target;
+
         let keyframes = keyframes.sorted_by(|a, b| a.0.time.total_cmp(&b.0.time));
 
         let (_, _, _, translation, rotation, scale) = keyframes.fold(
@@ -604,13 +652,13 @@ mod wasm {
     export interface UpdateAnimationTargets extends CustomEvent {
         type: "update-animation-targets",
         detail: {
-            added: Record<string, { name?: string, target_type: SceneElement } >,
+            added: Record<string, { name?: string, target_type: SceneElement, animation_target: AnimationTarget  } >,
             removed: string[]
         }
     }
 
     export interface TransformKeyframeInfo {
-        target: string,
+        target: AnimationTarget,
         time: number,
         entity: string,
         incoming_easing: "linear" | "cubic-hermite",
@@ -620,7 +668,7 @@ mod wasm {
     }
 
     export interface TimedAnimationClipInfo {
-        target: string,
+        target: AnimationTarget,
         time: number,
         entity: string,
         type: 'animation-clip',
@@ -630,6 +678,8 @@ mod wasm {
     }
 
     export type Keyframe = TransformKeyframeInfo | TimedAnimationClipInfo;
+
+    export type AnimationTarget = string;
 
     export interface UpdateKeyframes extends CustomEvent {
         type: "update-keyframes",
@@ -652,6 +702,7 @@ mod wasm {
     struct AddedAnimationTargetRecordItem {
         name: Option<String>,
         target_type: SceneElement,
+        animation_target: AnimationTarget
     }
 
     #[derive(Serialize, Deserialize)]
@@ -663,7 +714,7 @@ mod wasm {
     #[derive(Serialize, Deserialize)]
     struct TimedAnimationClipInfo {
         entity: String,
-        target: String,
+        target: AnimationTarget,
         time: f32,
         clip: String,
         duration: f32,
@@ -674,7 +725,7 @@ mod wasm {
     #[serde(rename_all = "camelCase")]
     struct TransformKeframeInfo {
         entity: String,
-        target: String,
+        target: AnimationTarget,
         time: f32,
         incoming_easing: EaseType,
         affect_translation: bool,
@@ -690,13 +741,13 @@ mod wasm {
 
     pub(super) fn notify_updated_animation_targets(
         q_window: Query<&Window, With<PrimaryWindow>>,
-        q_cameras: Query<(Entity, Option<&Name>), (Added<AnimationTarget>, With<Camera>)>,
+        q_cameras: Query<(Entity, Option<&Name>, &AnimationTarget), (Added<AnimationTarget>, With<Camera>)>,
         q_scene_elements: Query<
-            (Entity, Option<&Name>, &SceneElement),
+            (Entity, Option<&Name>, &SceneElement, &AnimationTarget),
             (Added<AnimationTarget>, Without<Camera>),
         >,
         q_transforms: Query<
-            (Entity, Option<&Name>),
+            (Entity, Option<&Name>, &AnimationTarget),
             (
                 Added<AnimationTarget>,
                 With<Transform>,
@@ -712,30 +763,33 @@ mod wasm {
 
         let added = q_transforms
             .iter()
-            .map(|(entity, name)| {
+            .map(|(entity, name, target)| {
                 (
                     format!("{entity:?}"),
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
                         target_type: SceneElement::Generic,
+                        animation_target: *target
                     },
                 )
             })
-            .chain(q_cameras.iter().map(|(entity, name)| {
+            .chain(q_cameras.iter().map(|(entity, name, target)| {
                 (
                     format!("{entity:?}"),
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
                         target_type: SceneElement::Camera,
+                        animation_target: *target
                     },
                 )
             }))
-            .chain(q_scene_elements.iter().map(|(entity, name, element)| {
+            .chain(q_scene_elements.iter().map(|(entity, name, element, target)| {
                 (
                     format!("{entity:?}"),
                     AddedAnimationTargetRecordItem {
                         name: name.map(|v| v.to_string()),
                         target_type: *element,
+                        animation_target: *target
                     },
                 )
             }))
@@ -777,7 +831,7 @@ mod wasm {
             .map(|(entity, keyframe, transform_keyframe)| {
                 match serde_json::to_value(TransformKeframeInfo {
                     entity: format!("{entity:?}"),
-                    target: format!("{:?}", keyframe.target),
+                    target: keyframe.target,
                     time: keyframe.time,
                     incoming_easing: transform_keyframe.incoming_easing,
                     affect_translation: transform_keyframe.affect_translation,
@@ -793,7 +847,7 @@ mod wasm {
             .chain(q_clips.iter().map(|(entity, keyframe, clip)| {
                 match serde_json::to_value(TimedAnimationClipInfo {
                     entity: format!("{entity:?}"),
-                    target: format!("{:?}", keyframe.target),
+                    target: keyframe.target,
                     time: keyframe.time,
                     clip: clip.clip.id().to_string(),
                     duration: clip.duration,
