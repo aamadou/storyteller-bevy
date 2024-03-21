@@ -304,6 +304,8 @@ fn generate_transform_animation(
         (&Keyframe, &Transform, &TransformKeyframe, Entity),
         Without<MarkedForDeletion>,
     >,
+    added_targets: Query<Entity, Added<AnimationTarget>>,
+    valid_targets: Query<Entity, With<AnimationTarget>>,
     removed: Query<&Keyframe, With<MarkedForDeletion>>,
 ) {
     let changed_targets = changed
@@ -313,6 +315,7 @@ fn generate_transform_animation(
             info!("Processing a removed keyframe {keyframe:?}");
             keyframe.target
         }))
+        .chain(added_targets.iter())
         .collect::<HashSet<_>>();
     let keyframes = keyframes
         .iter()
@@ -320,6 +323,10 @@ fn generate_transform_animation(
         .group_by(|(keyframe, _, _, _)| keyframe.target);
 
     for (target, keyframes) in &keyframes {
+        if !valid_targets.contains(target) {
+            info!("No valid target.");
+            continue;
+        }
         let keyframes = keyframes.sorted_by(|a, b| a.0.time.total_cmp(&b.0.time));
 
         let (_, _, _, translation, rotation, scale) = keyframes.fold(
