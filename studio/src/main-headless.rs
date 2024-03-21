@@ -1,7 +1,7 @@
 use bevy::{prelude::*, render::render_resource::Extent3d, transform::components::Transform};
 use clap::{Args, Parser, Subcommand};
 use studio::{
-    headless::{start_headless, HeadlessMode},
+    headless::{start_headless, CameraMotion, HeadlessMode},
     scene::SceneState,
 };
 
@@ -180,19 +180,14 @@ fn main() {
     app.run();
 }
 
-#[derive(Resource)]
-enum CameraMotion {
-    Orbit(f32),
-    Pan(f32),
-    Zoom(f32),
-    Static,
-}
-
 pub(crate) fn update_camera_motion(
     mut camera: Query<&mut Transform, (With<Camera>, Without<Parent>)>,
-    camera_motion: Res<CameraMotion>,
+    camera_motion: Option<Res<CameraMotion>>,
     time: Res<Time>,
 ) {
+    let Some(camera_motion) = camera_motion else {
+        return;
+    };
     println!("{}", camera.iter().count());
     let Ok(mut main_cam_transform) = camera.get_single_mut() else {
         return;

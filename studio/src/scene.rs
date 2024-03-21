@@ -57,7 +57,7 @@ impl Plugin for ScenePlugin {
             )
             .add_systems(
                 Update,
-                (init_object_loading, init_scene_import, init_scene_loading)
+                (init_object_loading, init_scene_import, init_scene_loading, start_capture.run_if(is_headless))
                     .in_set(SceneSpawnerSystem),
             )
             .add_systems(
@@ -65,7 +65,6 @@ impl Plugin for ScenePlugin {
                 (
                     tag_scene_elements,
                     frame_scene_in_view,
-                    start_capture.run_if(is_headless),
                 )
                     .chain()
                     .in_set(SceneSpawnerSystem),
@@ -339,10 +338,7 @@ fn initialiaze_headless(
             },
             ..default()
         },
-        CameraControllerBundle::new(focus, camera_xform.translation),
-        ScreenCapture::from_out(&headless_settings.output_dir)
-            //Part of quick hack, see screenshot.rs#261
-            .with_max_frames(headless_settings.max_frames + 3),
+        CameraControllerBundle::new(focus, camera_xform.translation)
     ));
 }
 
@@ -520,7 +516,7 @@ fn frame_scene_in_view(
     cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
-fn start_capture(mut captures: Query<&mut ScreenCapture>) {
+fn start_capture(mut captures: Query<&mut ScreenCapture, Added<ScreenCapture>>) {
     for mut capture in captures.iter_mut() {
         capture.start_capturing();
     }

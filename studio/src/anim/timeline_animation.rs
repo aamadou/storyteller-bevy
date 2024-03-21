@@ -17,7 +17,7 @@ use itertools::Itertools;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use space_editor::{prelude::PrefabMarker, space_prefab::editor_registry::EditorRegistryExt};
 
-use crate::interaction::{MarkedForDeletion, Selectable};
+use crate::{headless::HeadlessSettings, interaction::{MarkedForDeletion, Selectable}, StudioMode};
 
 pub struct TimelinePlugin;
 
@@ -135,7 +135,7 @@ impl Default for TransformKeyframe {
 #[reflect(Component)]
 pub struct Keyframe {
     target: AnimationTarget,
-    time: f32
+    pub time: f32
 }
 
 #[derive(Component, Clone, Debug, Default, Reflect, PartialEq, Eq, PartialOrd, Ord)]
@@ -262,9 +262,12 @@ fn process_timeline_events(
     }
 }
 
-fn update_tick(mut r_global_seek_time: ResMut<GlobalSeekTime>, time: Res<Time>) {
+fn update_tick(mut r_global_seek_time: ResMut<GlobalSeekTime>, time: Res<Time>, headless_settings: Option<Res<HeadlessSettings>>) {
     if r_global_seek_time.playing {
-        let delta = time.delta_seconds();
+        let delta = match headless_settings {
+            Some(headless_settings) => headless_settings.frame_delta,
+            None => time.delta_seconds()
+        };
         r_global_seek_time.time += delta;
         r_global_seek_time.delta = Some(delta);
     }
@@ -529,7 +532,6 @@ pub fn timeline_bound_component_animator_system<T: Component>(
     events: ResMut<Events<TweenCompleted>>,
 ) {
     if time.is_changed() && time.time >= 0.0 {
-        info!("Animating with time: {time:?}");
         let mut events: Mut<Events<TweenCompleted>> = events.into();
         for (entity, target, mut animator) in query.iter_mut() {
             if animator.tweenable().duration() <= Duration::from_secs_f32(0.0001) {
@@ -537,7 +539,6 @@ pub fn timeline_bound_component_animator_system<T: Component>(
             }
             let mut target = ComponentTarget::new(target);
             if let Some(delta) = time.delta {
-                info!("Playing animation with delta {delta}");
                 animator.tweenable_mut().tick(
                     Duration::from_secs_f32(delta),
                     &mut target,
