@@ -19,7 +19,7 @@ use space_editor::{
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    interaction::Selected,
+    interaction::Selection,
     wasm::{self, StaticBuffer, WasmMessageBuffer},
 };
 
@@ -69,7 +69,8 @@ impl Plugin for InspectorPlugin {
                 .add_systems(
                     Update,
                     (
-                        update_inspect_by_select_change::<Handle<StandardMaterial>>,
+                        update_inspect_by_select_change::<Handle<StandardMaterial>>
+                            .run_if(resource_changed_or_removed::<Selection>()),
                         update_inspect_by_remove::<Handle<StandardMaterial>>,
                         update_inspect_by_change::<Handle<StandardMaterial>>,
                         notify_asset_change_system::<StandardMaterial>,
@@ -125,7 +126,8 @@ impl AppInspectable for App {
             .add_systems(
                 Update,
                 (
-                    update_inspect_by_select_change::<T>,
+                    update_inspect_by_select_change::<T>
+                        .run_if(resource_changed_or_removed::<Selection>()),
                     update_inspect_by_remove::<T>,
                     update_inspect_by_change::<T>,
                 )
@@ -158,7 +160,8 @@ impl AppInspectable for App {
             .add_systems(
                 Update,
                 (
-                    update_inspect_by_select_change::<Handle<T>>,
+                    update_inspect_by_select_change::<Handle<T>>
+                        .run_if(resource_changed_or_removed::<Selection>()),
                     update_inspect_by_remove::<Handle<T>>,
                     update_inspect_by_change::<Handle<T>>,
                     notify_asset_change_system::<T>,
@@ -227,12 +230,10 @@ fn update_field_by_ui(world: &mut World) {
             return;
         };
 
-        let mut selected_query = unsafe_world
-            .world_mut()
-            .query_filtered::<Entity, With<Selected>>();
-        let Ok(entity) = selected_query.get_single(unsafe_world.world_mut()) else {
+        let Some(selection) = unsafe_world.world_mut().get_resource::<Selection>() else {
             return;
         };
+        let entity = **selection;
 
         let getters = unsafe_world.get_resource_mut::<InspectGetters>().unwrap();
 
@@ -320,16 +321,8 @@ pub struct EntityDescription {
 
 fn update_inspect_by_select_change<T: Component + Reflect + GetTypeRegistration>(
     mut ev_inspect: EventWriter<UpdateInspect<T>>,
-    q_added: Query<(), Added<Selected>>,
-    q_removed: RemovedComponents<Selected>,
 ) {
-    if !q_added.is_empty() {
-        ev_inspect.send(UpdateInspect::<T>::default());
-    }
-
-    if !q_removed.is_empty() {
-        ev_inspect.send(UpdateInspect::<T>::default());
-    }
+    ev_inspect.send(UpdateInspect::<T>::default());
 }
 
 fn update_inspect_by_remove<T: Component + Reflect + GetTypeRegistration>(
@@ -342,16 +335,20 @@ fn update_inspect_by_remove<T: Component + Reflect + GetTypeRegistration>(
 }
 
 fn update_inspect_by_change<T: Component + Reflect + GetTypeRegistration>(
+    r_selection: Option<Res<Selection>>,
     mut ev_inspect: EventWriter<UpdateInspect<T>>,
-    q_t_changed: Query<&T, (With<Selected>, Changed<T>)>,
+    q_t_changed: Query<&T, Changed<T>>,
 ) {
-    if q_t_changed.iter().next().is_some() {
-        ev_inspect.send(UpdateInspect::<T>::default());
+    if let Some(selection) = r_selection {
+        if q_t_changed.contains(**selection) {
+            ev_inspect.send(UpdateInspect::<T>::default());
+        }
     }
 }
 
 fn auto_serialize_system<T: Component + Reflect + GetTypeRegistration>(
-    q_t: Query<&T, With<Selected>>,
+    r_selection: Option<Res<Selection>>,
+    q_t: Query<&T>,
     mut description: ResMut<EntityDescription>,
     registry: Res<AppTypeRegistry>,
     mut ev_inspect: EventReader<UpdateInspect<T>>,
@@ -363,7 +360,7 @@ fn auto_serialize_system<T: Component + Reflect + GetTypeRegistration>(
 
     ev_inspect.clear();
 
-    if let Some(t) = q_t.iter().next() {
+    if let Some(t) = r_selection.and_then(|selection| q_t.get(**selection).ok()) {
         let registry = registry.read();
         let json = serde_json::to_value(ReflectSerializer::new(t, &registry)).unwrap();
         info!("json: {:?}", json.to_string());
@@ -384,12 +381,16 @@ fn auto_serialize_system<T: Component + Reflect + GetTypeRegistration>(
 }
 
 fn notify_asset_change_system<T: Asset>(
+    r_selection: Option<Res<Selection>>,
     mut ev_inspect: EventWriter<UpdateInspect<Handle<T>>>,
     mut asset_changing: EventReader<AssetEvent<T>>,
-    mut selected: Query<&Handle<T>, With<Selected>>,
+    q_handles: Query<&Handle<T>>,
 ) {
     for ev in asset_changing.read() {
-        for handle in selected.iter_mut() {
+        if let Some(handle) = r_selection
+            .as_ref()
+            .and_then(|selection| q_handles.get(***selection).ok())
+        {
             if ev.is_modified(handle.id()) {
                 ev_inspect.send(UpdateInspect::<Handle<T>>::default());
             }
@@ -398,7 +399,8 @@ fn notify_asset_change_system<T: Asset>(
 }
 
 fn auto_serialize_asset<T: Asset + Reflect + GetTypeRegistration>(
-    q_t: Query<&Handle<T>, With<Selected>>,
+    r_selection: Option<Res<Selection>>,
+    q_t: Query<&Handle<T>>,
     mut description: ResMut<EntityDescription>,
     registry: Res<AppTypeRegistry>,
     mut ev_inspect: EventReader<UpdateInspect<Handle<T>>>,
@@ -411,7 +413,7 @@ fn auto_serialize_asset<T: Asset + Reflect + GetTypeRegistration>(
 
     ev_inspect.clear();
 
-    if let Some(handle) = q_t.iter().next() {
+    if let Some(handle) = r_selection.and_then(|selection| q_t.get(**selection).ok()) {
         if let Some(asset) = assets.get(handle) {
             let registry = registry.read();
             info!(
