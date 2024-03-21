@@ -46,6 +46,7 @@ const mimeTypes = {
 	".otf": "font/otf",
 	".png": "image/png",
 	".rar": "application/x-rar-compressed",
+	".ron": "text/ron",
 	".svg": "image/svg+xml",
 	".tiff": "image/tiff",
 	".ttf": "font/ttf",

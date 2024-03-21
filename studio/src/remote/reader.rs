@@ -1,5 +1,6 @@
 use std::{io::ErrorKind, path::Path};
 
+use async_compat::Compat;
 use bevy::{
     asset::io::{AssetReader, AssetReaderError, PathStream, Reader, VecReader},
     prelude::*,
@@ -22,7 +23,7 @@ impl AssetReader for RemoteAssetReader {
         &'a self,
         path: &'a Path,
     ) -> BoxedFuture<'a, Result<Box<Reader<'a>>, AssetReaderError>> {
-        Box::pin(async move {
+        Box::pin(Compat::new(async move {
             let token = path
                 .ext_file_prefix()
                 .ok_or_else(|| {
@@ -82,7 +83,7 @@ impl AssetReader for RemoteAssetReader {
 
             let reader: Box<Reader> = Box::new(VecReader::new(bytes));
             Ok(reader)
-        })
+        }))
     }
 
     fn read_meta<'a>(

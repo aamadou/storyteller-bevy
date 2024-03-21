@@ -41,7 +41,7 @@
     "headless": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "cargo run -p studio --bin studio-headless -- {args}"
+        "command": "cargo run -p studio --bin studio-headless --"
       }
     },
     "test": {

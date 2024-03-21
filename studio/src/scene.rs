@@ -145,8 +145,19 @@ pub struct LoadingQueue {
 fn check_loading(
     mut loading_queue: ResMut<LoadingQueue>,
     mut st_next: ResMut<NextState<SceneState>>,
+    r_scene_state: Res<State<SceneState>>,
     asset_server: Res<AssetServer>,
 ) {
+    // Avoid transitioning from `SceneState::None` directly to `SceneState::Active`.
+    // We will always be initializing the scene with _something_, so if the
+    // `LoadingQueue` is empty when we're in `SceneState::None`, it just means
+    // our startup routine hasn't yet gotten to the point of processing any
+    // `Handle<T>`s.
+    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading {
+        st_next.set(SceneState::Active);
+        return;
+    }
+
     if !loading_queue.queue.is_empty() {
         //filter queue to only include notloaded assets
 
@@ -179,8 +190,6 @@ fn check_loading(
         } else {
             st_next.set(SceneState::Loading);
         }
-    } else {
-        st_next.set(SceneState::Active);
     }
 }
 
