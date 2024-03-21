@@ -40,6 +40,10 @@ export class EntityInspectorElement extends LitElement {
 			.sort((a, b) => {
 				const ordA = COMPONENT_SORT_ORDER.indexOf(a.name);
 				const ordB = COMPONENT_SORT_ORDER.indexOf(b.name);
+
+				if (ordA === -1) return 1;
+				if (ordB === -1) return -1;
+
 				return ordA - ordB;
 			})
 			.map(({ name, value }) => {
