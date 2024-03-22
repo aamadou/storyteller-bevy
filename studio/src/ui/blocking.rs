@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use bevy::prelude::*;
-use bevy_mod_picking::PickableBundle;
 use space_editor::prelude::{
     space_undo::{AddedEntity, NewChange},
     *,
@@ -9,7 +8,6 @@ use space_editor::prelude::{
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    interaction::Selectable,
     scene::SceneElement,
     wasm::{StaticBuffer, WasmMessageBuffer},
 };
