@@ -3,9 +3,10 @@ import { LitElement, type PropertyValues, html, unsafeCSS } from "lit";
 import { customElement } from "lit/decorators.js";
 
 import { SCENE_DATA_PROVIDER, type SceneDataProvider } from "../scene-data-provider.element";
-import { type InspectorComponent } from "./inspector.types";
+import { isLinear, type InspectorComponent } from "./inspector.types";
 
 import "../scene-data-provider.element";
+import "./material-inspector.element";
 import "./name-inspector.element";
 import "./transform-inspector.element";
 
@@ -48,13 +49,14 @@ export class EntityInspectorElement extends LitElement {
 			})
 			.map(({ name, value }) => {
 				switch (name) {
-					case "bevy_core::name::Name":
+					case "bevy_core::name::Name": {
 						return html`
 							<sts-name-inspector
 								.value=${value.name}
 							></sts-name-inspector>
 						`;
-					case "bevy_transform::components::transform::Transform":
+					}
+					case "bevy_transform::components::transform::Transform": {
 						return html`
 							<sts-transform-inspector
 								.translation=${value.translation}
@@ -62,11 +64,25 @@ export class EntityInspectorElement extends LitElement {
 								.scale=${value.scale}
 							></sts-transform-inspector>
 						`;
-					default:
+					}
+					case "bevy_pbr::pbr_material::StandardMaterial": {
+						const { colorSpace, baseColor } = isLinear(value.base_color)
+							? { colorSpace: "linear", baseColor: value.base_color.RgbaLinear }
+							: { colorSpace: "srgb", baseColor: value.base_color.Rgba };
+
+						return html`
+							<sts-material-inspector
+								.colorSpace=${colorSpace}
+								.baseColor=${baseColor}
+							></sts-material-inspector>
+						`;
+					}
+					default: {
 						return html`
 							<h3>Unknown Component: ${name}</h3>
 							<pre>${JSON.stringify({ name, value }, null, "   ")}</pre>
 						`;
+					}
 				}
 			})
 		}
