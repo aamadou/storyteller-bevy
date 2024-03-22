@@ -1,5 +1,5 @@
 import { inject } from "@storyteller/framework";
-import { LitElement, type PropertyValues, html, unsafeCSS } from "lit";
+import { LitElement, type PropertyValues, html, unsafeCSS, nothing } from "lit";
 import { customElement } from "lit/decorators.js";
 
 import { SCENE_DATA_PROVIDER, type SceneDataProvider } from "../scene-data-provider.element";
@@ -81,10 +81,11 @@ export class EntityInspectorElement extends LitElement {
 						`;
 					}
 					default: {
-						return html`
-							<h3>Unknown Component: ${name}</h3>
-							<pre>${JSON.stringify({ name, value }, null, "   ")}</pre>
-						`;
+						return nothing;
+						// return html`
+						// 	<h3>Unknown Component: ${name}</h3>
+						// 	<pre>${JSON.stringify({ name, value }, null, "   ")}</pre>
+						// `;
 					}
 				}
 			})
