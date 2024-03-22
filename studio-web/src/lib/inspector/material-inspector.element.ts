@@ -4,7 +4,7 @@ import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { v4 as uuid } from "uuid";
 
-import { type Rgba } from "./inspector.types";
+import { StandardMaterial, type Rgba } from "./inspector.types";
 
 import styles from "./material-inspector.element.scss?inline";
 
@@ -18,12 +18,24 @@ export class MaterialInspectorElement extends LitElement {
 	@property()
 	inputColorSpace: "linear"|"srgb" = "linear";
 
+	@property({ type: Number })
+	roughness = 0.5;
+
+	@property({ type: Number })
+	metallic = 0.0;
+
+	@property({ type: Number })
+	reflectance = 0.5;
+
 	#baseColorId = uuid();
+	#roughnessId = uuid();
+	#metallicId = uuid();
+	#reflectanceId = uuid();
 
 	onBaseColorInput(event: InputEvent): void {
 		const hex = (event.target as HTMLInputElement).value;
 		const value = match (this.inputColorSpace, {
-			"linear": () => RgbaLinear.fromHexSrgb(hex, this.baseColor.alpha),
+			"linear": () => RgbaLinear.fromHex(hex, this.baseColor.alpha),
 			"srgb": () => Srgba.fromHex(hex, this.baseColor.alpha),
 		});
 
@@ -34,14 +46,28 @@ export class MaterialInspectorElement extends LitElement {
 		});
 	}
 
+	updateField(reflectPath: Exclude<keyof StandardMaterial, "base_color">) {
+		return ({ detail }: CustomEvent<string>) => {
+			const value = parseFloat(detail);
+			if (Number.isFinite(value) && !Number.isNaN(value)) {
+				studio.updateComponentField({
+					component: "bevy_pbr::pbr_material::StandardMaterial",
+					reflectPath,
+					value,
+				});
+			}
+		}
+	}
+
 	protected override render() {
 		const [rgb, _] = match (this.inputColorSpace, {
-			"linear": () => RgbaLinear.toHexSrgb(this.baseColor),
+			"linear": () => RgbaLinear.toHex(this.baseColor),
 			"srgb": () => Srgba.toHex(this.baseColor),
 		});
 
 		return html`
 			<h4>Material</h4>
+
 			<label for=${this.#baseColorId}>
 				Tint
 			</label>
@@ -51,6 +77,36 @@ export class MaterialInspectorElement extends LitElement {
 				.value=${rgb}
 				@input=${this.onBaseColorInput}
 			/>
+
+			<label for=${this.#roughnessId}>
+				Roughness
+			</label>
+			<sts-text-field
+				id=${this.#roughnessId}
+				type="number"
+				.value=${this.roughness.toString(10)}
+				@value-change=${this.updateField("perceptual_roughness")}
+			></sts-text-field>
+
+			<label for=${this.#metallicId}>
+				Metallic
+			</label>
+			<sts-text-field
+				id=${this.#metallicId}
+				type="number"
+				.value=${this.metallic.toString(10)}
+				@value-change=${this.updateField("metallic")}
+			></sts-text-field>
+
+			<label for=${this.#reflectanceId}>
+				Reflectance
+			</label>
+			<sts-text-field
+				id=${this.#reflectanceId}
+				type="number"
+				.value=${this.reflectance.toString(10)}
+				@value-change=${this.updateField("reflectance")}
+			></sts-text-field>
 		`;
 	}
 }
@@ -75,7 +131,7 @@ function channelFromHex(gamma: number) {
 }
 
 namespace RgbaLinear {
-	export function toHexSrgb({ red, green, blue, alpha }: Rgba): [string, number] {
+	export function toHex({ red, green, blue, alpha }: Rgba): [string, number] {
 		const hexRgb = [red, green, blue]
 			.map(channelToHex(1 / 2.2))
 			.join("");
@@ -83,7 +139,7 @@ namespace RgbaLinear {
 		return [`#${hexRgb}`, alpha];
 	}
 
-	export function fromHexSrgb(hex: string, alpha = 1): Rgba {
+	export function fromHex(hex: string, alpha = 1): Rgba {
 		const [red, green, blue] = hex
 			.match(HEX_PATTERN)!
 			.slice(1)

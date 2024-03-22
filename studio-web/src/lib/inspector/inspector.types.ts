@@ -35,6 +35,9 @@ export interface Vec3 {
 
 export interface StandardMaterial {
 	base_color: BevyColor;
+	perceptual_roughness: number;
+	metallic: number;
+	reflectance: number;
 }
 
 export type BevyColor
