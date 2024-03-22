@@ -34,7 +34,7 @@ export class TransformInspectorElement extends LitElement {
 	protected override render = () => html`
 		<h4>Transform</h4>
 		<div class="fieldset" role="group">
-			<legend>Translation</legend>
+			<legend>Position</legend>
 			<sts-text-field
 				type="number"
 				.value=${this.translation.x.toFixed(3)}
