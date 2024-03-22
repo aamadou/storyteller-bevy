@@ -68,45 +68,47 @@ export class MaterialInspectorElement extends LitElement {
 		return html`
 			<h4>Material</h4>
 
-			<label for=${this.#baseColorId}>
-				Tint
-			</label>
-			<input
-				id=${this.#baseColorId}
-				type="color"
-				.value=${rgb}
-				@input=${this.onBaseColorInput}
-			/>
+			<div class="fields">
+				<label for=${this.#baseColorId}>
+					Tint
+				</label>
+				<input
+					id=${this.#baseColorId}
+					type="color"
+					.value=${rgb}
+					@input=${this.onBaseColorInput}
+				/>
 
-			<label for=${this.#roughnessId}>
-				Roughness
-			</label>
-			<sts-text-field
-				id=${this.#roughnessId}
-				type="number"
-				.value=${this.roughness.toString(10)}
-				@value-change=${this.updateField("perceptual_roughness")}
-			></sts-text-field>
+				<label for=${this.#roughnessId}>
+					Roughness
+				</label>
+				<sts-text-field
+					id=${this.#roughnessId}
+					type="number"
+					.value=${this.roughness.toString(10)}
+					@value-change=${this.updateField("perceptual_roughness")}
+				></sts-text-field>
 
-			<label for=${this.#metallicId}>
-				Metallic
-			</label>
-			<sts-text-field
-				id=${this.#metallicId}
-				type="number"
-				.value=${this.metallic.toString(10)}
-				@value-change=${this.updateField("metallic")}
-			></sts-text-field>
+				<label for=${this.#metallicId}>
+					Metallic
+				</label>
+				<sts-text-field
+					id=${this.#metallicId}
+					type="number"
+					.value=${this.metallic.toString(10)}
+					@value-change=${this.updateField("metallic")}
+				></sts-text-field>
 
-			<label for=${this.#reflectanceId}>
-				Reflectance
-			</label>
-			<sts-text-field
-				id=${this.#reflectanceId}
-				type="number"
-				.value=${this.reflectance.toString(10)}
-				@value-change=${this.updateField("reflectance")}
-			></sts-text-field>
+				<label for=${this.#reflectanceId}>
+					Reflectance
+				</label>
+				<sts-text-field
+					id=${this.#reflectanceId}
+					type="number"
+					.value=${this.reflectance.toString(10)}
+					@value-change=${this.updateField("reflectance")}
+				></sts-text-field>
+			</div>
 		`;
 	}
 }
