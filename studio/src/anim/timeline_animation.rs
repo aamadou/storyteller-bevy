@@ -1,9 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
-use bevy::{
-    prelude::*,
-    utils::{hashbrown::HashMap},
-};
+use bevy::{prelude::*, utils::hashbrown::HashMap};
 
 use bevy_tweening::{
     lens::{TransformPositionLens, TransformRotationLens, TransformScaleLens},
@@ -353,18 +350,19 @@ fn generate_transform_animation(
         Without<MarkedForDeletion>,
     >,
     valid_targets: Query<(Entity, &AnimationTarget)>,
-    mut e_timeline_event: EventReader<TimelineInteractionEvent>
+    mut e_timeline_event: EventReader<TimelineInteractionEvent>,
 ) {
     let mut playing = false;
     for e in e_timeline_event.read() {
-        if matches!(e,TimelineInteractionEvent::Play | TimelineInteractionEvent::Seek(_)) {
-
+        if matches!(
+            e,
+            TimelineInteractionEvent::Play | TimelineInteractionEvent::Seek(_)
+        ) {
             playing = true;
             continue;
         }
     }
     if !playing {
-
         return;
     }
 
