@@ -4,7 +4,7 @@ import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { v4 as uuid } from "uuid";
 
-import { Rgba } from "./inspector.types";
+import { type Rgba } from "./inspector.types";
 
 import styles from "./material-inspector.element.scss?inline";
 
