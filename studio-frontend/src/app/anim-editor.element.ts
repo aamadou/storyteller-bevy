@@ -45,7 +45,6 @@ implements TreeSelectionProvider {
 	@state() clipEnd = 0;
 
 	@state() playHead = 0;
-	@state() studioPlayTime = 0;
 	@state() playing = false;
 
 	@state() tracks : Record<string, {name?: string, target_type: studio.SceneElement, animation_target: studio.AnimationTarget }> = {};
@@ -65,9 +64,6 @@ implements TreeSelectionProvider {
 	}
 
 	protected override update(changes: PropertyValues<this>): void {
-		if (changes.has("playHead") && Math.abs(this.studioPlayTime - this.playHead) > 0.0001)
-			studio.seekTime(this.playHead);
-
 		if (changes.has("selectedTrack")) {
 			const treeSelectionChanges: PropertyValues<TreeSelectionProvider> = new Map();
 			const prevSelectedTrack = changes.get("selectedTrack");
@@ -90,7 +86,6 @@ implements TreeSelectionProvider {
 	onSeekTimeChanged({ detail: {time, playing} }: SeekTimeChanged ): void {
 		console.log("Seek Time Changed", time, playing);
 		this.playHead = time;
-		this.studioPlayTime = time;
 		this.playing = playing;
 
 		if (this.playHead < this.timelineStart) {
@@ -195,9 +190,9 @@ implements TreeSelectionProvider {
 
 	jumpToStart(): void {
 		if (Math.abs(this.playHead - this.clipStart) < 0.0001) {
-			this.playHead = 0;
+			studio.seekTime(0);
 		} else {
-			this.playHead = this.clipStart;
+			studio.seekTime(this.clipStart);
 		}
 	}
 
@@ -220,7 +215,7 @@ implements TreeSelectionProvider {
 			closest_keyframe = 0;
 		}
 
-		this.playHead = closest_keyframe;
+		studio.seekTime(closest_keyframe);
 	}
 
 	nextKeyframe(): void {
@@ -243,11 +238,11 @@ implements TreeSelectionProvider {
 			return;
 		}
 
-		this.playHead = closest_keyframe;
+		studio.seekTime(closest_keyframe);
 	}
 
 	jumpToEnd(): void {
-		this.playHead = this.clipEnd;
+		studio.seekTime(this.clipEnd);
 	}
 
 	addTarget(): void {
@@ -386,7 +381,7 @@ implements TreeSelectionProvider {
 			.rangeEnd=${bind(this, "timelineEnd")}
 			.clipStart=${this.clipStart}
 			.clipEnd=${this.clipEnd}
-			.playHead=${bind(this, "playHead")}
+			.playHead=${this.playHead}
 			.keyframes=${bind(this, "keyframes")}
 			.track_ordered=${track_order_hashed}
 			.track_animation_target_ordered=${track_animation_target_order_hashed}
