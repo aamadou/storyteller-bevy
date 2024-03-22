@@ -213,22 +213,30 @@ fn draw_selection_outline(
         cmd.entity(ent).remove::<OutlineBundle>();
     }
 
-    if let Some(selected_children) = r_selection
-        .as_ref()
-        .and_then(|selection| q_children.get(***selection).ok())
-    {
-        for &child in selected_children.iter() {
-            if q_meshes.contains(child) {
-                cmd.entity(child).insert(OutlineBundle {
-                    outline: OutlineVolume {
-                        visible: true,
-                        width: 4.,
-                        colour: Color::YELLOW,
-                    },
-                    ..default()
-                });
-            }
-        }
+    let Some(selection) = r_selection else {
+        return;
+    };
+
+    let target = if q_meshes.contains(**selection) {
+        Some(**selection)
+    } else {
+        q_children.get(**selection).ok().and_then(|children| {
+            children
+                .iter()
+                .copied()
+                .find(|&child| q_meshes.contains(child))
+        })
+    };
+
+    if let Some(target) = target {
+        cmd.entity(target).insert(OutlineBundle {
+            outline: OutlineVolume {
+                visible: true,
+                width: 4.,
+                colour: Color::YELLOW,
+            },
+            ..default()
+        });
     }
 }
 
