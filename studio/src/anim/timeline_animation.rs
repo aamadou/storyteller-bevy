@@ -1,9 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
-use bevy::{
-    prelude::*,
-    utils::{hashbrown::HashMap, HashSet},
-};
+use bevy::{prelude::*, utils::hashbrown::HashMap};
 
 use bevy_tweening::{
     lens::{TransformPositionLens, TransformRotationLens, TransformScaleLens},
@@ -44,6 +41,7 @@ impl Plugin for TimelinePlugin {
         })
         .add_event::<TweenCompleted>();
 
+        app.add_systems(First, generate_transform_animation);
         app.add_systems(PreUpdate, (process_timeline_events, update_tick).chain());
 
         app.add_systems(
@@ -54,12 +52,12 @@ impl Plugin for TimelinePlugin {
             ),
         );
 
-        app.add_systems(PostUpdate, generate_transform_animation);
+        // app.add_systems(PostUpdate, generate_transform_animation);
 
         #[cfg(feature = "wasm")]
         {
             app.add_systems(
-                First,
+                Last,
                 (
                     wasm::update_global_seek_time,
                     wasm::update_keyframe_interaction,
@@ -347,37 +345,34 @@ fn process_keyframe_events(
 
 fn generate_transform_animation(
     mut commands: Commands,
-    changed: Query<
-        &Keyframe,
-        (
-            With<TransformKeyframe>,
-            Or<(Changed<Keyframe>, Changed<Transform>)>,
-        ),
-    >,
     keyframes: Query<
         (&Keyframe, &Transform, &TransformKeyframe, Entity),
         Without<MarkedForDeletion>,
     >,
-    added_targets: Query<(Entity, &AnimationTarget), Added<AnimationTarget>>,
     valid_targets: Query<(Entity, &AnimationTarget)>,
-    removed: Query<&Keyframe, With<MarkedForDeletion>>,
+    mut e_timeline_event: EventReader<TimelineInteractionEvent>,
 ) {
+    let mut playing = false;
+    for e in e_timeline_event.read() {
+        if matches!(
+            e,
+            TimelineInteractionEvent::Play | TimelineInteractionEvent::Seek(_)
+        ) {
+            playing = true;
+            continue;
+        }
+    }
+    if !playing {
+        return;
+    }
+
     let available_targets = valid_targets
         .iter()
         .map(|(e, a)| (*a, e))
         .collect::<HashMap<_, _>>();
-    let changed_targets = changed
-        .iter()
-        .map(|keyframe| keyframe.target)
-        .chain(removed.iter().map(|keyframe| {
-            info!("Processing a removed keyframe {keyframe:?}");
-            keyframe.target
-        }))
-        .chain(added_targets.iter().map(|(_, a)| *a))
-        .collect::<HashSet<_>>();
+
     let keyframes = keyframes
         .iter()
-        .filter(|(keyframe, _, _, _)| changed_targets.contains(&keyframe.target))
         .group_by(|(keyframe, _, _, _)| keyframe.target);
 
     for (target, keyframes) in &keyframes {
@@ -635,6 +630,7 @@ mod wasm {
         mut e_timeline_event: EventWriter<TimelineInteractionEvent>,
     ) {
         if let Some(timestamp) = SEEK_TIME.take_message() {
+            info!("Updating Seek Time {timestamp:?}");
             e_timeline_event.send(timestamp);
         }
     }

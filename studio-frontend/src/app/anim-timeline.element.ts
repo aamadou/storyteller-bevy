@@ -200,7 +200,7 @@ export class AnimTimelineElement extends LitElement {
 		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
 		const updated = seconds;
 
-		this.dispatchEvent(new CustomEvent("playHead-change", { detail: updated }));
+		studio.seekTime(updated);
 	}
 
 	onKeyframeDrag(id: string, event: PointerEvent): void {

@@ -64,9 +64,6 @@ implements TreeSelectionProvider {
 	}
 
 	protected override update(changes: PropertyValues<this>): void {
-		if (changes.has("playHead"))
-			studio.seekTime(this.playHead);
-
 		if (changes.has("selectedTrack")) {
 			const treeSelectionChanges: PropertyValues<TreeSelectionProvider> = new Map();
 			const prevSelectedTrack = changes.get("selectedTrack");
@@ -79,6 +76,10 @@ implements TreeSelectionProvider {
 		}
 
 		super.update(changes);
+	}
+
+	setPlayTime(time: number) : void {
+		studio.seekTime(time);
 	}
 
 	@on("window:seek-time-changed")
@@ -189,9 +190,9 @@ implements TreeSelectionProvider {
 
 	jumpToStart(): void {
 		if (Math.abs(this.playHead - this.clipStart) < 0.0001) {
-			this.playHead = 0;
+			studio.seekTime(0);
 		} else {
-			this.playHead = this.clipStart;
+			studio.seekTime(this.clipStart);
 		}
 	}
 
@@ -214,7 +215,7 @@ implements TreeSelectionProvider {
 			closest_keyframe = 0;
 		}
 
-		this.playHead = closest_keyframe;
+		studio.seekTime(closest_keyframe);
 	}
 
 	nextKeyframe(): void {
@@ -237,11 +238,11 @@ implements TreeSelectionProvider {
 			return;
 		}
 
-		this.playHead = closest_keyframe;
+		studio.seekTime(closest_keyframe);
 	}
 
 	jumpToEnd(): void {
-		this.playHead = this.clipEnd;
+		studio.seekTime(this.clipEnd);
 	}
 
 	addTarget(): void {
@@ -380,7 +381,7 @@ implements TreeSelectionProvider {
 			.rangeEnd=${bind(this, "timelineEnd")}
 			.clipStart=${this.clipStart}
 			.clipEnd=${this.clipEnd}
-			.playHead=${bind(this, "playHead")}
+			.playHead=${this.playHead}
 			.keyframes=${bind(this, "keyframes")}
 			.track_ordered=${track_order_hashed}
 			.track_animation_target_ordered=${track_animation_target_order_hashed}
