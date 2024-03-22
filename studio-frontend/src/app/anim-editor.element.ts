@@ -47,9 +47,9 @@ implements TreeSelectionProvider {
 	@state() playHead = 0;
 	@state() playing = false;
 
-	@state() tracks : Record<string, {name?: string, target_type: studio.SceneElement }> = {};
+	@state() tracks : Record<string, {name?: string, target_type: studio.SceneElement, animation_target: studio.AnimationTarget }> = {};
 	
-	@state() track_ordered : string[] = [];
+	@state() track_ordered : [string, studio.AnimationTarget][] = [];
 
 	@state() keyframes : Record<string, Keyframe> = {};
 
@@ -112,7 +112,7 @@ implements TreeSelectionProvider {
 			delete tracks[track_entity];
 		}
 
-		this.track_ordered = Object.keys(tracks);
+		this.track_ordered = Object.keys(tracks).map(entity => [entity,tracks[entity].animation_target]);
 
 		if (typeof this.selectedTrack === "object") {
 			if (!isOutsideEntity(this.selectedTrack) && !(this.selectedTrack.track in tracks)) {
@@ -262,9 +262,11 @@ implements TreeSelectionProvider {
 	protected override render(): TemplateResult {
 
 		const track_order_hashed : Record<string, number> = {};
+		const track_animation_target_order_hashed : Record<studio.AnimationTarget, number> = {};
 
-		for (const [index, track] of this.track_ordered.entries()) {
+		for (const [index, [track, target]] of this.track_ordered.entries()) {
 			track_order_hashed[track] = index;
+			track_animation_target_order_hashed[target] = index;
 		}
 
 		const selected = !isOutsideEntity(this.selectedTrack) && this.selectedTrack?.track || false;
@@ -282,7 +284,7 @@ implements TreeSelectionProvider {
 			'--clip-start': `${clip_start * 100}%`
 		};
 
-		const tracklist = this.track_ordered.map((entity) => {
+		const tracklist = this.track_ordered.map(([entity,]) => {
 			let track = this.tracks[entity];
 			let name = track.name ?? track.target_type;
 			let icon = this.sceneData?.entityMap.get(entity)?.icon ?? "minus";
@@ -381,6 +383,7 @@ implements TreeSelectionProvider {
 			.playHead=${bind(this, "playHead")}
 			.keyframes=${bind(this, "keyframes")}
 			.track_ordered=${track_order_hashed}
+			.track_animation_target_ordered=${track_animation_target_order_hashed}
 		></sts-anim-timeline>
 	`
 	};

@@ -57,16 +57,17 @@ impl Plugin for ScenePlugin {
             )
             .add_systems(
                 Update,
-                (init_object_loading, init_scene_import, init_scene_loading)
+                (
+                    init_object_loading,
+                    init_scene_import,
+                    init_scene_loading,
+                    start_capture.run_if(is_headless),
+                )
                     .in_set(SceneSpawnerSystem),
             )
             .add_systems(
                 OnEnter(SceneState::Active),
-                (
-                    tag_scene_elements,
-                    frame_scene_in_view,
-                    start_capture.run_if(is_headless),
-                )
+                (tag_scene_elements, frame_scene_in_view)
                     .chain()
                     .in_set(SceneSpawnerSystem),
             );
@@ -106,7 +107,7 @@ impl Plugin for ScenePlugin {
 fn minimal_scene_setup(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Directional Light"),
-        AnimationTarget,
+        AnimationTarget::new(),
         DirectionalLightBundle {
             directional_light: DirectionalLight {
                 shadows_enabled: false,
@@ -271,7 +272,7 @@ fn initialize(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
-        AnimationTarget,
+        AnimationTarget::MainCamera,
         ChangeTracker,
         Camera3dBundle {
             transform: camera_xform,
@@ -328,7 +329,7 @@ fn initialiaze_headless(
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
-        AnimationTarget,
+        AnimationTarget::MainCamera,
         Camera3dBundle {
             transform: camera_xform,
             tonemapping: Tonemapping::BlenderFilmic,
@@ -340,9 +341,6 @@ fn initialiaze_headless(
             ..default()
         },
         CameraControllerBundle::new(focus, camera_xform.translation),
-        ScreenCapture::from_out(&headless_settings.output_dir)
-            //Part of quick hack, see screenshot.rs#261
-            .with_max_frames(headless_settings.max_frames + 3),
     ));
 }
 
@@ -520,7 +518,7 @@ fn frame_scene_in_view(
     cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
-fn start_capture(mut captures: Query<&mut ScreenCapture>) {
+fn start_capture(mut captures: Query<&mut ScreenCapture, Added<ScreenCapture>>) {
     for mut capture in captures.iter_mut() {
         capture.start_capturing();
     }

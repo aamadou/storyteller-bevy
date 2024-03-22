@@ -69,7 +69,8 @@ export class AnimTimelineElement extends LitElement {
 	@property({ type: Number }) playHead = 0;
 	/** Keyframe positions (in seconds) */
 	@property({ attribute: false }) keyframes: Record<string, studio.Keyframe> = {};
-	@property({ attribute: false }) track_ordered: Record<string, number> = {}
+	@property({ attribute: false }) track_ordered: Record<string, number> = {};
+	@property({ attribute: false }) track_animation_target_ordered: Record<string, number> = {};
 
 	@state() _selectedKeyframe: string | null = null;
 
@@ -344,7 +345,7 @@ export class AnimTimelineElement extends LitElement {
 					Object.entries(this.keyframes),
 					([id]) => id,
 					([id, keyframe]) => {
-						let row = this.track_ordered[keyframe.target];
+						let row = this.track_animation_target_ordered[keyframe.target];
 						return html`
 						<div id=${id}
 							class=${classMap({

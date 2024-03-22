@@ -501,6 +501,7 @@ mod tests {
     use std::time::Duration;
 
     // #[test] // FIXME
+    #[allow(dead_code)]
     fn macro_create() {
         let bvh = bvh! {
             HIERARCHY
