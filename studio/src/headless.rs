@@ -202,7 +202,9 @@ fn start_timeline_animation(
     commands.remove_resource::<CameraMotion>();
     let total_time = keyframes
         .iter()
-        .fold(0f32, |previous, keyframe| previous.max(keyframe.time));
+        .fold(0f32, |previous, keyframe| previous.max(keyframe.time))
+        .max(3.0);
+
     let frames = (total_time * headless_settings.fps).ceil() as u32;
     headless_settings.max_frames = frames;
     ev.send(TimelineInteractionEvent::Play);
