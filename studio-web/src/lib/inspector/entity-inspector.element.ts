@@ -42,8 +42,8 @@ export class EntityInspectorElement extends LitElement {
 				const ordA = COMPONENT_SORT_ORDER.indexOf(a.name);
 				const ordB = COMPONENT_SORT_ORDER.indexOf(b.name);
 
-				if (ordA === -1) return 1;
-				if (ordB === -1) return -1;
+				if (ordA === -1) return Infinity;
+				if (ordB === -1) return -Infinity;
 
 				return ordA - ordB;
 			})
@@ -72,8 +72,11 @@ export class EntityInspectorElement extends LitElement {
 
 						return html`
 							<sts-material-inspector
-								.colorSpace=${colorSpace}
 								.baseColor=${baseColor}
+								.colorSpace=${colorSpace}
+								.roughness=${value.perceptual_roughness}
+								.metallic=${value.metallic}
+								.reflectance=${value.reflectance}
 							></sts-material-inspector>
 						`;
 					}
@@ -92,4 +95,5 @@ export class EntityInspectorElement extends LitElement {
 const COMPONENT_SORT_ORDER: Array<InspectorComponent["name"]> = [
 	"bevy_core::name::Name",
 	"bevy_transform::components::transform::Transform",
+	"bevy_pbr::pbr_material::StandardMaterial",
 ];

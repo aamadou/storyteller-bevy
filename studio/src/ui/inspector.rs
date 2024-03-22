@@ -542,12 +542,18 @@ fn auto_serialize_asset<T: Asset + Reflect + GetTypeRegistration>(
 #[reflect(Default)]
 struct ShortMaterial {
     pub base_color: Color,
+    pub perceptual_roughness: f32,
+    pub metallic: f32,
+    pub reflectance: f32,
 }
 
 impl ShortMaterial {
     pub fn new(material: &StandardMaterial) -> Self {
         Self {
             base_color: material.base_color,
+            perceptual_roughness: material.perceptual_roughness,
+            metallic: material.metallic,
+            reflectance: material.reflectance,
         }
     }
 }
