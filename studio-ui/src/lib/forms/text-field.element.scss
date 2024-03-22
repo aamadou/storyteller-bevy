@@ -24,6 +24,10 @@
 	}
 }
 
+*, *::before, *::after {
+	box-sizing: border-box;
+}
+
 [part^="icon-"] {
 	color: #FFF6;
 }

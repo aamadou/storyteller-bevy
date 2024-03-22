@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use bevy::prelude::*;
-use bevy_mod_picking::PickableBundle;
 use space_editor::prelude::{
     space_undo::{AddedEntity, NewChange},
     *,
@@ -9,7 +8,6 @@ use space_editor::prelude::{
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    interaction::Selectable,
     scene::SceneElement,
     wasm::{StaticBuffer, WasmMessageBuffer},
 };
@@ -27,13 +25,8 @@ fn read_command_system(mut commands: Commands, mut change_event: EventWriter<New
         return;
     };
 
-    let mut new_entity = commands.spawn((
-        SpatialBundle::default(),
-        PrefabMarker,
-        Selectable,
-        SceneElement::Mesh,
-        PickableBundle::default(),
-    ));
+    let mut new_entity =
+        commands.spawn((SpatialBundle::default(), PrefabMarker, SceneElement::Mesh));
 
     match cmd {
         BlockingCommand::Cube => {

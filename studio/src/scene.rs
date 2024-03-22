@@ -17,7 +17,10 @@ use bevy::{
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use space_editor::{
     prelude::{EditorEvent, EditorPrefabPath, PrefabMarker},
-    space_prefab::component::{GltfPrefab, SceneAutoChild},
+    space_prefab::{
+        component::{GltfPrefab, SceneAutoChild},
+        editor_registry::EditorRegistryExt,
+    },
 };
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -109,6 +112,8 @@ impl Plugin for ScenePlugin {
                 wasm::notify_loading_queue_changes.map(bevy::utils::error),
             ),
         );
+
+        app.editor_registry::<SceneElement>();
     }
 }
 
@@ -253,9 +258,11 @@ pub struct ImportSceneEvent(pub String);
     wasm_bindgen,
     derive(Serialize_repr, Deserialize_repr)
 )]
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Reflect, Default)]
+#[reflect(Component, Default)]
 #[allow(dead_code)] // Some variants only used in `wasm`, some planned for later use
 pub enum SceneElement {
+    #[default]
     Generic,
     Mesh,
     Skeleton,

@@ -1,11 +1,12 @@
 import { inject } from "@storyteller/framework";
-import { LitElement, type PropertyValues, html, unsafeCSS } from "lit";
+import { LitElement, type PropertyValues, html, unsafeCSS, nothing } from "lit";
 import { customElement } from "lit/decorators.js";
 
 import { SCENE_DATA_PROVIDER, type SceneDataProvider } from "../scene-data-provider.element";
-import { type InspectorComponent } from "./inspector.types";
+import { isLinear, type InspectorComponent } from "./inspector.types";
 
 import "../scene-data-provider.element";
+import "./material-inspector.element";
 import "./name-inspector.element";
 import "./transform-inspector.element";
 
@@ -40,17 +41,22 @@ export class EntityInspectorElement extends LitElement {
 			.sort((a, b) => {
 				const ordA = COMPONENT_SORT_ORDER.indexOf(a.name);
 				const ordB = COMPONENT_SORT_ORDER.indexOf(b.name);
+
+				if (ordA === -1) return Infinity;
+				if (ordB === -1) return -Infinity;
+
 				return ordA - ordB;
 			})
 			.map(({ name, value }) => {
 				switch (name) {
-					case "bevy_core::name::Name":
+					case "bevy_core::name::Name": {
 						return html`
 							<sts-name-inspector
 								.value=${value.name}
 							></sts-name-inspector>
 						`;
-					case "bevy_transform::components::transform::Transform":
+					}
+					case "bevy_transform::components::transform::Transform": {
 						return html`
 							<sts-transform-inspector
 								.translation=${value.translation}
@@ -58,11 +64,29 @@ export class EntityInspectorElement extends LitElement {
 								.scale=${value.scale}
 							></sts-transform-inspector>
 						`;
-					default:
+					}
+					case "bevy_pbr::pbr_material::StandardMaterial": {
+						const { colorSpace, baseColor } = isLinear(value.base_color)
+							? { colorSpace: "linear", baseColor: value.base_color.RgbaLinear }
+							: { colorSpace: "srgb", baseColor: value.base_color.Rgba };
+
 						return html`
-							<h3>Unknown Component: ${name}</h3>
-							<pre>${JSON.stringify({ name, value }, null, "   ")}</pre>
+							<sts-material-inspector
+								.baseColor=${baseColor}
+								.colorSpace=${colorSpace}
+								.roughness=${value.perceptual_roughness}
+								.metallic=${value.metallic}
+								.reflectance=${value.reflectance}
+							></sts-material-inspector>
 						`;
+					}
+					default: {
+						return nothing;
+						// return html`
+						// 	<h3>Unknown Component: ${name}</h3>
+						// 	<pre>${JSON.stringify({ name, value }, null, "   ")}</pre>
+						// `;
+					}
 				}
 			})
 		}
@@ -72,4 +96,5 @@ export class EntityInspectorElement extends LitElement {
 const COMPONENT_SORT_ORDER: Array<InspectorComponent["name"]> = [
 	"bevy_core::name::Name",
 	"bevy_transform::components::transform::Transform",
+	"bevy_pbr::pbr_material::StandardMaterial",
 ];
