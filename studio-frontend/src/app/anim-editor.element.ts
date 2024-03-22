@@ -45,6 +45,7 @@ implements TreeSelectionProvider {
 	@state() clipEnd = 0;
 
 	@state() playHead = 0;
+	@state() studioPlayTime = 0;
 	@state() playing = false;
 
 	@state() tracks : Record<string, {name?: string, target_type: studio.SceneElement, animation_target: studio.AnimationTarget }> = {};
@@ -64,7 +65,7 @@ implements TreeSelectionProvider {
 	}
 
 	protected override update(changes: PropertyValues<this>): void {
-		if (changes.has("playHead"))
+		if (changes.has("playHead") && Math.abs(this.studioPlayTime - this.playHead) > 0.0001)
 			studio.seekTime(this.playHead);
 
 		if (changes.has("selectedTrack")) {
@@ -81,10 +82,15 @@ implements TreeSelectionProvider {
 		super.update(changes);
 	}
 
+	setPlayTime(time: number) : void {
+		studio.seekTime(time);
+	}
+
 	@on("window:seek-time-changed")
 	onSeekTimeChanged({ detail: {time, playing} }: SeekTimeChanged ): void {
 		console.log("Seek Time Changed", time, playing);
 		this.playHead = time;
+		this.studioPlayTime = time;
 		this.playing = playing;
 
 		if (this.playHead < this.timelineStart) {
