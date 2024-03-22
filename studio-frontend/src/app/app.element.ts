@@ -74,6 +74,12 @@ export class AppElement extends LitElement {
 		try {
 			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
 			if (mock_save_load()) {
+				/*
+				// NB(brandon, 2024-03-22): Hey Lee-Orr, I'm commenting this out since the file 
+				picker isn't defined and the Netlify builds are breaking. Feel free to uncomment
+				this for your testing. We probably just need a local definition file so the 
+				builds are happy.
+
 				let handle = await window.showSaveFilePicker({
 					suggestedName: "scene",
 					types: [{
@@ -93,6 +99,7 @@ export class AppElement extends LitElement {
 					bubbles: true,
 					composed: true,
 				}));
+				*/
 
 			} else {
 				const token = await this.api.createScene(file);
