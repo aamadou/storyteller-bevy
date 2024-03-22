@@ -106,7 +106,8 @@ fn tag_scene_elements(
     q_primitives: Query<&Handle<Mesh>>,
 ) {
     for (ent, children) in q_scene_elements.iter() {
-        cmd.entity(ent).insert(Selectable).insert(PickableBundle::default());
+        cmd.entity(ent)
+            .insert((Selectable, PickableBundle::default()));
 
         if let Some(children) = children {
             for &ent_child in children

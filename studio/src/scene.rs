@@ -17,14 +17,25 @@ use bevy::{
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use space_editor::{
     prelude::{EditorEvent, EditorPrefabPath, PrefabMarker},
-    space_prefab::{component::{GltfPrefab, SceneAutoChild}, editor_registry::EditorRegistryExt},
+    space_prefab::{
+        component::{GltfPrefab, SceneAutoChild},
+        editor_registry::EditorRegistryExt,
+    },
 };
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
-    anim::timeline_animation::AnimationTarget, camera_controller::{CameraController, CameraControllerBundle}, change_tracking::{ChangeTracker, ChangeTrackingPlugin}, debug::DebugPoint, headless::{is_headless, is_not_headless, HeadlessSettings}, interaction::Selectable, is_editor, math::{Combinable, Extrema}, screenshot::ScreenCapture, MainCamera
+    anim::timeline_animation::AnimationTarget,
+    camera_controller::{CameraController, CameraControllerBundle},
+    change_tracking::{ChangeTracker, ChangeTrackingPlugin},
+    debug::DebugPoint,
+    headless::{is_headless, is_not_headless, HeadlessSettings},
+    is_editor,
+    math::{Combinable, Extrema},
+    screenshot::ScreenCapture,
+    MainCamera,
 };
 
 pub struct ScenePlugin;
@@ -103,7 +114,6 @@ impl Plugin for ScenePlugin {
         );
 
         app.editor_registry::<SceneElement>();
-        // app.editor_registry::<Selectable>();
     }
 }
 

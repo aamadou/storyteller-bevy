@@ -1,7 +1,11 @@
 use std::{marker::PhantomData, sync::Arc};
 
 use bevy::{
-    ecs::world::unsafe_world_cell::UnsafeWorldCell, prelude::*, reflect::{serde::ReflectSerializer, GetTypeRegistration}, transform::commands, utils::HashMap, window::PrimaryWindow
+    ecs::world::unsafe_world_cell::UnsafeWorldCell,
+    prelude::*,
+    reflect::{serde::ReflectSerializer, GetTypeRegistration},
+    utils::HashMap,
+    window::PrimaryWindow,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Map as JsonMap, Value as JsonValue};
@@ -10,7 +14,9 @@ use space_editor::{
         editor_tab::{EditorTab, EditorTabName},
         EditorUiAppExt,
     },
-    space_prefab::{component::MeshPrimitivePrefab, editor_registry::EditorRegistryExt, save::SaveState},
+    space_prefab::{
+        component::MeshPrimitivePrefab, editor_registry::EditorRegistryExt, save::SaveState,
+    },
 };
 use wasm_bindgen::prelude::*;
 
@@ -62,7 +68,6 @@ impl Plugin for InspectorPlugin {
 
         //register standart material
         {
-
             app.editor_registry::<ShortMaterial>()
                 .add_event::<UpdateInspect<Handle<StandardMaterial>>>()
                 .add_systems(
@@ -83,7 +88,9 @@ impl Plugin for InspectorPlugin {
 
             app.add_systems(
                 OnEnter(SaveState::Save),
-                (create_short_materials, apply_deferred).chain().before(space_editor::space_prefab::sub_scene::prepare_auto_scene)
+                (create_short_materials, apply_deferred)
+                    .chain()
+                    .before(space_editor::space_prefab::sub_scene::prepare_auto_scene),
             );
             app.add_systems(PostUpdate, apply_short_materials);
 
@@ -121,10 +128,8 @@ impl Plugin for InspectorPlugin {
     }
 }
 
-
-
 fn create_short_materials(
-    mut commands : Commands,
+    mut commands: Commands,
     q_mats: Query<(Entity, &Handle<StandardMaterial>)>,
     materials: Res<Assets<StandardMaterial>>,
 ) {
@@ -136,12 +141,12 @@ fn create_short_materials(
 }
 
 fn apply_short_materials(
-    mut commands : Commands,
+    mut commands: Commands,
     q_mats: Query<(Entity, &Handle<StandardMaterial>, &ShortMaterial)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,) 
-{
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     for (entity, handle, short) in q_mats.iter() {
-        let Some(mut material) = materials.get_mut(handle) else {
+        let Some(material) = materials.get_mut(handle) else {
             continue;
         };
 
@@ -153,7 +158,6 @@ fn apply_short_materials(
         commands.entity(entity).remove::<ShortMaterial>();
     }
 }
-
 
 #[derive(Resource, Default)]
 struct InspectGetters {
@@ -594,7 +598,6 @@ impl ShortMaterial {
         }
     }
 }
-
 
 fn serialize_standart_materal(
     r_selection: Option<Res<Selection>>,

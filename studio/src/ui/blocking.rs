@@ -27,11 +27,8 @@ fn read_command_system(mut commands: Commands, mut change_event: EventWriter<New
         return;
     };
 
-    let mut new_entity = commands.spawn((
-        SpatialBundle::default(),
-        PrefabMarker,
-        SceneElement::Mesh,
-    ));
+    let mut new_entity =
+        commands.spawn((SpatialBundle::default(), PrefabMarker, SceneElement::Mesh));
 
     match cmd {
         BlockingCommand::Cube => {
