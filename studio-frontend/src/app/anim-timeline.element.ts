@@ -64,9 +64,12 @@ export class AnimTimelineElement extends LitElement {
 	@property({ type: Number }) clipStart = 0;
 	/** The time (in seconds) at the end of the clip */
 	@property({ type: Number }) clipEnd = 5;
+	/** The time (in seconds) at the end of the clip */
+	@property({ type: Number }) clipFps = 24;
 
 	/** The time (in seconds) of the current play-head position */
 	@property({ type: Number }) playHead = 0;
+
 	/** Keyframe positions (in seconds) */
 	@property({ attribute: false }) keyframes: Record<string, studio.Keyframe> = {};
 	@property({ attribute: false }) track_ordered: Record<string, number> = {};
@@ -226,7 +229,7 @@ export class AnimTimelineElement extends LitElement {
 		let minutes = Math.floor(seconds / 60);
 		let secondsInMinute = seconds % 60;
 		let flooredSeconds = Math.floor(secondsInMinute);
-		let fraction = Math.round(24 * (secondsInMinute - flooredSeconds));
+		let fraction = Math.round(this.clipFps * (secondsInMinute - flooredSeconds));
 
 		return html`${
 			sign
@@ -246,10 +249,10 @@ export class AnimTimelineElement extends LitElement {
 		let majorSubdivisionScale = 1;
 
 		if (range < 0.5) {
-			subdivisionScale = 1 / 24;
-			majorSubdivisionScale = 6 / 24;
+			subdivisionScale = 1 / this.clipFps;
+			majorSubdivisionScale = 0.25 * this.clipFps;
 		} else if (range < 2) {
-			subdivisionScale = 1 / 6;
+			subdivisionScale = 0.25 * this.clipFps;
 			majorSubdivisionScale = 0.5;
 		} else if (range > 120) {
 			subdivisionScale = 30;
