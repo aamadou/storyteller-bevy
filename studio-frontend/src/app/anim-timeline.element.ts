@@ -206,6 +206,16 @@ export class AnimTimelineElement extends LitElement {
 		studio.seekTime(updated);
 	}
 
+	onSetPlayhead(event: PointerEvent): void {
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const updated = seconds;
+
+		studio.seekTime(updated);
+	}
+
 	onKeyframeDrag(id: string, event: PointerEvent): void {
 		let elementBounds = this.getBoundingClientRect();
 		let relativeX = event.clientX - elementBounds.left;
@@ -300,6 +310,7 @@ export class AnimTimelineElement extends LitElement {
 					end: this.onDragEnd,
 				})}
 				tabindex="-1"
+				@click=${this.onSetPlayhead}
 			>
 
 				${subdivisions.map(({ seconds, fraction, isMajor}, idx) => {
