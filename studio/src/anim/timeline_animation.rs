@@ -13,6 +13,7 @@ use space_editor::{prelude::PrefabMarker, space_prefab::editor_registry::EditorR
 use crate::{
     headless::HeadlessSettings,
     interaction::{MarkedForDeletion, Selectable},
+    scene::SceneElement,
 };
 
 pub struct TimelinePlugin;
@@ -349,7 +350,12 @@ fn generate_transform_animation(
         (&Keyframe, &Transform, &TransformKeyframe, Entity),
         Without<MarkedForDeletion>,
     >,
-    valid_targets: Query<(Entity, &AnimationTarget)>,
+    valid_targets: Query<(
+        Entity,
+        &AnimationTarget,
+        Option<&Name>,
+        Option<&SceneElement>,
+    )>,
     mut e_timeline_event: EventReader<TimelineInteractionEvent>,
 ) {
     let mut playing = false;
@@ -365,22 +371,26 @@ fn generate_transform_animation(
     if !playing {
         return;
     }
+    info!("Generating Animation From Keyframes");
 
     let available_targets = valid_targets
         .iter()
-        .map(|(e, a)| (*a, e))
+        .map(|(e, a, name, element)| (*a, (e, name, element)))
         .collect::<HashMap<_, _>>();
 
     let keyframes = keyframes
         .iter()
-        .group_by(|(keyframe, _, _, _)| keyframe.target);
+        .into_group_map_by(|(keyframe, _, _, _)| keyframe.target);
 
-    for (target, keyframes) in &keyframes {
+    for (target, keyframes) in keyframes.into_iter() {
+        info!("Keyframes For Target {target:?}");
         let Some(target) = available_targets.get(&target) else {
             info!("No valid target.");
             continue;
         };
-        let target = *target;
+        let (target, target_name, target_scene_element) = *target;
+
+        let keyframes = keyframes.iter();
 
         let keyframes = keyframes.sorted_by(|a, b| a.0.time.total_cmp(&b.0.time));
 
@@ -407,14 +417,12 @@ fn generate_transform_animation(
                 let rotation = transform.rotation;
                 let scale = transform.scale;
 
-                info!("Processing Keyframe: {time} previous: {last_rotation:?}");
-
                 if transform_keyframe.affect_translation {
                     let (last_time, start) = match last_translation {
                         Some(v) => v,
                         None => (0., translation),
                     };
-                    info!("Should apply translation");
+
                     if (time - last_time).abs() > 0.00001 {
                         translation_list.push(Tween::new(
                             EaseMethod::Linear,
@@ -433,8 +441,6 @@ fn generate_transform_animation(
                         None => (0., rotation),
                     };
 
-                    info!("Should apply rotation");
-
                     if (time - last_time).abs() > 0.00001 {
                         rotation_list.push(Tween::new(
                             EaseMethod::Linear,
@@ -451,7 +457,7 @@ fn generate_transform_animation(
                         Some(v) => v,
                         None => (0., scale),
                     };
-                    info!("Should apply scale");
+
                     if (time - last_time).abs() > 0.00001 {
                         scale_list.push(Tween::new(
                             EaseMethod::Linear,
@@ -507,10 +513,11 @@ fn generate_transform_animation(
         }
 
         if tracks.is_empty() {
+            info!("Empty Animation Track for {target_name:?} {target_scene_element:?} {target:?}");
             commands.entity(target).remove::<Animator<Transform>>();
         } else {
+            info!("Adding Animation Track for {target_name:?} {target_scene_element:?} {target:?}");
             let tracks = Tracks::new(tracks);
-
             commands.entity(target).insert(Animator::new(tracks));
         }
     }
@@ -550,10 +557,8 @@ pub fn timeline_bound_component_animator_system<T: Component>(
                     &mut events,
                 );
             } else {
-                info!("setting tween time to {}", time.time);
                 let tween = animator.tweenable_mut();
                 tween.set_elapsed(Duration::from_secs_f32(time.time.max(0.)));
-                info!("Tween time set successfully");
                 tween.tick(Duration::ZERO, &mut target, entity, &mut events);
             }
         }
