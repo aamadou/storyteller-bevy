@@ -21,6 +21,7 @@ mod hierarchy;
 mod input;
 mod inspector;
 mod interaction;
+pub mod material;
 pub mod math;
 mod mixamo;
 mod path;
@@ -51,6 +52,7 @@ pub use crate::{
     viewport::ViewportSize,
     world_grid::WorldGridPlugin,
 };
+use crate::material::MaterialPlugin;
 
 #[cfg(feature = "wasm")]
 mod wasm;
@@ -86,6 +88,7 @@ impl PluginGroup for CommonPlugins {
             .add(InspectorPlugin)
             .add(InterpolationPlugin)
             .add(ScenePlugin)
+            .add(MaterialPlugin)
             .add(SkyboxPlugin)
             .add(StudioInputPlugin)
             .add(UiLayerPlugin)

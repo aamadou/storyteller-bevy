@@ -24,6 +24,7 @@ use crate::{
     interaction::Selection,
     wasm::{self, StaticBuffer, WasmMessageBuffer},
 };
+use crate::material::short_material::ShortMaterial;
 
 pub struct InspectorPlugin;
 
@@ -591,25 +592,6 @@ fn auto_serialize_asset<T: Asset + Reflect + GetTypeRegistration>(
     ev_update_description.send(UpdateEntityDescription);
 }
 
-#[derive(Reflect, Default, Clone, Component)]
-#[reflect(Default, Component)]
-struct ShortMaterial {
-    pub base_color: Color,
-    pub perceptual_roughness: f32,
-    pub metallic: f32,
-    pub reflectance: f32,
-}
-
-impl ShortMaterial {
-    pub fn new(material: &StandardMaterial) -> Self {
-        Self {
-            base_color: material.base_color,
-            perceptual_roughness: material.perceptual_roughness,
-            metallic: material.metallic,
-            reflectance: material.reflectance,
-        }
-    }
-}
 
 fn serialize_standart_materal(
     r_selection: Option<Res<Selection>>,
