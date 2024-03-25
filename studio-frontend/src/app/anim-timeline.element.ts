@@ -219,24 +219,24 @@ export class AnimTimelineElement extends LitElement {
 	/**
 	 * Format a time value (in seconds) for displaying in the timeline view
 	 */
-	timestamp(seconds: number) {
+	timestamp(seconds: number, major: boolean) {
 		const sign = seconds < 0 ? "-" : "";
 		seconds = Math.abs(seconds);
 
 		let minutes = Math.floor(seconds / 60);
 		let secondsInMinute = seconds % 60;
 		let flooredSeconds = Math.floor(secondsInMinute);
-		let fraction = Math.floor(100 * (secondsInMinute - flooredSeconds));
+		let fraction = Math.round(24 * (secondsInMinute - flooredSeconds));
 
 		return html`${
 			sign
-		}${
+		}${major || fraction == 0 ? html`${
 			minutes.toString(10).padStart(2, "0")
 		}:${
 			flooredSeconds.toString(10).padStart(2, "0")
-		}.${
-			fraction.toString(10).padStart(2, "0")
-		}`;
+		}` : ``} ${fraction != 0 ? html`f${
+			fraction.toString(10)
+		}` : `` }`;
 	}
 
 	protected override render() {
@@ -246,10 +246,10 @@ export class AnimTimelineElement extends LitElement {
 		let majorSubdivisionScale = 1;
 
 		if (range < 0.5) {
-			subdivisionScale = 0.05;
-			majorSubdivisionScale = 0.1;
+			subdivisionScale = 1 / 24;
+			majorSubdivisionScale = 6 / 24;
 		} else if (range < 2) {
-			subdivisionScale = 1 / 4;
+			subdivisionScale = 1 / 6;
 			majorSubdivisionScale = 0.5;
 		} else if (range > 120) {
 			subdivisionScale = 30;
@@ -267,8 +267,6 @@ export class AnimTimelineElement extends LitElement {
 
 		const scaledStart = this.rangeStart / subdivisionScale;
 		const scaledEnd = this.rangeEnd / subdivisionScale;
-
-		console.log("Scaled Start", scaledStart, "Scaled End", scaledEnd, "Range Start", this.rangeStart, "Range End", this.rangeEnd, "Range", range, "Playhead", this.playHead);
 		
 		let subdivisions : Array<{seconds: number, fraction: number, isMajor: boolean}> = [];
 		let currentOffset = scaledStart;
@@ -285,8 +283,6 @@ export class AnimTimelineElement extends LitElement {
 			currentOffset = nextSubdiv;
 			currentOffsetSeconds = currentOffset * subdivisionScale;
 		}
-
-		console.log("Subdivisions", subdivisions.length, subdivisions);
 
 		return html`
 			<div
@@ -322,7 +318,7 @@ export class AnimTimelineElement extends LitElement {
 									left: `calc(${secondsPercentage}% + 8px)`
 								})}
 							>
-								${this.timestamp(seconds)}
+								${this.timestamp(seconds, isMajor)}
 							</span>
 						` : nothing}
 					`;
