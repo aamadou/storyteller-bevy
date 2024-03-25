@@ -95,7 +95,6 @@ impl Plugin for InspectorPlugin {
                     .chain()
                     .before(space_editor::space_prefab::sub_scene::prepare_auto_scene),
             );
-            app.add_systems(PostUpdate, apply_short_materials);
 
             app.world.resource_mut::<InspectGetters>().getters.insert(
                 StandardMaterial::get_type_registration()
@@ -140,25 +139,6 @@ fn create_short_materials(
         if let Some(material) = materials.get(handle) {
             commands.entity(entity).insert(ShortMaterial::new(material));
         }
-    }
-}
-
-fn apply_short_materials(
-    mut commands: Commands,
-    q_mats: Query<(Entity, &Handle<StandardMaterial>, &ShortMaterial)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    for (entity, handle, short) in q_mats.iter() {
-        let Some(material) = materials.get_mut(handle) else {
-            continue;
-        };
-
-        material.base_color = short.base_color;
-        material.perceptual_roughness = short.perceptual_roughness;
-        material.metallic = short.metallic;
-        material.reflectance = short.reflectance;
-
-        commands.entity(entity).remove::<ShortMaterial>();
     }
 }
 
