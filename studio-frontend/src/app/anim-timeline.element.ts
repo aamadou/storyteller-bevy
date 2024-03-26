@@ -240,8 +240,9 @@ export class AnimTimelineElement extends LitElement {
 		let relativeX = event.clientX - elementBounds.left;
 		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
 		const time = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const final_time = Math.round(time * this.clipFps) / this.clipFps;
 
-		studio.moveKeyframeTime(id, time);
+		studio.moveKeyframeTime(id, final_time);
 	}
 
 	updateRenderWidth(): void {
