@@ -331,16 +331,28 @@ export class AnimEditorElement extends LitElement
 		>
 			<sts-toolbar>
 				<sts-toolbar-group>
-					${this.keyingMode === "automatic" ? html`<sts-button class="btn-autokey active" icon="record" aria-label="Auto Keyframe" @click=${studio.toggleAutoKey} title="Auto Keyframe"/>` :
-				html`<sts-button class="btn-keyframe"
-						icon="key"
-						aria-label="Add Keyframe"
-						title="Add Keyframe"
-						?disabled=${none_selected}
-						@click=${this.addKeyframe}
-					></sts-button>
-					<sts-button class="btn-autokey" icon="record" aria-label="Auto Keyframe" @click=${studio.toggleAutoKey} title="Auto Keyframe"/>`
-			}
+					${this.keyingMode === "automatic" ? html`
+						<sts-button class="btn-autokey active"
+							icon="record"
+							aria-label="Auto Keyframe"
+							title="Auto Keyframe"
+							@click=${studio.toggleAutoKey}
+						></sts-button>
+					` : html`
+						<sts-button class="btn-keyframe"
+							icon="key"
+							aria-label="Add Keyframe"
+							title="Add Keyframe"
+							?disabled=${none_selected}
+							@click=${this.addKeyframe}
+						></sts-button>
+						<sts-button class="btn-autokey"
+							icon="record"
+							aria-label="Auto Keyframe"
+							title="Auto Keyframe"
+							@click=${studio.toggleAutoKey}
+						></sts-button>
+					`}
 				</sts-toolbar-group>
 				<sts-toolbar-group class="timeline-nav">
 					<sts-button
