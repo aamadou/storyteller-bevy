@@ -46,7 +46,7 @@ futures-lite = "2.2.0"
 futures = "0.3.30"
 image = "0.24.8"
 bytemuck = "1.14.1"
-space_editor = {git = "https://github.com/rewin123/space_editor", rev = "e191880bdfc7498a1c93d6efd98393c462990dea"}
+space_editor = {git = "https://github.com/rewin123/space_editor", rev = "7b93e21ee1eb8a42418890b6cd525eaa7db43b95"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
 
@@ -57,6 +57,9 @@ features = [
 	"json",
 	"stream",
 ]
+
+[patch.crates-io]
+bevy = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
 
 [features]
 wasm = [

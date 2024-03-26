@@ -9,8 +9,34 @@ members = [
 anyhow = "1.0.75"
 
 [workspace.dependencies.bevy]
-version = "0.13.0"
+version = "0.13.1"
 features = ["tonemapping_luts"]
+git = "https://github.com/rewin123/bevy.git"
+branch = "fix-wasm-fetch"
+
+
+[patch.crates-io]
+bevy = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_app = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_ecs = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_render = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_window = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_asset = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_pbr = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_derive = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_gizmos = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_math = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_reflect = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_sprite = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_transform = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_utils = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_text = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_ui = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_core = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_core_pipeline = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_time = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_log = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
+bevy_input = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
 
 [profile.dev-custom]
 inherits = "dev"
