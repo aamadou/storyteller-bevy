@@ -47,10 +47,14 @@ futures-lite = "2.2.0"
 futures = "0.3.30"
 image = "0.25.0"
 bytemuck = "1.14.1"
+
 space_editor = {git = "https://github.com/rewin123/space_editor", rev = "7b93e21ee1eb8a42418890b6cd525eaa7db43b95"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
 wasm-bindgen-futures = "0.4"
+
+async-compat = "0.2"
+uuid = { version = "1", features = ["v4", "serde"]}
 
 [dependencies.reqwest]
 version = "0.12.2"

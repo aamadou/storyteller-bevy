@@ -12,22 +12,28 @@ use bevy::{
     prelude::*,
     render::{camera::RenderTarget, primitives::Aabb},
     scene::InstanceId,
+    utils::{EntityHashSet, HashSet},
 };
 #[cfg(feature = "wasm")]
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use space_editor::{
     prelude::{EditorEvent, EditorPrefabPath, PrefabMarker},
-    space_prefab::component::SceneAutoChild,
+    space_prefab::{
+        component::{GltfPrefab, SceneAutoChild},
+        editor_registry::EditorRegistryExt,
+    },
 };
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
+    anim::timeline_animation::AnimationTarget,
     camera_controller::{CameraController, CameraControllerBundle},
     change_tracking::{ChangeTracker, ChangeTrackingPlugin},
     debug::DebugPoint,
     headless::{is_headless, is_not_headless, HeadlessSettings},
+    is_editor,
     math::{Combinable, Extrema},
     screenshot::ScreenCapture,
     MainCamera,
@@ -57,21 +63,28 @@ impl Plugin for ScenePlugin {
             )
             .add_systems(
                 Update,
-                (init_object_loading, init_scene_import, init_scene_loading)
+                (
+                    init_object_loading,
+                    init_scene_import,
+                    init_scene_loading,
+                    start_capture.run_if(is_headless),
+                )
                     .in_set(SceneSpawnerSystem),
             )
             .add_systems(
                 OnEnter(SceneState::Active),
-                (
-                    tag_scene_elements,
-                    frame_scene_in_view,
-                    start_capture.run_if(is_headless),
-                )
+                (tag_scene_elements, frame_scene_in_view)
                     .chain()
                     .in_set(SceneSpawnerSystem),
             );
 
-        app.add_systems(Update, tag_scene_elements);
+        app.add_systems(
+            Update,
+            (
+                tag_scene_elements,
+                autoplay_animations.run_if(not(is_editor)),
+            ),
+        );
 
         app.init_resource::<SkyboxHolder>();
         app.add_systems(Update, attach_skybox);
@@ -103,6 +116,8 @@ impl Plugin for ScenePlugin {
                 wasm::notify_loading_queue_changes.map(bevy::utils::error),
             ),
         );
+
+        app.editor_registry::<SceneElement>();
     }
 }
 
@@ -126,6 +141,7 @@ fn attach_skybox(
 fn minimal_scene_setup(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Directional Light"),
+        AnimationTarget::new(),
         DirectionalLightBundle {
             directional_light: DirectionalLight {
                 shadows_enabled: false,
@@ -164,8 +180,19 @@ pub struct LoadingQueue {
 fn check_loading(
     mut loading_queue: ResMut<LoadingQueue>,
     mut st_next: ResMut<NextState<SceneState>>,
+    r_scene_state: Res<State<SceneState>>,
     asset_server: Res<AssetServer>,
 ) {
+    // Avoid transitioning from `SceneState::None` directly to `SceneState::Active`.
+    // We will always be initializing the scene with _something_, so if the
+    // `LoadingQueue` is empty when we're in `SceneState::None`, it just means
+    // our startup routine hasn't yet gotten to the point of processing any
+    // `Handle<T>`s.
+    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading {
+        st_next.set(SceneState::Active);
+        return;
+    }
+
     if !loading_queue.queue.is_empty() {
         //filter queue to only include notloaded assets
 
@@ -200,8 +227,6 @@ fn check_loading(
         } else {
             st_next.set(SceneState::Loading);
         }
-    } else {
-        st_next.set(SceneState::Active);
     }
 }
 
@@ -256,9 +281,11 @@ pub struct ImportSceneEvent(pub String);
     wasm_bindgen,
     derive(Serialize_repr, Deserialize_repr)
 )]
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Reflect, Default)]
+#[reflect(Component, Default)]
 #[allow(dead_code)] // Some variants only used in `wasm`, some planned for later use
 pub enum SceneElement {
+    #[default]
     Generic,
     Mesh,
     Skeleton,
@@ -283,6 +310,7 @@ fn initialize(mut cmd: Commands) {
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
+        AnimationTarget::MainCamera,
         ChangeTracker,
         Camera3dBundle {
             transform: camera_xform,
@@ -339,6 +367,7 @@ fn initialiaze_headless(
     cmd.spawn((
         Name::new("Main Camera"),
         MainCamera,
+        AnimationTarget::MainCamera,
         Camera3dBundle {
             transform: camera_xform,
             tonemapping: Tonemapping::BlenderFilmic,
@@ -350,8 +379,6 @@ fn initialiaze_headless(
             ..default()
         },
         CameraControllerBundle::new(focus, camera_xform.translation),
-        ScreenCapture::from_out(&headless_settings.output_dir)
-            .with_max_frames(headless_settings.max_frames),
     ));
 }
 
@@ -371,7 +398,11 @@ fn init_object_loading(mut cmd: Commands, mut er: EventReader<LoadLibraryObjectE
     }
 }
 
-fn init_scene_import(mut cmd: Commands, mut er: EventReader<ImportSceneEvent>) {
+fn init_scene_import(
+    mut cmd: Commands,
+    r_assets: Res<AssetServer>,
+    mut er: EventReader<ImportSceneEvent>,
+) {
     if let Some(path) = er.read().last() {
         info!("Importing asset: {}", path.0);
         cmd.spawn((
@@ -381,6 +412,7 @@ fn init_scene_import(mut cmd: Commands, mut er: EventReader<ImportSceneEvent>) {
                 path: path.0.clone(),
                 scene: "Scene0".to_string(),
             },
+            r_assets.load::<Gltf>(&path.0),
             PrefabMarker,
             SceneRoot,
         ));
@@ -422,6 +454,64 @@ fn tag_scene_elements(
     for (e, children) in q_named_non_primitives.iter() {
         if children.iter().any(|child| mesh_entities.contains(*child)) {
             cmd.entity(e).insert(SceneElement::Mesh);
+        }
+    }
+}
+
+fn autoplay_animations(
+    mut cmd: Commands,
+    mut l_done: Local<HashSet<String>>,
+    mut l_animating: Local<EntityHashSet<Entity>>,
+    ra_gltfs: Res<Assets<Gltf>>,
+    ra_anims: Res<Assets<AnimationClip>>,
+    q_prefabs: Query<(&GltfPrefab, &Handle<Gltf>)>,
+    q_named_ents: Query<(Entity, &Name)>,
+    mut q_players: Query<&mut AnimationPlayer>,
+) {
+    for (prefab, handle) in q_prefabs.iter() {
+        if l_done.contains(&prefab.path) {
+            continue;
+        }
+
+        let Some(gltf) = ra_gltfs.get(handle) else {
+            continue;
+        };
+
+        let mut playing_anims = 0_usize;
+        for (anim_name, anim_handle) in gltf.named_animations.iter() {
+            let Some(anim) = ra_anims.get(anim_handle.clone()) else {
+                continue;
+            };
+
+            let Some((target, name)) = q_named_ents
+                .iter()
+                .find(|(_, name)| anim.compatible_with(name))
+            else {
+                continue;
+            };
+
+            if !l_animating.contains(&target) {
+                info!(
+                    "Playing animation '{}' on entity {:?} '{}'",
+                    anim_name, target, name,
+                );
+                if let Ok(mut player) = q_players.get_mut(target) {
+                    if !player.is_playing_clip(anim_handle) {
+                        player.play(anim_handle.clone()).repeat();
+                    }
+                } else {
+                    let mut player = AnimationPlayer::default();
+                    player.play(anim_handle.clone()).repeat();
+                    cmd.entity(target).insert(player);
+                }
+                l_animating.insert(target);
+            }
+
+            playing_anims += 1;
+        }
+
+        if playing_anims == gltf.named_animations.len() {
+            l_done.insert(prefab.path.clone());
         }
     }
 }
@@ -529,7 +619,7 @@ fn frame_scene_in_view(
     cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
-fn start_capture(mut captures: Query<&mut ScreenCapture>) {
+fn start_capture(mut captures: Query<&mut ScreenCapture, Added<ScreenCapture>>) {
     for mut capture in captures.iter_mut() {
         capture.start_capturing();
     }

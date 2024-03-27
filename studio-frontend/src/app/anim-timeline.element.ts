@@ -22,7 +22,7 @@ import styles from "./anim-timeline.element.scss?inline";
 //       which would look something like:
 //       ```
 //       @memo(["rangeStart", "rangeEnd", "_renderWidth"])
-//       msPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
+//       secondsPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
 //       ```
 //       But that feels a little obtuse and overengineered. In this particular
 //       case we're probably only saving on the order of nanoseconds, so I'm
@@ -54,51 +54,53 @@ class Computed extends Number {
 export class AnimTimelineElement extends LitElement {
 	static override styles = unsafeCSS(styles);
 
-	/** The time (in ms) at the left edge of the timeline view */
+	/** The time (in seconds) at the left edge of the timeline view */
 	@property({ type: Number }) rangeStart = 0;
-	/** The time (in ms) at the right edge of the timeline view */
-	@property({ type: Number }) rangeEnd = 5_000;
-
-	/** The time (in ms) at the beginning of the active clip range */
+	/** The time (in seconds) at the right edge of the timeline view */
+	@property({ type: Number }) rangeEnd = 5;
+	
+	
+	/** The time (in seconds) at the start of the clip */
 	@property({ type: Number }) clipStart = 0;
-	/** The time (in ms) at the end of the active clip range */
-	@property({ type: Number }) clipEnd = 15_000;
+	/** The time (in seconds) at the end of the clip */
+	@property({ type: Number }) clipEnd = 5;
+	/** The number of frames per second for this animation clip */
+	@property({ type: Number }) clipFps = 24;
 
-	/** The time (in ms) of the current play-head position */
+	/** The time (in seconds) of the current play-head position */
 	@property({ type: Number }) playHead = 0;
-	/** Keyframe positions (in ms) */
-	@property({ attribute: false }) keyframes: Record<string, number> = {};
+
+	/** Keyframe positions (in seconds) */
+	@property({ attribute: false }) keyframes: Record<string, studio.Keyframe> = {};
+	@property({ attribute: false }) track_ordered: Record<string, number> = {};
+	@property({ attribute: false }) track_animation_target_ordered: Record<string, number> = {};
 
 	@state() _selectedKeyframe: string | null = null;
 
 	/** The width (in px) of the timeline view */
 	@state() _renderWidth!: number;
 
-	/** The offset from 0ms of the left edge of the timeline view, in px */
-	@state() _offsetX = 0;
-	/** The vertical scroll offset (in px) */
-	@state() _offsetY = 0;
-
 	/**
 	 * `true` when the timeline is being mouse-panned. Primarily useful for
 	 * setting the cursor style to the grabby hand.
 	 */
 	@state() _panning = false;
+	@state() _scrubbing = false;
 
-	/** How many ms are represented by each px of horizontal space. */
-	msPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
+	/** How many seconds are represented by each px of horizontal space. */
+	secondsPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
 
 	#resizeObserver: ResizeObserver;
 
 	constructor () {
 		super();
-		this.#resizeObserver = new ResizeObserver(() => this.#updateRenderWidth());
+		this.#resizeObserver = new ResizeObserver(() => this.updateRenderWidth());
 		this.#resizeObserver.observe(this);
 	}
 
 	override connectedCallback(): void {
 		super.connectedCallback();
-		this.#updateRenderWidth();
+		this.updateRenderWidth();
 	}
 
 	override disconnectedCallback(): void {
@@ -107,12 +109,13 @@ export class AnimTimelineElement extends LitElement {
 	}
 
 	protected override update(changes: PropertyValues<this>): void {
+		console.log("Changes: ", changes);
 		if (
 			changes.has("rangeStart")
 			|| changes.has("rangeEnd")
 			|| changes.has("_renderWidth")
 		) {
-			this.msPerPx.invalidate();
+			this.secondsPerPx.invalidate();
 		}
 
 		super.update(changes);
@@ -123,12 +126,10 @@ export class AnimTimelineElement extends LitElement {
 		event.preventDefault();
 		event.stopImmediatePropagation();
 
-		if (event.ctrlKey) {
-			this.#zoomTimeline(event.offsetX, event.deltaY);
+		if (event.ctrlKey || Math.abs(event.deltaY ) > 0) {
+			this.zoomTimeline(event.clientX, event.deltaY);
 		} else if (event.deltaX) {
-			this.#pan(-event.deltaX);
-		} else if (event.shiftKey && event.deltaY) {
-			this.#pan(-event.deltaY);
+			this.pan(-event.deltaX);
 		}
 	}
 
@@ -140,8 +141,9 @@ export class AnimTimelineElement extends LitElement {
 		}
 
 		if (Array.from(Object.keys(this.keyframes)).includes(id)) {
+			let keyframe = this.keyframes[id];
 			this._selectedKeyframe = id;
-			this.dispatchEvent(new CustomEvent("playHead-change", { detail: this.keyframes[id]! }));
+			studio.seekTime(keyframe.time);
 		} else {
 			this._selectedKeyframe = null;
 		}
@@ -151,183 +153,236 @@ export class AnimTimelineElement extends LitElement {
 		studio.select(id);
 	}
 
-	#zoomTimeline(origin: number, delta: number): void {
+	zoomTimeline(origin: number, delta: number): void {
 		const currentRange = this.rangeEnd - this.rangeStart;
-		const deltaRange = delta * 4;
+		const elementRect = this.getBoundingClientRect();
+		const focusPoint = (origin - elementRect.x) / elementRect.width;
 
-		// FIXME: When zooming the timeline, the transform origin should be
-		//        centered on the mouse cursor. Currently this does not work as
-		//        intended, always centering on the 00:00 timestamp instead.
-		const t = ((this._offsetX + origin) * this.msPerPx.get()) / currentRange;
-		console.log(`t: ${t}`);
-		console.log(`deltaStart: ${-deltaRange * t}`);
-		console.log(`deltaEnd:   ${deltaRange * (1 - t)}`);
-		const rangeStart = this.rangeStart - deltaRange * t;
-		const rangeEnd = this.rangeEnd + deltaRange * (1 - t);
+		const deltaTimeScale = delta * 0.001 * currentRange;
+
+		const rangeStart = Math.max(this.rangeStart - deltaTimeScale * focusPoint, 0.);
+		const rangeEnd = Math.max(this.rangeEnd + deltaTimeScale * (1 - focusPoint), rangeStart + 0.01);
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
 	}
 
-	#onDragStart(): void {
+	onMidDragStart(): void {
 		this._panning = true;
 	}
 
-	#onDragEnd(): void {
+	onMidDragEnd(): void {
 		this._panning = false;
 	}
 
-	#onDrag(event: PointerEvent): void {
-		this.#pan(event.movementX);
+	onMidDrag(event: PointerEvent): void {
+		this.pan(event.movementX);
 	}
 
-	#pan(deltaPx: number): void {
-		this._offsetX += deltaPx;
+	onDragStart(): void {
+		this._scrubbing = true;
+	}
 
-		const msPerPx = this.msPerPx.get();
-		const rangeStart = this.rangeStart - deltaPx * msPerPx;
-		const rangeEnd = this.rangeEnd - deltaPx * msPerPx;
+	onDragEnd(): void {
+		this._scrubbing = false;
+	}
+
+	onDrag(event: PointerEvent): void {
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const updated = Math.round(seconds * this.clipFps) / this.clipFps;
+
+		studio.seekTime(updated);
+	}
+
+	pan(deltaPx: number): void {
+		const deltaChange = deltaPx * 0.001;
+		const scaledChange = (this.rangeEnd - this.rangeStart) * deltaChange;
+
+		let rangeStart = this.rangeStart - scaledChange;
+		let rangeEnd = Math.max(this.rangeEnd - scaledChange, rangeStart + 0.01);
+
+		if (rangeStart < 0) {
+			rangeEnd = this.rangeEnd - this.rangeStart;
+			rangeStart = 0;
+		}
 
 		this.dispatchEvent(new CustomEvent("rangeStart-change", { detail: rangeStart }));
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
 	}
 
-	#onPlayheadDrag(event: PointerEvent): void {
-		const deltaMs = event.movementX * this.msPerPx.get();
-		const updated = this.playHead + deltaMs;
+	onPlayheadDrag(event: PointerEvent): void {
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const updated = Math.round(seconds * this.clipFps) / this.clipFps;
 
-		this.dispatchEvent(new CustomEvent("playHead-change", { detail: updated }));
+		studio.seekTime(updated);
 	}
 
-	#onKeyframeDrag(id: string, event: PointerEvent): void {
-		const deltaMs = event.movementX * this.msPerPx.get();
-		const updated = this.keyframes[id] + deltaMs;
+	onSetPlayhead(event: PointerEvent): void {
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const updated = Math.round(seconds * this.clipFps) / this.clipFps;
 
-		studio.updateKeyframe(id, updated);
-
-		const updatedKeyframes = Object.fromEntries(
-			Object
-				.entries(this.keyframes)
-				.map(entry => entry[0] === id
-					? [id, updated]
-					: entry
-				)
-		);
-		this.dispatchEvent(new CustomEvent("keyframes-change", { detail: updatedKeyframes }));
+		studio.seekTime(updated);
 	}
 
-	#updateRenderWidth(): void {
+	onKeyframeDrag(id: string, event: PointerEvent): void {
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const time = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const final_time = Math.round(time * this.clipFps) / this.clipFps;
+
+		studio.moveKeyframeTime(id, final_time);
+	}
+
+	updateRenderWidth(): void {
 		this._renderWidth = this.getBoundingClientRect().width;
 	}
 
 	/**
-	 * Format a time value (in ms) for displaying in the timeline view
+	 * Format a time value (in seconds) for displaying in the timeline view
 	 */
-	#timestamp(ms: number) {
-		const sign = ms < 0 ? "-" : "";
-		ms = Math.abs(ms);
+	timestamp(seconds: number, major: boolean) {
+		const sign = seconds < 0 ? "-" : "";
+		seconds = Math.abs(seconds);
 
-		let s = Math.floor(ms / 1000);
-		let frac = Math.round(ms % 1000);
-		if (frac === 1000) {
-			frac = 0;
-			s += 1;
-		}
-
-		let m = 0;
-		if (s >= 60) {
-			m = Math.floor(s / 60);
-			s %= 60;
-		}
+		let minutes = Math.floor(seconds / 60);
+		let secondsInMinute = seconds % 60;
+		let flooredSeconds = Math.floor(secondsInMinute);
+		let fraction = Math.round(this.clipFps * (secondsInMinute - flooredSeconds));
 
 		return html`${
 			sign
-		}${
-			m.toString(10).padStart(2, "0")
+		}${major || fraction == 0 ? html`${
+			minutes.toString(10).padStart(2, "0")
 		}:${
-			s.toString(10).padStart(2, "0")
-		}<!--<span class="frac">.${
-			frac.toString(10).padEnd(3, "0")
-		}</span>-->`;
+			flooredSeconds.toString(10).padStart(2, "0")
+		}` : ``} ${fraction != 0 ? html`f${
+			fraction.toString(10)
+		}` : `` }`;
 	}
 
-	/**
-	 * Convert a time value (in ms) to a px offset from the left edge of the view
-	 */
-	#msToPx(ms: number): number {
-		return this._offsetX + ms / this.msPerPx.get();
-	}
-
-	protected override render = () => {
-		const msPerPx = this.msPerPx.get();
+	protected override render() {
 		const range = this.rangeEnd - this.rangeStart;
 
-		let subdivsPerSec = 32;
-		let subdivsCount = (range / 1000) * subdivsPerSec;
-		let pxPerSubdiv = this._renderWidth / subdivsCount;
+		let fps = this.clipFps;
+		
+		let frameRange = Math.ceil(range * this.clipFps);
 
-		while (pxPerSubdiv < 64) {
-			subdivsPerSec /= 2;
-			subdivsCount = (range / 1000) * subdivsPerSec;
-			pxPerSubdiv = this._renderWidth / subdivsCount;
+		let spf = 1 / fps;
+
+		let majorSubdivisionSize = this.clipFps;
+		let minorSubdivisionSize = this.clipFps / 2;
+		let unlablelledSubdivisionSize = this.clipFps / 4;
+
+		if (range < 0.5) {
+			majorSubdivisionSize = this.clipFps / 2;
+			minorSubdivisionSize = this.clipFps / 12;
+			unlablelledSubdivisionSize = 1;
+		} else if (range < 2) {
+			majorSubdivisionSize = this.clipFps / 2;
+			minorSubdivisionSize = this.clipFps / 4;
+			unlablelledSubdivisionSize = 2;
+		} else if (range < 5) {
+			majorSubdivisionSize = this.clipFps;
+			minorSubdivisionSize = this.clipFps / 2;
+			unlablelledSubdivisionSize = this.clipFps / 4;
+		} else if (range < 10) {
+			majorSubdivisionSize = this.clipFps * 2;
+			minorSubdivisionSize = this.clipFps;
+			unlablelledSubdivisionSize = this.clipFps / 2;
+		} else if (range < 60) {
+			majorSubdivisionSize = this.clipFps * 10;
+			minorSubdivisionSize = this.clipFps * 5;
+			unlablelledSubdivisionSize = this.clipFps;
+		} else if (range < 120) {
+			majorSubdivisionSize = this.clipFps * 20;
+			minorSubdivisionSize = this.clipFps * 10;
+			unlablelledSubdivisionSize = this.clipFps * 2;
+		} else {
+			majorSubdivisionSize = Math.ceil(frameRange / 10);
+			minorSubdivisionSize = Math.ceil(frameRange / 20);
+			unlablelledSubdivisionSize = Math.ceil(frameRange / 40);
 		}
+		
+		let subdivisions : Array<{seconds: number, fraction: number, isMajor: boolean, isLabelled: boolean}> = [];
 
-		const msPerSubdiv = msPerPx * pxPerSubdiv;
-		const subdivs = new Array(Math.ceil(subdivsCount) + 2).fill(null);
+		let initialFrame = Math.ceil(this.rangeStart * this.clipFps);
 
-		const fracPxOffset = this._offsetX % pxPerSubdiv;
-
-		let startingIdx = -Math.floor(this._offsetX / pxPerSubdiv);
-		if (fracPxOffset < 0)
-			startingIdx -= 2;
-		else
-			startingIdx -= 1;
-
+		for (let i = 0; i < frameRange; i++) {
+			let frame = i + initialFrame;
+			let seconds = frame * spf;
+			let fraction = (seconds - this.rangeStart) / range;
+			if (frame % majorSubdivisionSize === 0) {
+				subdivisions.push({
+					seconds,
+					fraction,
+					isMajor: true,
+					isLabelled: true
+				});
+			} else if (frame % minorSubdivisionSize === 0) {
+				subdivisions.push({
+					seconds,
+					fraction,
+					isMajor: false,
+					isLabelled: true
+				});
+			} else if (frame % unlablelledSubdivisionSize === 0) {
+				subdivisions.push({seconds, fraction, isMajor: false, isLabelled: false });
+			}
+		}
+		
 		return html`
 			<div
 				class=${classMap({
 					wrapper: true,
-					panning: this._panning,
+					panning: this._panning || this._scrubbing,
 				})}
 				${drag({
 					button: 1,
-					start: this.#onDragStart,
-					move: this.#onDrag,
-					end: this.#onDragEnd,
+					start: this.onMidDragStart,
+					move: this.onMidDrag,
+					end: this.onMidDragEnd,
 				})}
 				tabindex="-1"
 			>
-				<div class="clip-region"
-					style=${styleMap({
-						left: `${this.#msToPx(this.clipStart)}px`,
-						right: `${this._renderWidth - this.#msToPx(this.clipEnd)}px`,
-					})}
-				></div>
+				<div class="timeline-nav-dragger"
+				${drag({
+					button: 0,
+					start: this.onDragStart,
+					move: this.onDrag,
+					end: this.onDragEnd,
+				})}
+				@click=${this.onSetPlayhead}></div>
 
-				${subdivs.map((_, idx) => {
-					const pxOffset = (idx - 1) * pxPerSubdiv + fracPxOffset;
-					const ms = (startingIdx + idx) * msPerSubdiv;
-
-					const msFrac = Math.abs(Math.round(ms) % 1000);
-					const strong = msFrac === 0;
+				${subdivisions.map(({ seconds, fraction, isMajor, isLabelled}, idx) => {
+					const secondsPercentage = fraction * 100;					
 
 					return html`
 						<div
 							class=${classMap({
 								hash: true,
-								strong,
+								strong: isMajor,
 							})}
 							style=${styleMap({
-								left: `${pxOffset}px`
+								left: `${secondsPercentage}%`
 							})}
 						></div>
-						${strong ? html`
+						${isMajor || isLabelled ? html`
 							<span class="timestamp"
 								style=${styleMap({
-									left: `${pxOffset + 8}px`
+									left: `calc(${secondsPercentage}% + 8px)`
 								})}
 							>
-								${this.#timestamp(ms)}
+								${this.timestamp(seconds, isMajor)}
 							</span>
 						` : nothing}
 					`;
@@ -335,10 +390,10 @@ export class AnimTimelineElement extends LitElement {
 
 				<div class="playhead"
 					${drag({
-						move: this.#onPlayheadDrag
+						move: this.onPlayheadDrag
 					})}
 					style=${styleMap({
-						left: `${this.#msToPx(this.playHead)}px`
+						left: `${100 * (this.playHead - this.rangeStart) / range}%`
 					})}
 					tabindex="-1"
 				>
@@ -349,22 +404,26 @@ export class AnimTimelineElement extends LitElement {
 				${repeat(
 					Object.entries(this.keyframes),
 					([id]) => id,
-					([id, keyframe]) => html`
+					([id, keyframe]) => {
+						let row = this.track_animation_target_ordered[keyframe.target];
+						return html`
 						<div id=${id}
 							class=${classMap({
 								keyframe: true,
-								selected: this._selectedKeyframe === id,
+								selected: this._selectedKeyframe === id
 							})}
 							style=${styleMap({
-								left: `${this.#msToPx(keyframe)}px`
+								left: `${100 * (keyframe.time - this.rangeStart) / range}%`,
+								gridRow: row + 2,
 							})}
 							tabindex="-1"
 							${drag({
-								move: event => this.#onKeyframeDrag(id, event),
+								move: event => this.onKeyframeDrag(id, event),
 							})}
 							@click=${() => this.selectKeyframe(id)}
 						></div>
-					`
+					`;
+					}
 				)}
 			</div>
 		`;

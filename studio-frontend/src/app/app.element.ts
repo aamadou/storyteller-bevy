@@ -1,4 +1,4 @@
-import { drag, on } from "@storyteller/framework";
+import { drag, on, provide } from "@storyteller/framework";
 import * as studio from "@storyteller/studio";
 import {
 	type SceneSavedEvent,
@@ -6,8 +6,11 @@ import {
 	SceneState,
 	StudioMode,
 } from "@storyteller/studio";
+import { ButtonElement } from "@storyteller/studio-ui/button";
+import { DialogElement } from "@storyteller/studio-ui/dialog";
 import {
 	SceneHierarchyElement,
+	StorytellerApi,
 	StudioURLParams,
 } from "@storyteller/studio-web";
 import { match } from "@storyteller/utility";
@@ -16,27 +19,33 @@ import { customElement, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
-import { v4 as uuid } from "uuid";
 
 import "@storyteller/studio-ui/button";
+import "@storyteller/studio-ui/dialog";
 import "@storyteller/studio-ui/icon";
+import "@storyteller/studio-ui/overlay-provider";
 import "@storyteller/studio-ui/toolbar";
 import "@storyteller/studio-ui/tree";
+import "@storyteller/studio-web/add-to-scene-menu";
 import "@storyteller/studio-web/canvas-provider";
 import "@storyteller/studio-web/entity-inspector";
 import "@storyteller/studio-web/iframe-messaging-bridge";
 import "@storyteller/studio-web/loading";
+import "@storyteller/studio-web/media-library-dialog";
 import "@storyteller/studio-web/scene-hierarchy";
 import "@storyteller/studio-web/studio";
 import "@storyteller/studio-web/transform-toolbar";
 import "./anim-editor.element";
 import "./help.element";
 
-import "./blocking.element";
-
 import "./app.element.scss";
+import { mock_save_load } from "./util";
 
 @customElement("app-root")
+@provide({
+	token: StorytellerApi,
+	provide() { return this.api; }
+})
 export class AppElement extends LitElement {
 	@state() showHelp = false;
 	@state() showInspector = false;
@@ -46,8 +55,11 @@ export class AppElement extends LitElement {
 	@state() inspectorWidth = 320;
 	@state() hierarchyHeight?: number;
 
-	#enableAnimTimeline = false; // TODO
+	#enableAnimTimeline = true; // TODO
+	private api = new StorytellerApi();
 
+	#addToSceneButtonRef = createRef<ButtonElement>();
+	#mediaLibraryRef = createRef<DialogElement>();
 	#inspectorRef = createRef<HTMLDivElement>();
 	#hierarchyRef = createRef<SceneHierarchyElement>();
 
@@ -59,33 +71,44 @@ export class AppElement extends LitElement {
 
 	@on("scene-saved")
 	async onSceneSaved({ detail: scene }: SceneSavedEvent): Promise<void> {
-		const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
-		const formData = new FormData();
-
-		formData.append("uuid_idempotency_token", uuid());
-		formData.append("file", file);
-
 		try {
-			const response = await fetch("https://api.fakeyou.com/v1/engine/create_scene", {
-				method: "POST",
-				credentials: "include",
-				headers: { "Accept": "text/plain" },
-				body: formData,
-			});
+			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
+			if (mock_save_load()) {
+				/*
+				// NB(brandon, 2024-03-22): Hey Lee-Orr, I'm commenting this out since the file 
+				picker isn't defined and the Netlify builds are breaking. Feel free to uncomment
+				this for your testing. We probably just need a local definition file so the 
+				builds are happy.
 
-			if (response.ok) {
-				const resultJson: {
-					success: boolean;
-					media_file_token: string;
-				} = await response.json();
+				let handle = await window.showSaveFilePicker({
+					suggestedName: "scene",
+					types: [{
+						description: "Scene Files",
+						accept: {
+							"text/ron": [".scn.ron"]
+						}
+					}]
+				});
+				let writable = await handle.createWritable();
+				await writable.write(file);
+				await writable.close();
+				let token = handle.name;
 
-				if (resultJson.success) {
-					this.dispatchEvent(new CustomEvent("scene-uploaded", {
-						detail: resultJson.media_file_token,
-						bubbles: true,
-						composed: true,
-					}));
-				}
+				this.dispatchEvent(new CustomEvent("scene-uploaded", {
+					detail: token,
+					bubbles: true,
+					composed: true,
+				}));
+				*/
+
+			} else {
+				const token = await this.api.createScene(file);
+
+				this.dispatchEvent(new CustomEvent("scene-uploaded", {
+					detail: token,
+					bubbles: true,
+					composed: true,
+				}));
 			}
 		}
 		catch (err) {
@@ -144,7 +167,9 @@ export class AppElement extends LitElement {
 		this.showHelp = !this.showHelp;
 	}
 
-	protected override render = () => html`
+	protected override render() {
+		return html`
+		<sts-overlay-provider>
 		<sts-canvas-provider class="app-root">
 		<sts-scene-data-provider>
 			<sts-iframe-messaging-bridge></sts-iframe-messaging-bridge>
@@ -174,6 +199,16 @@ export class AppElement extends LitElement {
 						>
 							Save
 						</sts-button>
+						<sts-button
+							${ref(this.#addToSceneButtonRef)}
+							icon="plus-large"
+						>
+							Add to Scene
+							<sts-icon
+								class="menu-button-icon"
+								icon="chevron-down"
+							></sts-icon>
+						</sts-button>
 					` : nothing}
 					<sts-button
 						class=${classMap({ active: this.showHelp })}
@@ -187,7 +222,16 @@ export class AppElement extends LitElement {
 
 			<!-- Studio-mode-only elements -->
 			${this.#params.mode === StudioMode.Editor ? html`
-				<sts-blocking></sts-blocking>
+				<sts-add-to-scene-menu
+					.trigger=${this.#addToSceneButtonRef}
+					@open-media-library=${() => {
+						this.#mediaLibraryRef.value?.open();
+					}}
+				></sts-add-to-scene-menu>
+				<sts-dialog
+					${ref(this.#mediaLibraryRef)}
+					tag="sts-media-library-dialog"
+				></sts-dialog>
 
 				<sts-transform-toolbar class="v-start h-center"></sts-transform-toolbar>
 
@@ -276,5 +320,7 @@ export class AppElement extends LitElement {
 			` : nothing}
 		</sts-scene-data-provider>
 		</sts-canvas-provider>
+		</sts-overlay-provider>
 	`;
+	}
 }

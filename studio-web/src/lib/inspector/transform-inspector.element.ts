@@ -1,6 +1,12 @@
+import * as studio from "@storyteller/studio"
 import { LitElement, html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { v4 as uuid } from "uuid";
+
 import { type Quat, type Vec3 } from "./inspector.types";
+
+import "@storyteller/studio-ui/forms/scalar-field";
+import "./quat-inspector.element";
 
 import styles from "./transform-inspector.element.scss?inline";
 
@@ -17,27 +23,101 @@ export class TransformInspectorElement extends LitElement {
 	@property({ attribute: false })
 	scale: Vec3 = { x: 1, y: 1, z: 1 };
 
+	#positionLabelId = uuid();
+	#rotationLabelId = uuid();
+	#scaleLabelId = uuid();
+
+	updateField(reflectPath: `${"translation"|"scale"}.${"x"|"y"|"z"}` | "rotation") {
+		return ({ detail: value }: CustomEvent<number | Quat>) => {
+			console.log("value:", value);
+			studio.updateComponentField({
+				component: "bevy_transform::components::transform::Transform",
+				reflectPath,
+				value,
+			});
+		}
+	}
+
 	protected override render = () => html`
-		<!-- TODO -->
 		<h4>Transform</h4>
-		<fieldset>
-			<legend>Translation</legend>
-			<input type="number" value=${this.translation.x.toFixed(3)} />
-			<input type="number" value=${this.translation.y.toFixed(3)} />
-			<input type="number" value=${this.translation.z.toFixed(3)} />
-		</fieldset>
-		<fieldset>
-			<legend>Rotation</legend>
-			<input type="number" value=${this.rotation.x.toFixed(3)} />
-			<input type="number" value=${this.rotation.y.toFixed(3)} />
-			<input type="number" value=${this.rotation.z.toFixed(3)} />
-			<!-- <input type="number" value=${this.rotation.w.toFixed(3)} /> -->
-		</fieldset>
-		<fieldset>
-			<legend>Scale</legend>
-			<input type="number" value=${this.scale.x.toFixed(3)} />
-			<input type="number" value=${this.scale.y.toFixed(3)} />
-			<input type="number" value=${this.scale.z.toFixed(3)} />
-		</fieldset>
+		<div
+			class="fieldset"
+			role="group"
+			aria-labelledby=${this.#positionLabelId}
+		>
+			<legend id=${this.#positionLabelId}>
+				Position
+			</legend>
+			<sts-scalar-field
+				class="input"
+				aria-label="X"
+				.step=${0.01}
+				.microStep=${0.001}
+				.value=${this.translation.x}
+				@value-change=${this.updateField("translation.x")}
+			></sts-scalar-field>
+			<sts-scalar-field
+				class="input"
+				aria-label="Y"
+				.step=${0.01}
+				.microStep=${0.001}
+				.value=${this.translation.y}
+				@value-change=${this.updateField("translation.y")}
+			></sts-scalar-field>
+			<sts-scalar-field
+				class="input"
+				aria-label="Z"
+				.step=${0.01}
+				.microStep=${0.001}
+				.value=${this.translation.z}
+				@value-change=${this.updateField("translation.z")}
+			></sts-scalar-field>
+		</div>
+		<div
+			class="fieldset"
+			role="group"
+			aria-labelledby=${this.#rotationLabelId}
+		>
+			<legend id=${this.#rotationLabelId}>
+				Rotation
+			</legend>
+			<sts-quat-inspector
+				.value=${this.rotation}
+				@value-change=${this.updateField("rotation")}
+			></sts-quat-inspector>
+		</div>
+		<div
+			class="fieldset"
+			role="group"
+			aria-labelledby=${this.#scaleLabelId}
+		>
+			<legend id=${this.#scaleLabelId}>
+				Scale
+			</legend>
+			<sts-scalar-field
+				class="input"
+				aria-label="X"
+				.step=${0.1}
+				.microStep=${0.01}
+				.value=${this.scale.x}
+				@value-change=${this.updateField("scale.x")}
+			></sts-scalar-field>
+			<sts-scalar-field
+				class="input"
+				aria-label="Y"
+				.step=${0.1}
+				.microStep=${0.01}
+				.value=${this.scale.y}
+				@value-change=${this.updateField("scale.y")}
+			></sts-scalar-field>
+			<sts-scalar-field
+				class="input"
+				aria-label="Z"
+				.step=${0.1}
+				.microStep=${0.01}
+				.value=${this.scale.z}
+				@value-change=${this.updateField("scale.z")}
+			></sts-scalar-field>
+		</div>
 	`;
 }

@@ -1,3 +1,4 @@
+import * as studio from "@storyteller/studio";
 import { bind } from "@storyteller/framework";
 import { LitElement, PropertyValues, type TemplateResult, html, unsafeCSS } from "lit";
 import { customElement, property } from "lit/decorators.js";
@@ -13,8 +14,20 @@ export class NameInspectorElement extends LitElement {
 	@property() value = "";
 
 	protected override updated(changes: PropertyValues<this>): void {
-		if (changes.has("value"))
-			console.log("New value:", this.value);
+		// FIXME: `Name` component needs special handling due to:
+		//   1. Its `hash` field, which doesn't get updated by just directly
+		//      mutating the `name` field
+		//   2. Its use in our hierarchy. We'll need to add some logic to check
+		//      for changed names on existing entities and notify the frontend so
+		//      the hierarchy can reflect the new value.
+
+		// if (changes.has("value")) {
+		// 	studio.updateComponentField({
+		// 		component: "bevy_core::name::Name",
+		// 		reflectPath: "name",
+		// 		value: this.value,
+		// 	});
+		// }
 
 		super.updated(changes);
 	}

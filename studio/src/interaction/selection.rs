@@ -27,6 +27,7 @@ impl Plugin for SelectionPlugin {
                 PostUpdate,
                 draw_selection_outline.run_if(resource_changed_or_removed::<Selection>()),
             )
+            .add_systems(First, finalize_delete)
             .add_systems(
                 OnEnter(SceneState::Active),
                 (apply_deferred, tag_scene_elements)
@@ -48,60 +49,73 @@ impl Plugin for SelectionPlugin {
                 .run_if(resource_changed_or_removed::<Selection>()),
         );
 
-        app.add_systems(Update, sync_editor_selected);
+        app.add_systems(PostUpdate, propagate_space_editor_to_studio);
     }
 }
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, Reflect, Default)]
+#[reflect(Component, Default)]
 pub struct Selectable;
-
-#[derive(Component, Clone, Copy)]
-pub struct Selected;
 
 #[derive(Resource, Deref, DerefMut, Debug)]
 pub struct Selection(Entity);
 
-fn sync_editor_selected(
+fn propagate_space_editor_to_studio(
     mut cmd: Commands,
-    q_new_selected: Query<Entity, (Added<Selected>, Without<space_editor::prelude::Selected>)>,
-    q_editor_selected: Query<Entity, With<space_editor::prelude::Selected>>,
-    q_selected: Query<Entity, With<Selected>>,
-    q_added_editor_selected: Query<
-        Entity,
-        (Without<Selected>, Added<space_editor::prelude::Selected>),
-    >,
+    r_selection: Option<Res<Selection>>,
+    q_new_selected: Query<Entity, Added<space_editor::prelude::Selected>>,
+    mut er_deselected: RemovedComponents<space_editor::prelude::Selected>,
+    q_parents: Query<&Parent>,
+    q_selectable: Query<&Selectable>,
 ) {
-    for ent in q_new_selected.iter() {
-        for ed_ent in q_editor_selected.iter() {
-            cmd.entity(ed_ent)
-                .remove::<space_editor::prelude::Selected>();
+    let studio_selection_deselected_in_space_editor = r_selection
+        .as_ref()
+        .map(|selection| {
+            er_deselected
+                .read()
+                .any(|deselected| deselected == ***selection)
+        })
+        .unwrap_or(false);
+
+    if q_new_selected.is_empty() && studio_selection_deselected_in_space_editor {
+        cmd.remove_resource::<Selection>();
+    } else {
+        let mut new_selected_iter = q_new_selected.iter();
+        let Some(selected) = new_selected_iter.next().and_then(|se_selected| {
+            nearest_selectable_parent(se_selected, &q_parents, &q_selectable)
+        }) else {
+            return;
+        };
+
+        if r_selection.is_none() || **r_selection.unwrap() != selected {
+            cmd.insert_resource(Selection(selected));
         }
-        cmd.entity(ent).insert(space_editor::prelude::Selected);
-    }
 
-    for ent in q_added_editor_selected.iter() {
-        cmd.entity(ent).insert(Selected);
-        cmd.insert_resource(Selection(ent));
-
-        for ent in q_selected.iter() {
-            cmd.entity(ent).remove::<Selected>();
+        if new_selected_iter.next().is_some() {
+            warn!(
+                "Multiple new entities were selected in Space Editor, but \
+                Storyteller Studio doesn't currently support multiple selections"
+            );
         }
     }
 }
 
 fn tag_scene_elements(
     mut cmd: Commands,
-    q_scene_elements: Query<(Entity, &Children), (With<SceneElement>, Without<Selectable>)>,
+    q_scene_elements: Query<(Entity, Option<&Children>), (With<SceneElement>, Without<Selectable>)>,
     q_primitives: Query<&Handle<Mesh>>,
 ) {
     for (ent, children) in q_scene_elements.iter() {
-        cmd.entity(ent).insert(Selectable);
+        cmd.entity(ent)
+            .insert((Selectable, PickableBundle::default()));
 
-        for &ent_child in children
-            .iter()
-            .filter(|child| q_primitives.contains(**child))
-        {
-            cmd.entity(ent_child).insert(PickableBundle::default());
+        if let Some(children) = children {
+            for &ent_child in children
+                .iter()
+                .filter(|child| q_primitives.contains(**child))
+            {
+                cmd.entity(ent_child).insert(PickableBundle::default());
+            }
         }
     }
 }
@@ -116,31 +130,11 @@ fn update_selection(
     mut ev_input: EventReader<InputAction>,
     q_parents: Query<&Parent>,
     q_selectable: Query<&Selectable>,
-    q_selected: Query<Entity, With<Selected>>,
 ) {
     if let Some(event) = ev_select.read().last() {
-        // Clear any existing `Selected` components
-        for ent in q_selected.iter() {
-            cmd.entity(ent).remove::<Selected>();
-        }
-
         // Find the nearest Selectable parent of the target entity
-        let mut ent = event.target;
-        let ent_selected = loop {
-            if q_selectable.get(ent).is_ok() {
-                break Some(ent);
-            }
-
-            if let Ok(parent) = q_parents.get(ent) {
-                ent = parent.get();
-            } else {
-                break None;
-            }
-        };
-
-        if let Some(ent) = ent_selected {
+        if let Some(ent) = nearest_selectable_parent(event.target, &q_parents, &q_selectable) {
             cmd.insert_resource(Selection(ent));
-            cmd.entity(ent).insert(Selected);
         } else {
             cmd.remove_resource::<Selection>();
         }
@@ -151,12 +145,29 @@ fn update_selection(
         )
     }) {
         cmd.remove_resource::<Selection>();
+    }
+}
 
-        for ent in q_selected.iter() {
-            cmd.entity(ent).remove::<Selected>();
+fn nearest_selectable_parent(
+    mut target: Entity,
+    q_parents: &Query<&Parent>,
+    q_selectable: &Query<&Selectable>,
+) -> Option<Entity> {
+    loop {
+        if q_selectable.get(target).is_ok() {
+            break Some(target);
+        }
+
+        if let Ok(parent) = q_parents.get(target) {
+            target = parent.get();
+        } else {
+            break None;
         }
     }
 }
+
+#[derive(Component)]
+pub struct MarkedForDeletion;
 
 fn process_delete_inputs(
     mut cmd: Commands,
@@ -172,7 +183,7 @@ fn process_delete_inputs(
     }) {
         let entity = **r_selection;
 
-        cmd.entity(entity).despawn_recursive();
+        cmd.entity(entity).insert(MarkedForDeletion);
         cmd.remove_resource::<Selection>();
         ew_changes.send(NewChange {
             change: Arc::new(RemovedEntity { entity }),
@@ -180,9 +191,16 @@ fn process_delete_inputs(
     }
 }
 
+fn finalize_delete(mut cmd: Commands, q: Query<Entity, With<MarkedForDeletion>>) {
+    for entity in &q {
+        cmd.entity(entity).despawn_recursive();
+    }
+}
+
 fn draw_selection_outline(
     mut cmd: Commands,
-    q_selected: Query<&Children, With<Selected>>,
+    r_selection: Option<Res<Selection>>,
+    q_children: Query<&Children>,
     q_meshes: Query<
         Entity,
         (
@@ -199,19 +217,30 @@ fn draw_selection_outline(
         cmd.entity(ent).remove::<OutlineBundle>();
     }
 
-    for children in q_selected.iter() {
-        for &child in children.iter() {
-            if q_meshes.contains(child) {
-                cmd.entity(child).insert(OutlineBundle {
-                    outline: OutlineVolume {
-                        visible: true,
-                        width: 4.,
-                        colour: Color::YELLOW,
-                    },
-                    ..default()
-                });
-            }
-        }
+    let Some(selection) = r_selection else {
+        return;
+    };
+
+    let target = if q_meshes.contains(**selection) {
+        Some(**selection)
+    } else {
+        q_children.get(**selection).ok().and_then(|children| {
+            children
+                .iter()
+                .copied()
+                .find(|&child| q_meshes.contains(child))
+        })
+    };
+
+    if let Some(target) = target {
+        cmd.entity(target).insert(OutlineBundle {
+            outline: OutlineVolume {
+                visible: true,
+                width: 4.,
+                colour: Color::YELLOW,
+            },
+            ..default()
+        });
     }
 }
 
@@ -223,7 +252,7 @@ mod wasm {
     };
     use wasm_bindgen::prelude::*;
 
-    use super::{Selected, Selection};
+    use super::Selection;
     use crate::wasm::{self, FromStr, StaticBuffer, WasmMessageBuffer};
 
     #[wasm_bindgen(typescript_custom_section)]
@@ -263,7 +292,6 @@ declare global {
     pub(super) fn update_selection_from_frontend(mut cmd: Commands) {
         if let Some(entity) = SELECTION_REQUEST.take_message() {
             cmd.insert_resource(Selection(entity));
-            cmd.entity(entity).insert(Selected);
         }
     }
 }

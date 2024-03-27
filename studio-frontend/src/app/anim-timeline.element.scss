@@ -1,6 +1,9 @@
 :host {
 	position: relative;
 	overflow: hidden;
+	display: grid;
+	grid-template-rows: subgrid;
+	grid-row: 1 / span var(--row-count);
 }
 
 *:focus-visible {
@@ -8,19 +11,34 @@
 }
 
 .wrapper {
-	position: absolute;
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr;
+	grid-template-rows: subgrid;
 	inset: 0;
+	grid-row: 1 / span var(--row-count);
+
+	background: linear-gradient(90deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.2) calc(var(--clip-start) - 1px), rgba(255,255,255,0.1) var(--clip-start), rgba(255,255,255,0.1) var(--clip-end), rgba(0,0,0,0.2) calc(var(--clip-end) + 1px));
 
 	&.panning {
 		cursor: grabbing;
 	}
-}
 
-.clip-region {
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	background: #0004;
+	.zoom-controls {
+		grid-row: var(--row-count);
+		background: rgba(0,0,0,1);
+		height: 10px;
+		width: 100%;
+		z-index: 1;
+	}
+
+	.timeline-nav-dragger {
+		grid-row: 1 / span 1;
+		grid-column: 1 / span 1;
+		background: #000;
+		opacity: 0.1;
+		height: 1.5em;
+	}
 }
 
 .hash {
@@ -37,7 +55,7 @@
 
 .timestamp {
 	position: absolute;
-	top: 8px;
+	grid-row: 1;
 	color: #FFF6;
 	font: {
 		family: "Fira Sans", sans-serif;
@@ -100,8 +118,7 @@
 
 .keyframe {
 	position: absolute;
-	top: 50%;
-	transform: translateX(-4.5px) translateY(-4.5px);
+	transform: translateX(-4.5px);
 
 	&::before {
 		content: "";

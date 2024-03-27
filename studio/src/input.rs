@@ -39,27 +39,88 @@ impl Plugin for StudioInputPlugin {
                 .after(bevy::input::InputSystem)
                 .after(read_mouse_delta),
         );
+
+        app.add_systems(
+            PostUpdate,
+            (apply_deferred, log_input_actions).after(StudioInputSystem),
+        );
     }
 }
 
-#[derive(Event, Clone, Copy)]
+/// Logs all `InputAction`s emitted, along with the input state at the time they
+/// were fired, with `debug` verbosity.
+fn log_input_actions(
+    ri_keyboard: Res<Input<KeyCode>>,
+    ri_mouse_buttons: Res<Input<MouseButton>>,
+    mut er_input_actions: EventReader<InputAction>,
+) {
+    if er_input_actions.is_empty() {
+        return;
+    }
+
+    let lmb = if ri_mouse_buttons.pressed(MouseButton::Left) {
+        'X'
+    } else {
+        '-'
+    };
+    let mmb = if ri_mouse_buttons.pressed(MouseButton::Middle) {
+        'X'
+    } else {
+        '-'
+    };
+    let rmb = if ri_mouse_buttons.pressed(MouseButton::Right) {
+        'X'
+    } else {
+        '-'
+    };
+
+    use KeyCode::*;
+    let mod_keys = [AltLeft, AltRight, ShiftLeft, ControlLeft, ControlRight]
+        .into_iter()
+        .collect::<HashSet<_>>();
+    let action_keys = [W, A, S, D, E, Q, Escape, Grave, Delete, F]
+        .into_iter()
+        .collect::<HashSet<_>>();
+
+    let keys_pressed = ri_keyboard.get_pressed().copied().collect::<HashSet<_>>();
+    let keys_display = keys_pressed
+        .intersection(&mod_keys)
+        .map(|key| format!("{key:?}"))
+        .chain(
+            keys_pressed
+                .intersection(&action_keys)
+                .map(|key| format!("{key:?}")),
+        )
+        .collect::<Vec<_>>()
+        .join("+");
+
+    for action in er_input_actions.read() {
+        debug!(
+            "Mouse: [{lmb}{mmb}{rmb}]  \
+            Keyboard: [{keys_display}]  \
+            Action: [{action:.2?}]"
+        );
+    }
+}
+
+#[derive(Event, Clone, Copy, Debug)]
 pub struct InputAction(pub Lifecycle, pub Action);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Lifecycle {
     Start,
     Ongoing,
     Stop,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Action {
     Camera(CameraMotion),
     Selection(Selection),
     ToggleDebug,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum CameraMotion {
     Translate(Vec3),
     Pan(Vec2),
@@ -73,7 +134,7 @@ impl From<CameraMotion> for Action {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Selection {
     /// Clear the current selection
     Clear,
@@ -212,7 +273,7 @@ fn translate_dcc_camera_events(
             CameraMotion::Rotate(Vec2::ZERO).into(),
         ));
     }
-    // Alt Camera Rotation (designed for laptop)
+    // Alternative Camera Rotation (designed for laptop)
     else if keyboard.pressed(KeyCode::ShiftLeft) {
         let lifecycle = if keyboard.just_pressed(KeyCode::ShiftLeft) {
             Lifecycle::Start

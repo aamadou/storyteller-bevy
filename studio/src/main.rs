@@ -3,7 +3,7 @@ use bevy::{
     window::{close_on_esc, Window},
 };
 use clap::Parser;
-use studio::{screenshot::ScreenShotPlugin, InitAsset, InitParams, StudioMode};
+use studio::{InitAsset, InitParams, StudioMode};
 
 #[derive(Parser)]
 #[command(name = "StorytellerStudio")]
@@ -19,7 +19,7 @@ struct StudioArgs {
 fn main() {
     let args = StudioArgs::parse();
 
-    let object_id = args.model.unwrap_or("Mannequin.gltf".to_string());
+    let object_id = args.model.unwrap_or("sample-room.gltf".to_string());
     let skybox_id = args.skybox.unwrap_or("gum_trees_4k".to_string());
 
     // Edit the arguments here to change the default startup scene or skybox
@@ -37,7 +37,7 @@ fn main() {
 
     // Add any additional systems, resources, etc. for local debugging
     app.add_systems(Update, close_on_esc);
-    app.add_plugins(ScreenShotPlugin);
+    // app.add_plugins(ScreenShotPlugin);
 
     app.run();
 }

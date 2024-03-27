@@ -5,15 +5,17 @@ use bevy::{
     core_pipeline::Skybox,
     prelude::*,
 };
+use bevy_web_asset::WebAssetPlugin;
 use space_editor::prelude::{EditorEvent, EditorPrefabPath};
 use wgpu::Extent3d;
 
 use crate::{
+    anim::timeline_animation::{Keyframe, TimelineInteractionEvent},
     bvh::{BvhAnimCompleteEvent, TestBvh},
     scene::{SceneState, SkyboxHolder},
     screenshot::{ScreenCapture, ScreenShotPlugin},
     BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera,
-    MixamoImportEvent, MixamoPlugin, SkyboxId, StudioMode, WorldGridPlugin,
+    MixamoImportEvent, MixamoPlugin, RemoteAssetPlugin, SkyboxId, StudioMode, WorldGridPlugin,
 };
 
 #[derive(Debug, Resource, Clone)]
@@ -22,6 +24,14 @@ pub enum HeadlessMode {
     Scene(String, String),
     Mixamo(String, String),
     None,
+}
+
+#[derive(Resource)]
+pub enum CameraMotion {
+    Orbit(f32),
+    Pan(f32),
+    Zoom(f32),
+    Static,
 }
 
 pub fn start_headless(
@@ -39,10 +49,14 @@ pub fn start_headless(
         max_frames: frames_to_capture,
         output_dims: image_res,
         output_dir: outout_dir.to_string(),
+        fps: fps as f32,
+        frame_delta: 1.0 / (fps as f32),
     });
 
     app.add_plugins((
         ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / fps as f64)),
+        WebAssetPlugin,
+        RemoteAssetPlugin,
         DefaultPlugins.set(WindowPlugin {
             primary_window: None,
             exit_condition: bevy::window::ExitCondition::DontExit,
@@ -84,7 +98,8 @@ pub fn start_headless(
 
                     ew.send(EditorEvent::Load(EditorPrefabPath::File(scene.clone())));
                 },
-            );
+            )
+            .add_systems(OnEnter(SceneState::Active), start_timeline_animation);
         }
         HeadlessMode::Mixamo(mixamo_path, skybox) => {
             app.add_plugins(MixamoPlugin);
@@ -124,6 +139,8 @@ pub struct HeadlessSettings {
     pub output_dims: Extent3d,
     pub output_dir: String,
     pub max_frames: u32,
+    pub fps: f32,
+    pub frame_delta: f32,
 }
 
 impl Default for HeadlessSettings {
@@ -136,6 +153,8 @@ impl Default for HeadlessSettings {
             },
             output_dir: "./screen_shots/".to_string(),
             max_frames: u32::MAX,
+            fps: 24.0,
+            frame_delta: 1.0 / 24.0,
         }
     }
 }
@@ -175,4 +194,31 @@ fn check_for_mixamo_capture_complete(
             close_app.send(AppExit);
         }
     }
+}
+
+fn start_timeline_animation(
+    mut headless_settings: ResMut<HeadlessSettings>,
+    keyframes: Query<&Keyframe>,
+    camera: Query<Entity, With<MainCamera>>,
+    mut commands: Commands,
+    mut ev: EventWriter<TimelineInteractionEvent>,
+) {
+    if keyframes.is_empty() {
+        return;
+    }
+    commands.remove_resource::<CameraMotion>();
+    let total_time = keyframes
+        .iter()
+        .fold(0f32, |previous, keyframe| previous.max(keyframe.time))
+        .max(3.0);
+
+    let frames = (total_time * headless_settings.fps).ceil() as u32;
+    headless_settings.max_frames = frames;
+    ev.send(TimelineInteractionEvent::Play);
+    let camera = camera.single();
+    commands.entity(camera).insert(
+        ScreenCapture::from_out(&headless_settings.output_dir)
+            //Part of quick hack, see screenshot.rs#261
+            .with_max_frames(headless_settings.max_frames + 3),
+    );
 }
