@@ -31,35 +31,34 @@ serde = "1.0.192"
 serde-wasm-bindgen = { version = "0.6.1", optional = true }
 serde_json = "1.0.108"
 studio-bvh = { path = "../studio-bvh" }
-wasm-bindgen = "0.2.84"
-web-sys = { version = "0.3.40", optional = true, features = [
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", optional = true, features = [
 	"CustomEvent",
 	"CustomEventInit",
 	"Document",
 	"HtmlElement",
 	"Window",
+	"WorkerGlobalScope"
 ] }
 clap = { version = "4.4.18", features = ["derive"] }
 futures-intrusive = "0.5.0"
 wgpu = "0.19.3"
 futures-lite = "2.2.0"
 futures = "0.3.30"
-image = "0.24.8"
+image = "0.25.0"
 bytemuck = "1.14.1"
 space_editor = {git = "https://github.com/rewin123/space_editor", rev = "7b93e21ee1eb8a42418890b6cd525eaa7db43b95"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
+wasm-bindgen-futures = "0.4"
 
 [dependencies.reqwest]
-version = "0.11.24"
+version = "0.12.2"
 features = [
 	"default",
 	"json",
 	"stream",
 ]
-
-[patch.crates-io]
-bevy = { git = "https://github.com/rewin123/bevy.git", branch = "fix-wasm-fetch", version = "0.13.1" }
 
 [features]
 wasm = [

@@ -111,7 +111,7 @@ pub struct SkyboxHolder(pub Option<Skybox>);
 
 fn attach_skybox(
     mut cmd: Commands,
-    mut skybox_holder: ResMut<SkyboxHolder>,
+    skybox_holder: ResMut<SkyboxHolder>,
     mut q_camera: Query<Entity, (With<Camera3d>, Without<Skybox>)>,
 ) {
     let Some(skybox) = skybox_holder.0.as_ref() else {

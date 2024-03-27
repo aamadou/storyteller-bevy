@@ -2,9 +2,7 @@ use core::fmt;
 
 use bevy::{
     asset::LoadState,
-    core_pipeline::Skybox,
     prelude::*,
-    render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
 
 use crate::MainCamera;
@@ -38,7 +36,7 @@ struct SkyboxAssets {
     env_specular: Handle<Image>,
 }
 
-fn load_skybox(mut cmd: Commands, assets: Res<AssetServer>, id: Res<SkyboxId>) {
+fn load_skybox(mut cmd: Commands, _assets: Res<AssetServer>, id: Res<SkyboxId>) {
     let id = &**id;
     if let Ok(color) = Color::hex(id) {
         cmd.insert_resource(ClearColor(color));
@@ -47,7 +45,6 @@ fn load_skybox(mut cmd: Commands, assets: Res<AssetServer>, id: Res<SkyboxId>) {
             brightness: 1.0,
         })
     } else {
-
         let color = Color::hex("AAAAAA").unwrap();
         cmd.insert_resource(ClearColor(color));
         cmd.insert_resource(AmbientLight {
@@ -89,10 +86,10 @@ fn skybox_assets_loaded(
 }
 
 fn spawn_skybox(
-    mut cmd: Commands,
-    mut images: ResMut<Assets<Image>>,
-    skybox_assets: Res<SkyboxAssets>,
-    q_camera: Query<Entity, With<MainCamera>>,
+    _cmd: Commands,
+    _images: ResMut<Assets<Image>>,
+    _skybox_assets: Res<SkyboxAssets>,
+    _q_camera: Query<Entity, With<MainCamera>>,
 ) {
     // // Configure the skybox texture as a cubemap
     // let image = images.get_mut(&skybox_assets.cubemap).unwrap();

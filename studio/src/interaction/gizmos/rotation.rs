@@ -288,7 +288,7 @@ pub(super) fn on_rotate(
                 early_exit_test: &early_exit_test,
                 ..default()
             };
-            let hits = raycast.cast_ray(ray.into(), &settings);
+            let hits = raycast.cast_ray(ray, &settings);
 
             // If the pointer is no longer in the vicinity of the sphere, we'll
             // invoke this closure to extrapolate additional rotation from the

@@ -1,11 +1,11 @@
 use std::fmt;
 
 use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, DefaultInspectorConfigPlugin};
+use bevy_inspector_egui::{DefaultInspectorConfigPlugin};
 use bevy_mod_picking::debug::DebugPickingMode;
 use space_editor::{
     prelude::*,
-    space_editor_ui::{tools::gizmo::GizmoToolPlugin, EditorGizmoConfigPlugin, EditorPluginGroup},
+    space_editor_ui::{tools::gizmo::GizmoToolPlugin, EditorPluginGroup},
 };
 
 use crate::{
@@ -118,7 +118,7 @@ fn update_gizmo_line_thickness(
     mut config_store: ResMut<GizmoConfigStore>,
     q_window: Query<&Window, (Changed<Window>, With<PrimaryWindow>)>,
 ) {
-    if let Ok(scale_factor) = q_window.get_single().map(|win| win.scale_factor() as f32) {
+    if let Ok(scale_factor) = q_window.get_single().map(|win| win.scale_factor()) {
         let (config, _) = config_store.config_mut::<DefaultGizmoConfigGroup>();
         config.line_width = 2. * scale_factor;
     }

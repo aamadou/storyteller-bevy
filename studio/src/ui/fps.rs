@@ -1,5 +1,4 @@
 use bevy::{
-    a11y::accesskit::TextAlign,
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };

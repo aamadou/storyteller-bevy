@@ -76,7 +76,7 @@ pub fn start_headless(
                 Startup,
                 move |mut cmd: Commands,
                       mut ew: EventWriter<EditorEvent>,
-                      mut asset_server: Res<AssetServer>| {
+                      asset_server: Res<AssetServer>| {
                     cmd.insert_resource(SkyboxHolder(Some(Skybox {
                         image: asset_server.load(skybox.clone()),
                         brightness: 1.0,
