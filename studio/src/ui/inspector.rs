@@ -20,11 +20,11 @@ use space_editor::{
 };
 use wasm_bindgen::prelude::*;
 
+use crate::material::short_material::ShortMaterial;
 use crate::{
     interaction::Selection,
     wasm::{self, StaticBuffer, WasmMessageBuffer},
 };
-use crate::material::short_material::ShortMaterial;
 
 pub struct InspectorPlugin;
 
@@ -571,7 +571,6 @@ fn auto_serialize_asset<T: Asset + Reflect + GetTypeRegistration>(
 
     ev_update_description.send(UpdateEntityDescription);
 }
-
 
 fn serialize_standart_materal(
     r_selection: Option<Res<Selection>>,

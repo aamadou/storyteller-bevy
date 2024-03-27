@@ -34,6 +34,7 @@ mod ui;
 pub mod viewport;
 mod world_grid;
 
+use crate::material::MaterialPlugin;
 pub use crate::{
     anim::AnimPlugin,
     bvh::BvhPlugin,
@@ -52,7 +53,6 @@ pub use crate::{
     viewport::ViewportSize,
     world_grid::WorldGridPlugin,
 };
-use crate::material::MaterialPlugin;
 
 #[cfg(feature = "wasm")]
 mod wasm;
