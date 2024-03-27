@@ -11,12 +11,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Map as JsonMap, Value as JsonValue};
 use space_editor::{
     space_editor_ui::{
-        editor_tab::{EditorTab, EditorTabName},
-        EditorUiAppExt,
+        editor_tab::{EditorTab, EditorTabName}, ui_plugin::EditorUiAppExt
     },
-    space_prefab::{
-        component::MeshPrimitivePrefab, editor_registry::EditorRegistryExt, save::SaveState,
-    },
+    space_prefab::{component::MeshPrimitive3dPrefab, editor_registry::EditorRegistryExt, save::SaveState},
 };
 use wasm_bindgen::prelude::*;
 
@@ -66,7 +63,7 @@ impl Plugin for InspectorPlugin {
 
         app.register_inspect::<Transform>();
         app.register_inspect::<Name>();
-        app.register_inspect::<MeshPrimitivePrefab>();
+        app.register_inspect::<MeshPrimitive3dPrefab>();
 
         //register standart material
         {
@@ -627,7 +624,7 @@ fn serialize_standart_materal(
 
     ev_inspect.clear();
 
-    if let Some((target, handle)) = r_selection
+    if let Some((_, handle)) = r_selection
         .as_ref()
         .and_then(|selection| find_handle_in_self_or_children(***selection, &q_children, &q_m))
         .and_then(|target| q_m.get(target).ok().map(|h| (target, h.clone())))

@@ -38,22 +38,24 @@ pub(super) struct GizmoMats {
     pub rotate_ss: Handle<GizmoMaterial>,
 }
 
+#[allow(deprecated)]
 pub(super) fn init_resources(
     mut cmd: Commands,
     mut ra_meshes: ResMut<Assets<Mesh>>,
     mut ra_mats: ResMut<Assets<GizmoMaterial>>,
 ) {
-    let translate_line = ra_meshes.add(Mesh::from(shape::Cylinder {
+
+    let translate_line = ra_meshes.add(Cylinder {
         radius: 0.03,
-        height: 0.8,
-        resolution: 6,
-        segments: 1,
-    }));
+        half_height: 0.4,
+    });
+    
     let translate_arrow = ra_meshes.add(Mesh::from(geo::Cone {
         radius: 0.115,
         length: 0.4,
         resolution: 12,
     }));
+
     let translate_plane = ra_meshes.add(Mesh::from(geo::Plane2Sided { size: 0.25 }));
     let translate_ss = ra_meshes.add(
         Mesh::try_from(shape::Icosphere {

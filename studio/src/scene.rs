@@ -12,7 +12,7 @@ use bevy::{
     prelude::*,
     render::{camera::RenderTarget, primitives::Aabb},
     scene::InstanceId,
-    utils::{EntityHashSet, HashSet},
+    utils::HashSet,
 };
 #[cfg(feature = "wasm")]
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -461,7 +461,7 @@ fn tag_scene_elements(
 fn autoplay_animations(
     mut cmd: Commands,
     mut l_done: Local<HashSet<String>>,
-    mut l_animating: Local<EntityHashSet<Entity>>,
+    mut l_animating: Local<HashSet<Entity>>,
     ra_gltfs: Res<Assets<Gltf>>,
     ra_anims: Res<Assets<AnimationClip>>,
     q_prefabs: Query<(&GltfPrefab, &Handle<Gltf>)>,

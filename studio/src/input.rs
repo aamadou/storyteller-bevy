@@ -50,8 +50,8 @@ impl Plugin for StudioInputPlugin {
 /// Logs all `InputAction`s emitted, along with the input state at the time they
 /// were fired, with `debug` verbosity.
 fn log_input_actions(
-    ri_keyboard: Res<Input<KeyCode>>,
-    ri_mouse_buttons: Res<Input<MouseButton>>,
+    ri_keyboard: Res<ButtonInput<KeyCode>>,
+    ri_mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut er_input_actions: EventReader<InputAction>,
 ) {
     if er_input_actions.is_empty() {
@@ -78,7 +78,7 @@ fn log_input_actions(
     let mod_keys = [AltLeft, AltRight, ShiftLeft, ControlLeft, ControlRight]
         .into_iter()
         .collect::<HashSet<_>>();
-    let action_keys = [W, A, S, D, E, Q, Escape, Grave, Delete, F]
+    let action_keys = [KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD, KeyCode::KeyE, KeyCode::KeyQ, KeyCode::Escape, KeyCode::Quote, KeyCode::Delete, KeyCode::KeyF]
         .into_iter()
         .collect::<HashSet<_>>();
 

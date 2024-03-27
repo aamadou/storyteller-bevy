@@ -188,7 +188,7 @@ fn prepare_screen_capture_buffers(
             let size = texture.size();
             let format = texture.format();
             let bytes_per_row =
-                (size.width / format.block_dimensions().0) * format.block_size(None).unwrap();
+                (size.width / format.block_dimensions().0) * format.block_copy_size(None).unwrap();
             let padded_bytes_per_row =
                 RenderDevice::align_copy_bytes_per_row(bytes_per_row as usize) as u32;
 

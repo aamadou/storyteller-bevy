@@ -48,13 +48,14 @@ futures = "0.3.30"
 image = "0.25.0"
 bytemuck = "1.14.1"
 
-space_editor = {git = "https://github.com/rewin123/space_editor", rev = "7b93e21ee1eb8a42418890b6cd525eaa7db43b95"}
+space_editor = {git = "https://github.com/rewin123/space_editor", rev = "948090e407558017874de491c5297aa1d2e9d21e"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
 wasm-bindgen-futures = "0.4"
 
 async-compat = "0.2"
 uuid = { version = "1", features = ["v4", "serde"]}
+bevy_tweening = "0.10.0"
 
 [dependencies.reqwest]
 version = "0.12.2"

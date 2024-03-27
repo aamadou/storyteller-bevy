@@ -1,5 +1,3 @@
-use core::fmt;
-
 use bevy::{
     asset::LoadState,
     prelude::*,
@@ -118,21 +116,21 @@ fn spawn_skybox(
     // cmd.remove_resource::<SkyboxAssets>();
 }
 
-struct SkyboxPaths {
-    cubemap: String,
-    env_diffuse: String,
-    env_specular: String,
-}
+// struct SkyboxPaths {
+//     cubemap: String,
+//     env_diffuse: String,
+//     env_specular: String,
+// }
 
-impl SkyboxPaths {
-    fn new(name: impl fmt::Display) -> Self {
-        Self {
-            cubemap: format!("skyboxes/{name}.hdr"),
-            env_diffuse: format!("skyboxes/{name}_diffuse.zstd.ktx2"),
-            env_specular: format!("skyboxes/{name}_specular.zstd.ktx2"),
-        }
-    }
-}
+// impl SkyboxPaths {
+//     fn new(name: impl fmt::Display) -> Self {
+//         Self {
+//             cubemap: format!("skyboxes/{name}.hdr"),
+//             env_diffuse: format!("skyboxes/{name}_diffuse.zstd.ktx2"),
+//             env_specular: format!("skyboxes/{name}_specular.zstd.ktx2"),
+//         }
+//     }
+// }
 
 #[cfg(feature = "wasm")]
 mod wasm {

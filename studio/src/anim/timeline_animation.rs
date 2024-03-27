@@ -34,7 +34,7 @@ impl Plugin for TimelinePlugin {
             .register_type::<uuid::Uuid>()
             .add_event::<TimelineInteractionEvent>()
             .add_event::<KeyframeInteractionEvent>()
-            .add_state::<KeyingMode>();
+            .init_state::<KeyingMode>();
 
         app.insert_resource(GlobalSeekTime {
             time: 0.,
@@ -375,7 +375,7 @@ fn process_auto_key(
 
     for entity in &changed {
         info!("Setting Auto Key");
-        event.send(KeyframeInteractionEvent::RecordKeyframe { target: entity })
+        event.send(KeyframeInteractionEvent::RecordKeyframe { target: entity });
     }
 }
 

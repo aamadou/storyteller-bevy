@@ -21,10 +21,10 @@ impl RemoteAssetReader {
         let token = path
             .ext_file_prefix()
             .ok_or_else(|| {
-                AssetReaderError::Io(std::io::Error::new(
+                AssetReaderError::Io(Arc::new(std::io::Error::new(
                     ErrorKind::Other,
                     format!("Failed to parse token from '{path:?}'"),
-                ))
+                )))
             })?
             .to_str()
             .unwrap();
@@ -40,10 +40,10 @@ impl RemoteAssetReader {
                 .json::<GetMediaFileSuccessResponse>()
                 .await
                 .map_err(IntoError::<AssetReaderError>::into),
-            other => Err(AssetReaderError::Io(std::io::Error::new(
+            other => Err(AssetReaderError::Io(Arc::new(std::io::Error::new(
                 ErrorKind::Other,
                 format!("Status Code from endpoint: {other}"),
-            ))),
+            )))),
         }?;
 
         let url = format!(
@@ -69,10 +69,10 @@ impl RemoteAssetReader {
                 .map_err(IntoError::<AssetReaderError>::into)?
                 .into_iter()
                 .collect::<Vec<_>>()),
-            other => Err(AssetReaderError::Io(std::io::Error::new(
+            other => Err(AssetReaderError::Io(Arc::new(std::io::Error::new(
                 ErrorKind::Other,
                 format!("Status Code from bucket URL: {other}"),
-            ))),
+            )))),
         }?;
 
         let reader: Box<Reader> = Box::new(VecReader::new(bytes));
