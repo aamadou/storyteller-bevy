@@ -14,7 +14,7 @@ import styles from "./anim-editor.element.scss?inline";
 import { SCENE_DATA_PROVIDER, type SceneDataProvider } from "@storyteller/studio-web/scene-data-provider";
 import { TREE_SELECTION_PROVIDER, TreeSelectionProvider } from "@storyteller/studio-ui/tree";
 
-const TRACK_ICONS : Record<string, string> = {
+const TRACK_ICONS: Record<string, string> = {
 	camera: "video",
 	transform: "up-down-left-right",
 	light: "light"
@@ -30,10 +30,10 @@ function isOutsideEntity(
 @customElement("sts-anim-editor")
 @provide(TREE_SELECTION_PROVIDER)
 export class AnimEditorElement extends LitElement
-implements TreeSelectionProvider {
-    @inject(SCENE_DATA_PROVIDER)  
-    sceneData?: SceneDataProvider;
-	
+	implements TreeSelectionProvider {
+	@inject(SCENE_DATA_PROVIDER)
+	sceneData?: SceneDataProvider;
+
 	static override styles = unsafeCSS(styles);
 
 	@state() sidebarWidth = 256;
@@ -47,13 +47,15 @@ implements TreeSelectionProvider {
 	@state() playHead = 0;
 	@state() playing = false;
 
-	@state() tracks : Record<string, {name?: string, target_type: studio.SceneElement, animation_target: studio.AnimationTarget }> = {};
-	
-	@state() track_ordered : [string, studio.AnimationTarget][] = [];
+	@state() tracks: Record<string, { name?: string, target_type: studio.SceneElement, animation_target: studio.AnimationTarget }> = {};
 
-	@state() keyframes : Record<string, Keyframe> = {};
+	@state() track_ordered: [string, studio.AnimationTarget][] = [];
+
+	@state() keyframes: Record<string, Keyframe> = {};
 
 	@state() selectedTrack?: { track: string } | { outsideEntity: string };
+
+	@state() keyingMode: "manual" | "automatic" = "manual";
 
 	trackCount(): number {
 		return Object.keys(this.tracks).length;
@@ -78,12 +80,12 @@ implements TreeSelectionProvider {
 		super.update(changes);
 	}
 
-	setPlayTime(time: number) : void {
+	setPlayTime(time: number): void {
 		studio.seekTime(time);
 	}
 
 	@on("window:seek-time-changed")
-	onSeekTimeChanged({ detail: {time, playing} }: SeekTimeChanged ): void {
+	onSeekTimeChanged({ detail: { time, playing } }: SeekTimeChanged): void {
 		console.log("Seek Time Changed", time, playing);
 		this.playHead = time;
 		this.playing = playing;
@@ -97,29 +99,29 @@ implements TreeSelectionProvider {
 	}
 
 	@on("window:update-animation-targets")
-	onUpdateAnimationTargets({detail: { added, removed}}: UpdateAnimationTargets) : void {
+	onUpdateAnimationTargets({ detail: { added, removed } }: UpdateAnimationTargets): void {
 		let addedKeys = Object.keys(added);
 		if (addedKeys.length === 0 && removed.length === 0) {
 			return;
 		}
 		console.log("Animation Targets Changed");
-		let tracks = {...this.tracks};
+		let tracks = { ...this.tracks };
 		for (let track_entity of addedKeys) {
 			let track = added[track_entity];
 			tracks[track_entity] = track;
 		}
-		
+
 		for (let track_entity of removed) {
 			delete tracks[track_entity];
 		}
 
-		this.track_ordered = Object.keys(tracks).map(entity => [entity,tracks[entity].animation_target]);
+		this.track_ordered = Object.keys(tracks).map(entity => [entity, tracks[entity].animation_target]);
 
 		if (typeof this.selectedTrack === "object") {
 			if (!isOutsideEntity(this.selectedTrack) && !(this.selectedTrack.track in tracks)) {
-				this.selectedTrack = { outsideEntity: this.selectedTrack.track};
+				this.selectedTrack = { outsideEntity: this.selectedTrack.track };
 			} else if (isOutsideEntity(this.selectedTrack) && this.selectedTrack.outsideEntity in tracks) {
-				this.selectedTrack = { track: this.selectedTrack.outsideEntity};
+				this.selectedTrack = { track: this.selectedTrack.outsideEntity };
 			}
 		}
 
@@ -127,13 +129,13 @@ implements TreeSelectionProvider {
 	}
 
 	@on("window:update-keyframes")
-	onUpdateKeyframes({detail: {added, removed}}: studio.UpdateKeyframes): void {
+	onUpdateKeyframes({ detail: { added, removed } }: studio.UpdateKeyframes): void {
 		let addedKeyframes = Object.keys(added);
 		if (addedKeyframes.length === 0 && removed.length === 0) {
 			return;
 		}
 		console.log("Keyframes Changed");
-		let keyframes = {...this.keyframes};
+		let keyframes = { ...this.keyframes };
 		for (let keyframe of addedKeyframes) {
 			keyframes[keyframe] = added[keyframe];
 		}
@@ -162,14 +164,20 @@ implements TreeSelectionProvider {
 		this.clipEnd = Math.max(max, min);
 	}
 
-	
+	@on("window:keying-mode-changed")
+	onKeyingModeChanged({ detail: { automatic } }: studio.UpdateKeyingMode): void {
+		console.log("Keying Mode Changed", automatic);
+		this.keyingMode = automatic ? "automatic" : "manual";
+	}
+
+
 	@on("window:entity-select")
 	onEntitySelected({ detail: id }: EntitySelectEvent): void {
 		if (id) {
 			if (this.tracks[id]) {
 				this.selectedTrack = { track: id };
 			} else if (!this.keyframes[id]) {
-				this.selectedTrack = {outsideEntity: id};
+				this.selectedTrack = { outsideEntity: id };
 			} else {
 				this.selectedTrack = undefined;
 			}
@@ -206,7 +214,7 @@ implements TreeSelectionProvider {
 			if (!time || typeof time != "number") {
 				continue;
 			}
-			if (time < pos && time > closest_keyframe ) {
+			if (time < pos && time > closest_keyframe) {
 				closest_keyframe = time;
 			}
 		}
@@ -229,7 +237,7 @@ implements TreeSelectionProvider {
 			if (!time || typeof time != "number") {
 				continue;
 			}
-			if (time > pos && time < closest_keyframe ) {
+			if (time > pos && time < closest_keyframe) {
 				closest_keyframe = time;
 			}
 		}
@@ -262,8 +270,8 @@ implements TreeSelectionProvider {
 
 	protected override render(): TemplateResult {
 
-		const track_order_hashed : Record<string, number> = {};
-		const track_animation_target_order_hashed : Record<studio.AnimationTarget, number> = {};
+		const track_order_hashed: Record<string, number> = {};
+		const track_animation_target_order_hashed: Record<studio.AnimationTarget, number> = {};
 
 		for (const [index, [track, target]] of this.track_ordered.entries()) {
 			track_order_hashed[track] = index;
@@ -277,7 +285,7 @@ implements TreeSelectionProvider {
 		let clip_start = (this.clipStart - this.timelineStart) / length;
 		let clip_end = (this.clipEnd - this.timelineStart) / length;
 
-		
+
 		let timeline_css_variables = {
 			'--track-count': `${this.trackCount()}`,
 			'--row-count': `calc(var(--track-count) + ${canAddSelected ? 3 : 2})`,
@@ -317,19 +325,34 @@ implements TreeSelectionProvider {
 		return html`
 		<div class="sidebar"
 			style=${styleMap({
-				width: `${this.sidebarWidth}px`,
-				...timeline_css_variables
-			})}
+			width: `${this.sidebarWidth}px`,
+			...timeline_css_variables
+		})}
 		>
 			<sts-toolbar>
 				<sts-toolbar-group>
-					<sts-button class="btn-keyframe"
-						icon="key"
-						aria-label="Add Keyframe"
-						title="Add Keyframe"
-						?disabled=${none_selected}
-						@click=${this.addKeyframe}
-					></sts-button>
+					${this.keyingMode === "automatic" ? html`
+						<sts-button class="btn-autokey active"
+							icon="record"
+							aria-label="Auto Keyframe"
+							title="Auto Keyframe"
+							@click=${studio.toggleAutoKey}
+						></sts-button>
+					` : html`
+						<sts-button class="btn-keyframe"
+							icon="key"
+							aria-label="Add Keyframe"
+							title="Add Keyframe"
+							?disabled=${none_selected}
+							@click=${this.addKeyframe}
+						></sts-button>
+						<sts-button class="btn-autokey"
+							icon="record"
+							aria-label="Auto Keyframe"
+							title="Auto Keyframe"
+							@click=${studio.toggleAutoKey}
+						></sts-button>
+					`}
 				</sts-toolbar-group>
 				<sts-toolbar-group class="timeline-nav">
 					<sts-button
@@ -345,7 +368,7 @@ implements TreeSelectionProvider {
 						@click=${this.prevKeyframe}
 					></sts-button>
 					<sts-button class="play"
-						icon=${this.playing ? "pause" : "play" }
+						icon=${this.playing ? "pause" : "play"}
 						aria-label="Play"
 						title="Play"
 						@click=${this.togglePlaying}

@@ -33,7 +33,8 @@ impl Plugin for TimelinePlugin {
             .register_type::<EaseType>()
             .register_type::<uuid::Uuid>()
             .add_event::<TimelineInteractionEvent>()
-            .add_event::<KeyframeInteractionEvent>();
+            .add_event::<KeyframeInteractionEvent>()
+            .add_state::<KeyingMode>();
 
         app.insert_resource(GlobalSeekTime {
             time: 0.,
@@ -48,6 +49,7 @@ impl Plugin for TimelinePlugin {
         app.add_systems(
             Update,
             (
+                process_auto_key.run_if(in_state(KeyingMode::Auto)),
                 process_keyframe_events,
                 timeline_bound_component_animator_system::<Transform>,
             ),
@@ -70,6 +72,7 @@ impl Plugin for TimelinePlugin {
                     wasm::notify_seek_time_changes.map(bevy::utils::error),
                     wasm::notify_keyframe_changes.map(bevy::utils::error),
                     wasm::notify_updated_animation_targets.map(bevy::utils::error),
+                    wasm::notify_keying_mode_changed.map(bevy::utils::error),
                 ),
             );
         }
@@ -84,6 +87,7 @@ pub enum TimelineInteractionEvent {
     Play,
     Pause,
     Seek(f32),
+    ToggleAutoKey,
 }
 
 #[allow(dead_code)]
@@ -100,6 +104,13 @@ pub struct GlobalSeekTime {
     pub time: f32,
     pub playing: bool,
     pub delta: Option<f32>,
+}
+
+#[derive(States, Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+pub enum KeyingMode {
+    #[default]
+    Manual,
+    Auto,
 }
 
 #[derive(Clone, Debug, Copy, Default, Reflect, PartialEq, Serialize, Deserialize)]
@@ -246,6 +257,8 @@ impl FromStr for AnimationTarget {
 fn process_timeline_events(
     mut e_timeline_event: EventReader<TimelineInteractionEvent>,
     mut r_global_seek_time: ResMut<GlobalSeekTime>,
+    key_mode: Res<State<KeyingMode>>,
+    mut next_keying_mode: ResMut<NextState<KeyingMode>>,
 ) {
     for event in e_timeline_event.read() {
         match event {
@@ -255,6 +268,12 @@ fn process_timeline_events(
             }
             TimelineInteractionEvent::Seek(time) => {
                 r_global_seek_time.time = time.max(0.);
+            }
+            TimelineInteractionEvent::ToggleAutoKey => {
+                next_keying_mode.set(match key_mode.get() {
+                    KeyingMode::Manual => KeyingMode::Auto,
+                    KeyingMode::Auto => KeyingMode::Manual,
+                });
             }
         }
 
@@ -341,6 +360,22 @@ fn process_keyframe_events(
                 }
             }
         }
+    }
+}
+
+fn process_auto_key(
+    changed: Query<Entity, (With<AnimationTarget>, Changed<Transform>)>,
+    r_global_seek_time: Res<GlobalSeekTime>,
+    mut event: EventWriter<KeyframeInteractionEvent>,
+) {
+    if r_global_seek_time.playing || r_global_seek_time.is_changed() {
+        info!("Skipping Auto Key");
+        return;
+    }
+
+    for entity in &changed {
+        info!("Setting Auto Key");
+        event.send(KeyframeInteractionEvent::RecordKeyframe { target: entity })
     }
 }
 
@@ -578,7 +613,7 @@ mod wasm {
     };
 
     use super::{
-        AnimationTarget, EaseType, GlobalSeekTime, Keyframe, KeyframeInteractionEvent,
+        AnimationTarget, EaseType, GlobalSeekTime, Keyframe, KeyframeInteractionEvent, KeyingMode,
         TimedAnimationClipAsset, TimelineInteractionEvent, TransformKeyframe,
     };
 
@@ -599,6 +634,11 @@ mod wasm {
     #[wasm_bindgen(js_name = pause)]
     pub fn pause() {
         SEEK_TIME.write_message(TimelineInteractionEvent::Pause);
+    }
+
+    #[wasm_bindgen(js_name = toggleAutoKey)]
+    pub fn toggle_auto_key() {
+        SEEK_TIME.write_message(TimelineInteractionEvent::ToggleAutoKey);
     }
 
     #[wasm_bindgen(js_name = recordKeyframe)]
@@ -699,6 +739,13 @@ mod wasm {
             removed: string[]
         }
     }
+
+    export interface UpdateKeyingMode extends CustomEvent {
+        type: "keying-mode-changed",
+        detail: {
+            automatic: boolean
+        }
+    }
     
     declare global {
         export interface GlobalEventHandlersEventMap {
@@ -720,6 +767,11 @@ mod wasm {
     struct UpdatedAnimationTargetsEvent {
         added: HashMap<String, AddedAnimationTargetRecordItem>,
         removed: Vec<String>,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    struct UpdateKeyingMode {
+        automatic: bool,
     }
 
     #[derive(Serialize, Deserialize)]
@@ -912,6 +964,30 @@ mod wasm {
             window,
             "seek-time-changed",
             &serde_json::to_value(r_global_seek_time.as_ref()).map_err(|e| format!("{e}"))?,
+        )
+    }
+
+    pub(super) fn notify_keying_mode_changed(
+        r_keying_mode: Res<State<KeyingMode>>,
+        q_window: Query<&Window, With<PrimaryWindow>>,
+    ) -> Result<(), String> {
+        if !r_keying_mode.is_changed() {
+            return Ok(());
+        }
+        let Ok(window) = q_window.get_single() else {
+            return Ok(());
+        };
+
+        crate::wasm::dispatch_to_js(
+            window,
+            "keying-mode-changed",
+            &serde_json::to_value(UpdateKeyingMode {
+                automatic: match r_keying_mode.get() {
+                    KeyingMode::Manual => false,
+                    KeyingMode::Auto => true,
+                },
+            })
+            .map_err(|e| format!("{e}"))?,
         )
     }
 }

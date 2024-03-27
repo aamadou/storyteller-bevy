@@ -64,9 +64,12 @@ export class AnimTimelineElement extends LitElement {
 	@property({ type: Number }) clipStart = 0;
 	/** The time (in seconds) at the end of the clip */
 	@property({ type: Number }) clipEnd = 5;
+	/** The number of frames per second for this animation clip */
+	@property({ type: Number }) clipFps = 24;
 
 	/** The time (in seconds) of the current play-head position */
 	@property({ type: Number }) playHead = 0;
+
 	/** Keyframe positions (in seconds) */
 	@property({ attribute: false }) keyframes: Record<string, studio.Keyframe> = {};
 	@property({ attribute: false }) track_ordered: Record<string, number> = {};
@@ -82,6 +85,7 @@ export class AnimTimelineElement extends LitElement {
 	 * setting the cursor style to the grabby hand.
 	 */
 	@state() _panning = false;
+	@state() _scrubbing = false;
 
 	/** How many seconds are represented by each px of horizontal space. */
 	secondsPerPx = new Computed(() => (this.rangeEnd - this.rangeStart) / this._renderWidth);
@@ -90,13 +94,13 @@ export class AnimTimelineElement extends LitElement {
 
 	constructor () {
 		super();
-		this.#resizeObserver = new ResizeObserver(() => this.#updateRenderWidth());
+		this.#resizeObserver = new ResizeObserver(() => this.updateRenderWidth());
 		this.#resizeObserver.observe(this);
 	}
 
 	override connectedCallback(): void {
 		super.connectedCallback();
-		this.#updateRenderWidth();
+		this.updateRenderWidth();
 	}
 
 	override disconnectedCallback(): void {
@@ -122,12 +126,10 @@ export class AnimTimelineElement extends LitElement {
 		event.preventDefault();
 		event.stopImmediatePropagation();
 
-		if (event.ctrlKey) {
-			this.#zoomTimeline(event.clientX, event.deltaY);
+		if (event.ctrlKey || Math.abs(event.deltaY ) > 0) {
+			this.zoomTimeline(event.clientX, event.deltaY);
 		} else if (event.deltaX) {
-			this.#pan(-event.deltaX);
-		} else if (event.shiftKey && event.deltaY) {
-			this.#pan(-event.deltaY);
+			this.pan(-event.deltaX);
 		}
 	}
 
@@ -151,7 +153,7 @@ export class AnimTimelineElement extends LitElement {
 		studio.select(id);
 	}
 
-	#zoomTimeline(origin: number, delta: number): void {
+	zoomTimeline(origin: number, delta: number): void {
 		const currentRange = this.rangeEnd - this.rangeStart;
 		const elementRect = this.getBoundingClientRect();
 		const focusPoint = (origin - elementRect.x) / elementRect.width;
@@ -165,19 +167,37 @@ export class AnimTimelineElement extends LitElement {
 		this.dispatchEvent(new CustomEvent("rangeEnd-change", { detail: rangeEnd }));
 	}
 
-	onDragStart(): void {
+	onMidDragStart(): void {
 		this._panning = true;
 	}
 
-	onDragEnd(): void {
+	onMidDragEnd(): void {
 		this._panning = false;
 	}
 
-	onDrag(event: PointerEvent): void {
-		this.#pan(event.movementX);
+	onMidDrag(event: PointerEvent): void {
+		this.pan(event.movementX);
 	}
 
-	#pan(deltaPx: number): void {
+	onDragStart(): void {
+		this._scrubbing = true;
+	}
+
+	onDragEnd(): void {
+		this._scrubbing = false;
+	}
+
+	onDrag(event: PointerEvent): void {
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const updated = Math.round(seconds * this.clipFps) / this.clipFps;
+
+		studio.seekTime(updated);
+	}
+
+	pan(deltaPx: number): void {
 		const deltaChange = deltaPx * 0.001;
 		const scaledChange = (this.rangeEnd - this.rangeStart) * deltaChange;
 
@@ -198,7 +218,17 @@ export class AnimTimelineElement extends LitElement {
 		let relativeX = event.clientX - elementBounds.left;
 		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
 		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
-		const updated = seconds;
+		const updated = Math.round(seconds * this.clipFps) / this.clipFps;
+
+		studio.seekTime(updated);
+	}
+
+	onSetPlayhead(event: PointerEvent): void {
+		let elementBounds = this.getBoundingClientRect();
+		let relativeX = event.clientX - elementBounds.left;
+		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
+		const seconds = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const updated = Math.round(seconds * this.clipFps) / this.clipFps;
 
 		studio.seekTime(updated);
 	}
@@ -208,102 +238,132 @@ export class AnimTimelineElement extends LitElement {
 		let relativeX = event.clientX - elementBounds.left;
 		let ratioX = Math.max(0, Math.min(relativeX / elementBounds.width, 1));
 		const time = (this.rangeEnd - this.rangeStart) *  ratioX + this.rangeStart;
+		const final_time = Math.round(time * this.clipFps) / this.clipFps;
 
-		studio.moveKeyframeTime(id, time);
+		studio.moveKeyframeTime(id, final_time);
 	}
 
-	#updateRenderWidth(): void {
+	updateRenderWidth(): void {
 		this._renderWidth = this.getBoundingClientRect().width;
 	}
 
 	/**
 	 * Format a time value (in seconds) for displaying in the timeline view
 	 */
-	timestamp(seconds: number) {
+	timestamp(seconds: number, major: boolean) {
 		const sign = seconds < 0 ? "-" : "";
 		seconds = Math.abs(seconds);
 
 		let minutes = Math.floor(seconds / 60);
 		let secondsInMinute = seconds % 60;
 		let flooredSeconds = Math.floor(secondsInMinute);
-		let fraction = Math.floor(100 * (secondsInMinute - flooredSeconds));
+		let fraction = Math.round(this.clipFps * (secondsInMinute - flooredSeconds));
 
 		return html`${
 			sign
-		}${
+		}${major || fraction == 0 ? html`${
 			minutes.toString(10).padStart(2, "0")
 		}:${
 			flooredSeconds.toString(10).padStart(2, "0")
-		}.${
-			fraction.toString(10).padStart(2, "0")
-		}`;
+		}` : ``} ${fraction != 0 ? html`f${
+			fraction.toString(10)
+		}` : `` }`;
 	}
 
 	protected override render() {
 		const range = this.rangeEnd - this.rangeStart;
 
-		let subdivisionScale = 0.5;
-		let majorSubdivisionScale = 1;
+		let fps = this.clipFps;
+		
+		let frameRange = Math.ceil(range * this.clipFps);
+
+		let spf = 1 / fps;
+
+		let majorSubdivisionSize = this.clipFps;
+		let minorSubdivisionSize = this.clipFps / 2;
+		let unlablelledSubdivisionSize = this.clipFps / 4;
 
 		if (range < 0.5) {
-			subdivisionScale = 0.05;
-			majorSubdivisionScale = 0.1;
+			majorSubdivisionSize = this.clipFps / 2;
+			minorSubdivisionSize = this.clipFps / 12;
+			unlablelledSubdivisionSize = 1;
 		} else if (range < 2) {
-			subdivisionScale = 1 / 4;
-			majorSubdivisionScale = 0.5;
-		} else if (range > 120) {
-			subdivisionScale = 30;
-			majorSubdivisionScale = 60;
-		} else if (range > 60) {
-			subdivisionScale = 10;
-			majorSubdivisionScale = 30;
-		} else if (range > 10) {
-			subdivisionScale  = 5;
-			majorSubdivisionScale = 10;
-		} else if (range > 5) {
-			subdivisionScale = 1;
-			majorSubdivisionScale = 5;
+			majorSubdivisionSize = this.clipFps / 2;
+			minorSubdivisionSize = this.clipFps / 4;
+			unlablelledSubdivisionSize = 2;
+		} else if (range < 5) {
+			majorSubdivisionSize = this.clipFps;
+			minorSubdivisionSize = this.clipFps / 2;
+			unlablelledSubdivisionSize = this.clipFps / 4;
+		} else if (range < 10) {
+			majorSubdivisionSize = this.clipFps * 2;
+			minorSubdivisionSize = this.clipFps;
+			unlablelledSubdivisionSize = this.clipFps / 2;
+		} else if (range < 60) {
+			majorSubdivisionSize = this.clipFps * 10;
+			minorSubdivisionSize = this.clipFps * 5;
+			unlablelledSubdivisionSize = this.clipFps;
+		} else if (range < 120) {
+			majorSubdivisionSize = this.clipFps * 20;
+			minorSubdivisionSize = this.clipFps * 10;
+			unlablelledSubdivisionSize = this.clipFps * 2;
+		} else {
+			majorSubdivisionSize = Math.ceil(frameRange / 10);
+			minorSubdivisionSize = Math.ceil(frameRange / 20);
+			unlablelledSubdivisionSize = Math.ceil(frameRange / 40);
 		}
-
-		const scaledStart = this.rangeStart / subdivisionScale;
-		const scaledEnd = this.rangeEnd / subdivisionScale;
-
-		console.log("Scaled Start", scaledStart, "Scaled End", scaledEnd, "Range Start", this.rangeStart, "Range End", this.rangeEnd, "Range", range, "Playhead", this.playHead);
 		
-		let subdivisions : Array<{seconds: number, fraction: number, isMajor: boolean}> = [];
-		let currentOffset = scaledStart;
-		let currentOffsetSeconds = this.rangeStart;
+		let subdivisions : Array<{seconds: number, fraction: number, isMajor: boolean, isLabelled: boolean}> = [];
 
-		while (currentOffset < scaledEnd) {
-			const currentSeconds = currentOffsetSeconds;
-			const isMajor = currentOffsetSeconds % majorSubdivisionScale === 0;
-			subdivisions.push({ seconds: currentSeconds, fraction: (currentSeconds - this.rangeStart) / range, isMajor });
-			let nextSubdiv = Math.ceil(currentOffset);
-			if (Math.abs(nextSubdiv - currentOffset) < 0.1) {
-				nextSubdiv += 1;
+		let initialFrame = Math.ceil(this.rangeStart * this.clipFps);
+
+		for (let i = 0; i < frameRange; i++) {
+			let frame = i + initialFrame;
+			let seconds = frame * spf;
+			let fraction = (seconds - this.rangeStart) / range;
+			if (frame % majorSubdivisionSize === 0) {
+				subdivisions.push({
+					seconds,
+					fraction,
+					isMajor: true,
+					isLabelled: true
+				});
+			} else if (frame % minorSubdivisionSize === 0) {
+				subdivisions.push({
+					seconds,
+					fraction,
+					isMajor: false,
+					isLabelled: true
+				});
+			} else if (frame % unlablelledSubdivisionSize === 0) {
+				subdivisions.push({seconds, fraction, isMajor: false, isLabelled: false });
 			}
-			currentOffset = nextSubdiv;
-			currentOffsetSeconds = currentOffset * subdivisionScale;
 		}
-
-		console.log("Subdivisions", subdivisions.length, subdivisions);
-
+		
 		return html`
 			<div
 				class=${classMap({
 					wrapper: true,
-					panning: this._panning,
+					panning: this._panning || this._scrubbing,
 				})}
 				${drag({
 					button: 1,
+					start: this.onMidDragStart,
+					move: this.onMidDrag,
+					end: this.onMidDragEnd,
+				})}
+				tabindex="-1"
+			>
+				<div class="timeline-nav-dragger"
+				${drag({
+					button: 0,
 					start: this.onDragStart,
 					move: this.onDrag,
 					end: this.onDragEnd,
 				})}
-				tabindex="-1"
-			>
+				@click=${this.onSetPlayhead}></div>
 
-				${subdivisions.map(({ seconds, fraction, isMajor}, idx) => {
+				${subdivisions.map(({ seconds, fraction, isMajor, isLabelled}, idx) => {
 					const secondsPercentage = fraction * 100;					
 
 					return html`
@@ -316,13 +376,13 @@ export class AnimTimelineElement extends LitElement {
 								left: `${secondsPercentage}%`
 							})}
 						></div>
-						${true ? html`
+						${isMajor || isLabelled ? html`
 							<span class="timestamp"
 								style=${styleMap({
 									left: `calc(${secondsPercentage}% + 8px)`
 								})}
 							>
-								${this.timestamp(seconds)}
+								${this.timestamp(seconds, isMajor)}
 							</span>
 						` : nothing}
 					`;

@@ -31,6 +31,14 @@
 		width: 100%;
 		z-index: 1;
 	}
+
+	.timeline-nav-dragger {
+		grid-row: 1 / span 1;
+		grid-column: 1 / span 1;
+		background: #000;
+		opacity: 0.1;
+		height: 1.5em;
+	}
 }
 
 .hash {
