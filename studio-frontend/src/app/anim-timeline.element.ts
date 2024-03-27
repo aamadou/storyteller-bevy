@@ -64,7 +64,7 @@ export class AnimTimelineElement extends LitElement {
 	@property({ type: Number }) clipStart = 0;
 	/** The time (in seconds) at the end of the clip */
 	@property({ type: Number }) clipEnd = 5;
-	/** The time (in seconds) at the end of the clip */
+	/** The number of frames per second for this animation clip */
 	@property({ type: Number }) clipFps = 24;
 
 	/** The time (in seconds) of the current play-head position */
@@ -130,8 +130,6 @@ export class AnimTimelineElement extends LitElement {
 			this.zoomTimeline(event.clientX, event.deltaY);
 		} else if (event.deltaX) {
 			this.pan(-event.deltaX);
-		} else if (event.shiftKey && event.deltaY) {
-			this.pan(-event.deltaY);
 		}
 	}
 
@@ -354,15 +352,16 @@ export class AnimTimelineElement extends LitElement {
 					move: this.onMidDrag,
 					end: this.onMidDragEnd,
 				})}
+				tabindex="-1"
+			>
+				<div class="timeline-nav-dragger"
 				${drag({
 					button: 0,
 					start: this.onDragStart,
 					move: this.onDrag,
 					end: this.onDragEnd,
 				})}
-				tabindex="-1"
-				@click=${this.onSetPlayhead}
-			>
+				@click=${this.onSetPlayhead}></div>
 
 				${subdivisions.map(({ seconds, fraction, isMajor, isLabelled}, idx) => {
 					const secondsPercentage = fraction * 100;					
