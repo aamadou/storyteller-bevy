@@ -1,6 +1,9 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
-use bevy::{app::PluginGroupBuilder, prelude::*};
+use bevy::{
+    app::PluginGroupBuilder,
+    prelude::*,
+};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_web_asset::WebAssetPlugin;
 use scene::ImportSceneEvent;

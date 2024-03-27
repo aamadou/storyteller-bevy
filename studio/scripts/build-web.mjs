@@ -20,7 +20,7 @@ async function main() {
 		}
 
 		/** @type import("node:child_process").StdioOptions */
-		const stdio = ["ignore", "inherit", "inherit"];
+		const stdio = ["inherit", "inherit", "inherit"];
 
 		const outDir = path.join(workspaceRoot, "dist/studio");
 

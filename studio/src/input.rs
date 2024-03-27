@@ -237,7 +237,7 @@ fn translate_fps_camera_events(
     mut input: EventWriter<InputAction>,
 ) {
     // Camera Translation (FPS-like)
-    use KeyCode::*;
+    
     let wasd_keys = [
         KeyCode::KeyW,
         KeyCode::KeyA,
