@@ -216,10 +216,6 @@ fn check_loading(
             if let Some((load_state, dep_load_state, rec_load_state)) =
                 asset_server.get_load_states(h.id())
             {
-                let is_loaded = load_state == LoadState::Loaded;
-
-                let is_failed = load_state == LoadState::Failed;
-
                 if load_state == LoadState::NotLoaded {
                     not_loaded_count += 1;
                 }
@@ -230,9 +226,6 @@ fn check_loading(
                 false
             }
         });
-
-        info!("Not loaded: {}", not_loaded_count);
-        info!("Loading {} assets", loading_queue.queue.len());
 
         if loading_queue.queue.len() - not_loaded_count == 0 {
             //not change state
