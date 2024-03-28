@@ -8,7 +8,7 @@ use bevy::{
         component::Component,
         entity::Entity,
         event::{Event, EventReader, EventWriter},
-        query::{QueryData, QueryFilter, With, Without, WorldQuery},
+        query::{QueryData, QueryFilter, With, Without},
         schedule::{apply_deferred, IntoSystemConfigs},
         system::{Command, Commands, Query, Res, Resource},
         world::World,
