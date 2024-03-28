@@ -95,11 +95,15 @@ impl Plugin for ScenePlugin {
         app.add_systems(
             PostUpdate,
             (
-                check_loading,
                 auto_add_handle::<Scene>,
                 auto_add_handle::<Mesh>,
                 auto_add_handle::<StandardMaterial>,
             ),
+        );
+
+        app.add_systems(
+            PreUpdate,
+            check_loading
         );
 
         //setup default light
@@ -178,48 +182,56 @@ pub struct LoadingQueue {
 }
 
 fn check_loading(
+    mut frames_without_loading : Local<usize>,
     mut loading_queue: ResMut<LoadingQueue>,
     mut st_next: ResMut<NextState<SceneState>>,
     r_scene_state: Res<State<SceneState>>,
     asset_server: Res<AssetServer>,
 ) {
+
+    info!("Checking loading: {}", *frames_without_loading);
     // Avoid transitioning from `SceneState::None` directly to `SceneState::Active`.
     // We will always be initializing the scene with _something_, so if the
     // `LoadingQueue` is empty when we're in `SceneState::None`, it just means
     // our startup routine hasn't yet gotten to the point of processing any
     // `Handle<T>`s.
-    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading {
+    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading && *frames_without_loading > 100 {
         st_next.set(SceneState::Active);
         return;
     }
 
+    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading {
+        *frames_without_loading += 1;
+    }
+
     if !loading_queue.queue.is_empty() {
+        *frames_without_loading = 0;
         //filter queue to only include notloaded assets
 
         let mut not_loaded_count = 0;
+
+        info!("Loading {} assets", loading_queue.queue.len());
 
         loading_queue.queue.retain(|h| {
             if let Some((load_state, dep_load_state, rec_load_state)) =
                 asset_server.get_load_states(h.id())
             {
-                let is_loaded = dep_load_state == DependencyLoadState::Loaded
-                    || rec_load_state == RecursiveDependencyLoadState::Loaded
-                    || load_state == LoadState::Loaded;
+                let is_loaded = load_state == LoadState::Loaded;
 
-                let is_failed = dep_load_state == DependencyLoadState::Failed
-                    || rec_load_state == RecursiveDependencyLoadState::Failed
-                    || load_state == LoadState::Failed;
+                let is_failed = load_state == LoadState::Failed;
 
                 if load_state == LoadState::NotLoaded {
                     not_loaded_count += 1;
                 }
 
-                !(is_failed || is_loaded)
+                load_state == LoadState::Loading || dep_load_state == DependencyLoadState::Loading
             } else {
+                info!("Can't find handle: {}", h.id());
                 false
             }
         });
 
+        info!("Not loaded: {}", not_loaded_count);
         info!("Loading {} assets", loading_queue.queue.len());
 
         if loading_queue.queue.len() - not_loaded_count == 0 {
@@ -232,9 +244,10 @@ fn check_loading(
 
 fn auto_add_handle<T: Asset>(
     mut queue: ResMut<LoadingQueue>,
-    query: Query<&Handle<T>, Added<Handle<T>>>,
+    query: Query<&Handle<T>, Changed<Handle<T>>>,
 ) {
     for h in query.iter() {
+        info!("Added: {}", h.id());
         queue.queue.push(h.clone().untyped());
     }
 }
