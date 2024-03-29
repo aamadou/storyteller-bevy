@@ -151,6 +151,7 @@ pub fn start(init: InitParams, mode: StudioMode, window_config: Option<Window>) 
     let mut app = App::new();
 
     app.insert_resource(mode);
+    app.insert_resource(bevy::winit::WinitSettings::game());
 
     app.add_plugins((
         #[cfg(feature = "wasm")]

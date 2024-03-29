@@ -1,5 +1,5 @@
 use bevy::{
-    asset::{DependencyLoadState, LoadState, RecursiveDependencyLoadState},
+    asset::{DependencyLoadState, LoadState},
     core_pipeline::{
         bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
         fxaa::Fxaa,
@@ -216,7 +216,7 @@ fn check_loading(
         info!("Loading {} assets", loading_queue.queue.len());
 
         loading_queue.queue.retain(|h| {
-            if let Some((load_state, dep_load_state, rec_load_state)) =
+            if let Some((load_state, dep_load_state, _)) =
                 asset_server.get_load_states(h.id())
             {
                 if load_state == LoadState::NotLoaded {
