@@ -4,7 +4,8 @@
   "dependencies": {
     "@storyteller/framework": "0.0.1",
     "@storyteller/studio": "0.0.1",
-    "lit": "^2.8.0"
+    "lit": "^2.8.0",
+    "idb": "8.0.0"
   },
   "main": "./index.js",
   "module": "./index.mjs",

@@ -39,7 +39,6 @@ import "./anim-editor.element";
 import "./help.element";
 
 import "./app.element.scss";
-import { mock_save_load } from "./util";
 
 @customElement("app-root")
 @provide({
@@ -74,43 +73,15 @@ export class AppElement extends LitElement {
 	async onSceneSaved({ detail: scene }: SceneSavedEvent): Promise<void> {
 		try {
 			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
-			if (mock_save_load()) {
-				/*
-				// NB(brandon, 2024-03-22): Hey Lee-Orr, I'm commenting this out since the file
-				picker isn't defined and the Netlify builds are breaking. Feel free to uncomment
-				this for your testing. We probably just need a local definition file so the
-				builds are happy.
+			
+			const token = await this.api.createScene(file);
 
-				let handle = await window.showSaveFilePicker({
-					suggestedName: "scene",
-					types: [{
-						description: "Scene Files",
-						accept: {
-							"text/ron": [".scn.ron"]
-						}
-					}]
-				});
-				let writable = await handle.createWritable();
-				await writable.write(file);
-				await writable.close();
-				let token = handle.name;
-
-				this.dispatchEvent(new CustomEvent("scene-uploaded", {
-					detail: token,
-					bubbles: true,
-					composed: true,
-				}));
-				*/
-
-			} else {
-				const token = await this.api.createScene(file);
-
-				this.dispatchEvent(new CustomEvent("scene-uploaded", {
-					detail: token,
-					bubbles: true,
-					composed: true,
-				}));
-			}
+			this.dispatchEvent(new CustomEvent("scene-uploaded", {
+				detail: token,
+				bubbles: true,
+				composed: true,
+			}));
+			
 		}
 		catch (err) {
 			console.error(err);

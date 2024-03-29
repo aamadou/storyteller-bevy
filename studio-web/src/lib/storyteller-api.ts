@@ -1,7 +1,24 @@
 import axios, { AxiosResponse } from "axios";
 import { v4 as uuid } from "uuid";
+import { DBSchema, IDBPDatabase, openDB } from "idb";
+import * as studio from "@storyteller/studio";
 
-export class StorytellerApi {
+const mockApi = window.location.search.includes("mock-api");
+
+interface StorytellerApiInterface {
+	createScene(file: File): Promise<MediaFileToken>
+	session(): Promise<Session>
+	listMediaFiles(options: ListMediaFilesOptions): Promise<ListMediaFilesResult>
+	uploadMediaFile(
+		file: File,
+		{ subtype, mediaClass }: UploadMediaFileOptions,
+	): Promise<MediaFileToken>
+	renameMediaFile(token: MediaFileToken, name: string): Promise<void>
+	convertFbxToGltf(token: MediaFileToken): Promise<void>
+	mediaFile(token: MediaFileToken): Promise<MediaFile>
+}
+
+class StorytellerApiBase implements StorytellerApiInterface {
 	#api = axios.create({
 		baseURL: "https://api.fakeyou.com",
 		withCredentials: true,
@@ -14,8 +31,8 @@ export class StorytellerApi {
 				uuid_idempotency_token: uuid(),
 				file,
 			}, {
-				headers: { Accept: "text/plain" },
-			},
+			headers: { Accept: "text/plain" },
+		},
 		);
 		this.#validateResponse(response);
 
@@ -105,10 +122,348 @@ export class StorytellerApi {
 	}
 }
 
+interface LocalDbSchema extends DBSchema {
+	'media-files': {
+		key: MediaFileToken,
+		value: MediaFile,
+		indexes: {
+			'media-type': MediaFileType,
+			'media-class': MediaFileClass
+		}
+	},
+	'file-blobs': {
+		key: string,
+		value: Uint8Array
+	}
+}
+
+class StorytellerApiMock implements StorytellerApiInterface {
+	database?: IDBPDatabase<LocalDbSchema>;
+	dateFormat: Intl.DateTimeFormat = new Intl.DateTimeFormat("en-us")
+
+	constructor() {
+		document.addEventListener("request-file", async (e: studio.RequestFileEvent) => {
+			const token = e.detail;
+			console.log("Loading Asset: ", token);
+			try {
+				let file = await this.mediaFile(token);
+				console.log("Got Asset File: ", token, file);
+				let path = file.public_bucket_path;
+				let blob = await this.mediaBlob(path);
+				console.log("Got Asset Blob", token);
+				studio.requestedFileReceived(token, blob);
+				console.log("Set File to Bevy", token)
+			} catch (e) {
+				console.error("Error Loading File", token, e);
+				studio.requestedFileFailed(token, e);
+			}
+		})
+	}
+
+
+	async getDatabase(): Promise<IDBPDatabase<LocalDbSchema>> {
+		if (this.database) {
+			return this.database;
+		}
+		this.database = await openDB<LocalDbSchema>('storyteller-local', 1, {
+			upgrade(db) {
+				const media_files = db.createObjectStore('media-files');
+				media_files.createIndex('media-class', 'media_class');
+				media_files.createIndex('media-type', 'media_type');
+
+				db.createObjectStore('file-blobs');
+			}
+		});
+		return this.database
+	}
+
+	async createScene(file: File): Promise<string> {
+		let token = uuid();
+		let original_file_name = file.name;
+		let filename = token + "-" + file.name;
+
+		let media_file: MediaFile = {
+			token: token,
+			media_type: MediaFileType.ScnRon,
+			maybe_media_subtype: MediaFileSubtype.StorytellerScene,
+			media_class: MediaFileClass.Scene,
+			public_bucket_path: filename,
+			creator_set_visibility: Visibility.Public,
+			is_emulated_media_file: false,
+			maybe_title: filename,
+			maybe_original_filename: original_file_name,
+			stats: {
+				positive_rating_count: 0,
+				bookmark_count: 0
+			},
+			created_at: (new Date()).toLocaleString("en-us"),
+			updated_at: (new Date()).toLocaleString("en-us"),
+		};
+
+
+		let buffer = new Uint8Array(await file.arrayBuffer(), 0);
+
+		let db = await this.getDatabase();
+		let transaction = db.transaction(['media-files', 'file-blobs'], 'readwrite');
+
+		await Promise.all([
+			transaction.objectStore('media-files').add(media_file, token),
+			transaction.objectStore('file-blobs').add(buffer, filename),
+			transaction.done,
+		]);
+
+		return token;
+	}
+
+	async session(): Promise<Session> {
+		return {
+			success: true,
+			logged_in: true,
+			user: {
+				username: "local_user",
+
+				can_access_studio: true,
+				can_approve_w21_templates: true,
+				can_ban_users: true,
+				can_delete_other_users_tts_models: true,
+				can_delete_other_users_tts_results: true,
+				can_delete_other_users_w2l_results: true,
+				can_delete_other_users_w2l_templates: true,
+				can_delete_own_account: true,
+				can_delete_own_tts_models: true,
+				can_delete_own_tts_results: true,
+				can_delete_own_w2l_results: true,
+				can_delete_own_w2l_templates: true,
+				can_delete_users: true,
+				can_edit_other_users_profiles: true,
+				can_edit_other_users_tts_models: true,
+				can_edit_other_users_w2l_templates: true,
+				can_upload_tts_models: true,
+				can_upload_w2l_templates: true,
+				can_use_tts: true,
+				can_use_w2l: true,
+				core_info: {
+					default_avatar: {
+						color_index: 0,
+						image_index: 0
+					},
+					display_name: "Local User",
+					gravatar_hash: "",
+					user_token: "",
+					username: "local_user"
+				},
+				display_name: "Local User",
+				email_gravatar_hash: "",
+				fakeyou_plan: FakeYouPlan.Pro,
+				maybe_feature_flags: {},
+				storyteller_stream_plan: StorytellerStreamPlan.Pro,
+				user_token: "user_token"
+			}
+		}
+	}
+
+	async listMediaFiles({ filterMediaClasses, filterMediaType }: ListMediaFilesOptions): Promise<ListMediaFilesResult> {
+		let db = await this.getDatabase();
+
+		if (!filterMediaClasses && !filterMediaType) {
+			let mediaFiles = await db.getAll('media-files');
+			let media: ListMediaFilesResult = {
+				pagination: {
+					current: 0,
+					total_page_count: 1
+				},
+				results: mediaFiles.map((mediaFile) => {
+					let listItem: MediaFileListItem = {
+						created_at: mediaFile.created_at,
+						creator_set_visibility: Visibility.Public,
+						media_type: mediaFile.media_type,
+						origin: {
+							origin_category: MediaFileOriginCategory.Upload,
+							product_category: MediaFileOriginProductCategory.Unknown,
+						},
+						origin_category: MediaFileOriginCategory.Upload,
+						origin_product_category: MediaFileOriginProductCategory.Unknown,
+						public_bucket_path: mediaFile.public_bucket_path,
+						token: mediaFile.token,
+						updated_at: mediaFile.created_at
+					};
+					return listItem
+				}),
+				success: true
+			};
+			return media;
+		}
+
+		let media: Record<string, MediaFileListItem> = {};
+
+		let filteredResults = (await Promise.all([(filterMediaClasses ?? []).map((filter) =>
+			db.getAllFromIndex('media-files', 'media-class', filter)
+		), (filterMediaType ?? []).map((filter) =>
+			db.getAllFromIndex('media-files', 'media-type', filter)
+		)].flat())).flat();
+
+		for (const mediaFile of filteredResults) {
+			if (media[mediaFile.token]) {
+				continue;
+			}
+			media[mediaFile.token] = {
+				created_at: mediaFile.created_at,
+				creator_set_visibility: Visibility.Public,
+				media_type: mediaFile.media_type,
+				origin: {
+					origin_category: MediaFileOriginCategory.Upload,
+					product_category: MediaFileOriginProductCategory.Unknown,
+				},
+				origin_category: MediaFileOriginCategory.Upload,
+				origin_product_category: MediaFileOriginProductCategory.Unknown,
+				public_bucket_path: mediaFile.public_bucket_path,
+				token: mediaFile.token,
+				updated_at: mediaFile.created_at
+			};
+		}
+
+		let result: ListMediaFilesResult = {
+			pagination: {
+				current: 0,
+				total_page_count: 1
+			},
+			results: Object.keys(media).map((key) => media[key]),
+			success: true
+		};
+		return result;
+	}
+
+	async uploadMediaFile(file: File, { subtype, mediaClass }: UploadMediaFileOptions): Promise<string> {
+		let token = uuid();
+		let original_file_name = file.name;
+		let filename = token + "-" + file.name;
+
+		let media_type: MediaFileType | false = false;
+
+		if (mediaClass === MediaFileClass.Audio) {
+			media_type = MediaFileType.Audio;
+		} else if (mediaClass === MediaFileClass.Video) {
+			media_type = MediaFileType.Video;
+		} else if (mediaClass === MediaFileClass.Image) {
+			media_type = MediaFileType.Image;
+		} else if (mediaClass === MediaFileClass.Scene) {
+			if (subtype === MediaFileSubtype.StorytellerScene) {
+				media_type = MediaFileType.ScnRon;
+			}
+		} else if (mediaClass === MediaFileClass.Animation) {
+			media_type = MediaFileType.Mocap
+		} else if (file.name.endsWith("gltf")) {
+			media_type = MediaFileType.Gltf;
+		} else if (file.name.endsWith("glb")) {
+			media_type = MediaFileType.Glb;
+		} else if (file.name.endsWith("bvh")) {
+			media_type = MediaFileType.Bvh;
+		} else if (file.name.endsWith("fbx")) {
+			media_type = MediaFileType.Fbx;
+		}
+
+		if (!media_type) {
+			throw new Error("Couldn't determine media file type");
+		}
+
+		let media_file: MediaFile = {
+			token: token,
+			media_type,
+			media_class: mediaClass,
+			public_bucket_path: filename,
+			creator_set_visibility: Visibility.Public,
+			is_emulated_media_file: false,
+			maybe_title: original_file_name,
+			maybe_original_filename: original_file_name,
+			maybe_media_subtype: subtype,
+			stats: {
+				positive_rating_count: 0,
+				bookmark_count: 0
+			},
+			created_at: (new Date()).toLocaleString("en-us"),
+			updated_at: (new Date()).toLocaleString("en-us"),
+		};
+
+		let buffer = new Uint8Array(await file.arrayBuffer(), 0);
+
+		let db = await this.getDatabase();
+
+		let transaction = db.transaction(['media-files', 'file-blobs'], 'readwrite');
+		await Promise.all([
+			transaction.objectStore('media-files').add(media_file, token),
+			transaction.objectStore('file-blobs').add(buffer, filename),
+			transaction.done,
+		]);
+
+		return token;
+	}
+
+	async renameMediaFile(token: string, name: string): Promise<void> {
+		let db = await this.getDatabase();
+
+		let transaction = db.transaction('media-files', 'readwrite');
+		if (transaction.store !== undefined) {
+			let store = transaction.store;
+			let item = await store.get(token);
+			if (!item) { throw new Error("No Such File"); }
+			item.maybe_title = name;
+			await store.put(item, token);
+		}
+		await transaction.done;
+	}
+
+	async convertFbxToGltf(token: string): Promise<void> {
+		console.log("not implemented");
+	}
+
+	async mediaFile(token: string): Promise<MediaFile> {
+		let db = await this.getDatabase();
+		let file = await db.get('media-files', token);
+		if (!file) {
+			throw new Error("No Such File");
+		}
+		return file;
+	}
+
+	async mediaBlob(path: string): Promise<Uint8Array> {
+		let db = await this.getDatabase();
+		let file = await db.get('file-blobs', path);
+		if (!file) {
+			throw new Error("No Such File");
+		}
+		return file;
+	}
+}
+
+export class StorytellerApi implements StorytellerApiInterface {
+	createScene(file: File): Promise<string> {
+		return this.api_base.createScene(file)
+	}
+	session(): Promise<Session> {
+		return this.api_base.session()
+	}
+	listMediaFiles(options: ListMediaFilesOptions): Promise<ListMediaFilesResult> {
+		return this.api_base.listMediaFiles(options)
+	}
+	uploadMediaFile(file: File, { subtype, mediaClass }: UploadMediaFileOptions): Promise<string> {
+		return this.api_base.uploadMediaFile(file, { subtype, mediaClass })
+	}
+	renameMediaFile(token: string, name: string): Promise<void> {
+		return this.api_base.renameMediaFile(token, name)
+	}
+	convertFbxToGltf(token: string): Promise<void> {
+		return this.api_base.convertFbxToGltf(token)
+	}
+	mediaFile(token: string): Promise<MediaFile> {
+		return this.api_base.mediaFile(token)
+	}
+	api_base: StorytellerApiInterface = mockApi ? new StorytellerApiMock() : new StorytellerApiBase();
+}
+
 export class ApiError<T extends AxiosResponse = AxiosResponse> extends Error {
 	detail: T;
 
-	constructor (detail: T) {
+	constructor(detail: T) {
 		super("API Error");
 		this.detail = detail;
 	}
