@@ -1,7 +1,7 @@
 use std::fmt;
 
 use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_inspector_egui::{DefaultInspectorConfigPlugin};
+use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 use bevy_mod_picking::debug::DebugPickingMode;
 use space_editor::{
     prelude::*,

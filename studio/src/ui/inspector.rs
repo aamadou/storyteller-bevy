@@ -11,9 +11,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, json, Map as JsonMap, Value as JsonValue};
 use space_editor::{
     space_editor_ui::{
-        editor_tab::{EditorTab, EditorTabName}, ui_plugin::EditorUiAppExt
+        editor_tab::{EditorTab, EditorTabName},
+        ui_plugin::EditorUiAppExt,
     },
-    space_prefab::{component::MeshPrimitive3dPrefab, editor_registry::EditorRegistryExt, save::SaveState},
+    space_prefab::{
+        component::MeshPrimitive3dPrefab, editor_registry::EditorRegistryExt, save::SaveState,
+    },
 };
 use wasm_bindgen::prelude::*;
 

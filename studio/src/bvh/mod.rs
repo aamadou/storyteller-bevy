@@ -1,5 +1,3 @@
-
-
 use bevy::{
     app::{App, Plugin, PostUpdate, Update},
     asset::{Asset, AssetApp, AssetEvent, Assets, Handle},

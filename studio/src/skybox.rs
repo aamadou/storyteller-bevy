@@ -1,7 +1,4 @@
-use bevy::{
-    asset::LoadState,
-    prelude::*,
-};
+use bevy::{asset::LoadState, prelude::*};
 
 use crate::MainCamera;
 

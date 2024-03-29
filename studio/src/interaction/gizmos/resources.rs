@@ -44,12 +44,11 @@ pub(super) fn init_resources(
     mut ra_meshes: ResMut<Assets<Mesh>>,
     mut ra_mats: ResMut<Assets<GizmoMaterial>>,
 ) {
-
     let translate_line = ra_meshes.add(Cylinder {
         radius: 0.03,
         half_height: 0.4,
     });
-    
+
     let translate_arrow = ra_meshes.add(Mesh::from(geo::Cone {
         radius: 0.115,
         length: 0.4,

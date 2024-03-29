@@ -51,7 +51,10 @@ pub mod wasm {
     use bevy::{prelude::*, render::camera::Viewport};
     use wasm_bindgen::prelude::*;
 
-    use crate::{wasm::{StaticBuffer, WasmMessageBuffer}, MainCamera};
+    use crate::{
+        wasm::{StaticBuffer, WasmMessageBuffer},
+        MainCamera,
+    };
 
     use super::ViewportSize;
 
@@ -66,9 +69,9 @@ pub mod wasm {
 
     impl Plugin for ViewportPlugin {
         fn build(&self, app: &mut App) {
-            app.add_event::<ViewportResizeEvent>()
-                .add_systems(PreUpdate, 
-                (dispatch_resize_events, sync_window_to_viewport).chain()
+            app.add_event::<ViewportResizeEvent>().add_systems(
+                PreUpdate,
+                (dispatch_resize_events, sync_window_to_viewport).chain(),
             );
         }
     }
@@ -95,7 +98,10 @@ pub mod wasm {
     fn dispatch_resize_events(mut events: EventWriter<ViewportResizeEvent>) {
         if let Some(resize) = RESIZE_BUF.take_message() {
             events.send(ViewportResizeEvent(resize));
-            info!("Dispatch Viewport size: ({:.2}, {:.2})", resize.width, resize.height);
+            info!(
+                "Dispatch Viewport size: ({:.2}, {:.2})",
+                resize.width, resize.height
+            );
         }
     }
 }

@@ -78,9 +78,20 @@ fn log_input_actions(
     let mod_keys = [AltLeft, AltRight, ShiftLeft, ControlLeft, ControlRight]
         .into_iter()
         .collect::<HashSet<_>>();
-    let action_keys = [KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD, KeyCode::KeyE, KeyCode::KeyQ, KeyCode::Escape, KeyCode::Quote, KeyCode::Delete, KeyCode::KeyF]
-        .into_iter()
-        .collect::<HashSet<_>>();
+    let action_keys = [
+        KeyCode::KeyW,
+        KeyCode::KeyA,
+        KeyCode::KeyS,
+        KeyCode::KeyD,
+        KeyCode::KeyE,
+        KeyCode::KeyQ,
+        KeyCode::Escape,
+        KeyCode::Quote,
+        KeyCode::Delete,
+        KeyCode::KeyF,
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
 
     let keys_pressed = ri_keyboard.get_pressed().copied().collect::<HashSet<_>>();
     let keys_display = keys_pressed
@@ -298,7 +309,7 @@ fn translate_fps_camera_events(
     mut input: EventWriter<InputAction>,
 ) {
     // Camera Translation (FPS-like)
-    
+
     let wasd_keys = [
         KeyCode::KeyW,
         KeyCode::KeyA,

@@ -104,10 +104,7 @@ impl Plugin for ScenePlugin {
             ),
         );
 
-        app.add_systems(
-            PreUpdate,
-            check_loading
-        );
+        app.add_systems(PreUpdate, check_loading);
 
         //setup default light
         app.add_systems(Startup, minimal_scene_setup);
@@ -185,20 +182,22 @@ pub struct LoadingQueue {
 }
 
 fn check_loading(
-    mut frames_without_loading : Local<usize>,
+    mut frames_without_loading: Local<usize>,
     mut loading_queue: ResMut<LoadingQueue>,
     mut st_next: ResMut<NextState<SceneState>>,
     r_scene_state: Res<State<SceneState>>,
     asset_server: Res<AssetServer>,
 ) {
-
     info!("Checking loading: {}", *frames_without_loading);
     // Avoid transitioning from `SceneState::None` directly to `SceneState::Active`.
     // We will always be initializing the scene with _something_, so if the
     // `LoadingQueue` is empty when we're in `SceneState::None`, it just means
     // our startup routine hasn't yet gotten to the point of processing any
     // `Handle<T>`s.
-    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading && *frames_without_loading > 100 {
+    if loading_queue.queue.is_empty()
+        && **r_scene_state == SceneState::Loading
+        && *frames_without_loading > 100
+    {
         st_next.set(SceneState::Active);
         return;
     }
@@ -216,9 +215,7 @@ fn check_loading(
         info!("Loading {} assets", loading_queue.queue.len());
 
         loading_queue.queue.retain(|h| {
-            if let Some((load_state, dep_load_state, _)) =
-                asset_server.get_load_states(h.id())
-            {
+            if let Some((load_state, dep_load_state, _)) = asset_server.get_load_states(h.id()) {
                 if load_state == LoadState::NotLoaded {
                     not_loaded_count += 1;
                 }

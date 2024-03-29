@@ -1,4 +1,3 @@
-
 use bevy::{
     app::AppExit,
     core_pipeline::{core_3d, prepass::ViewPrepassTextures},
