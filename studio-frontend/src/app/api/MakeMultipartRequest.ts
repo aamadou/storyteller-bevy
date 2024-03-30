@@ -11,6 +11,7 @@ const MakeMultipartRequest = (endpoint = "", body: any) => {
 
   return fetch("https://funnel.tailce84f.ts.net/preview/", {
       method: 'POST',
+      mode: 'no-cors', // NB(bt): Only until the server has Allow-Origin headers
       credentials: 'include',
       headers: {
         'Accept': 'application/json',
