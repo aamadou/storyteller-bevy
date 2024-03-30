@@ -10,7 +10,6 @@ import { bind, on } from "@storyteller/framework";
 
 import { VideoStylePreview } from "./api/VideoStylePreview";
 
-import "./bubble-select.element";
 import "./style-select.element";
 
 import styles from "./temp-video-preview.element.scss?inline";
@@ -204,11 +203,13 @@ export class TempVideoPreview extends LitElement {
 						>
 							Select Base Style
 						</label>
-						<sts-bubble-select
+
+						<sts-style-select
 							id="video-style-preview-base-style"
 							.options=${STYLE_OPTIONS}
 							.value=${bind(this, "selectedStyle")}
-						></sts-bubble-select>
+						></sts-style-select>
+
 					</div>
 
 					<div class="video-style-preview__prompts">
