@@ -1,17 +1,11 @@
-// import GetApiHost from "./GetApiHost";
-
-// const { formatUrl, host = "" } = GetApiHost();
 
 const MakeMultipartRequest = (endpoint = "", body: any) => {
   const formData = new FormData();
 
   Object.keys(body).forEach((key) => formData.append(key, body[key]));
 
-  // formData.append('source', "video");
-
   return fetch("https://funnel.tailce84f.ts.net/preview/", {
       method: 'POST',
-      mode: 'no-cors', // NB(bt): Only until the server has Allow-Origin headers
       credentials: 'include',
       headers: {
         'Accept': 'application/json',
