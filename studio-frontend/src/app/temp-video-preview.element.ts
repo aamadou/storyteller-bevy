@@ -11,6 +11,7 @@ import { bind, on } from "@storyteller/framework";
 import { VideoStylePreview } from "./api/VideoStylePreview";
 
 import "./bubble-select.element";
+import "./style-select.element";
 
 import styles from "./temp-video-preview.element.scss?inline";
 import { STYLE_OPTIONS, type VstStyle } from "./inspector-tabs/style-tab";

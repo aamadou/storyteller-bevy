@@ -60,7 +60,6 @@ export class StyleTab extends LitElement {
 		oAThing(): void { console.log("🍕")};
 
 	compositorEnqueue = (sceneToken: string) => () => {
-		console.log("🏎️",this.sceneToken,sceneToken);
 		EnqueueEngineCompositing("",{
 			uuid_idempotency_token: uuid(),
 			media_file_token: sceneToken,
@@ -69,8 +68,6 @@ export class StyleTab extends LitElement {
 			skybox: "meadow_4k",
 		}).then((res: any) => {
       if (res && res.success) {
-      	console.log("💎",res.inference_job_token);
-
 		window.parent.postMessage(
 			`studio-scene-composited:compositeJobToken:${ res.inference_job_token }`,
 			"*"
@@ -81,7 +78,6 @@ export class StyleTab extends LitElement {
 	}
 
 	thingy = ({ target }: any ) => {
-		console.log("🏎️", this.sceneToken);
 	}
 
 	protected override render = (): TemplateResult => html`
