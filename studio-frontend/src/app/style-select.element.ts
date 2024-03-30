@@ -29,6 +29,8 @@ export class StyleSelect extends FormFieldBaseElement {
 
 	protected override render = () => html`
 	    <div>
+			<!-- 
+			TODO(bt): preview image
 			<div
 				class=${classMap({
 					"bubble": true,
@@ -42,6 +44,7 @@ export class StyleSelect extends FormFieldBaseElement {
 					${ "Foo" }
 				</span>
 			</div>
+			-->
 		    <select
 				@change=${(event: InputEvent) => {
 					const value = (event.target as HTMLSelectElement).value;
