@@ -10,6 +10,18 @@ import styles from "./style-tab.scss?inline";
 export type VstStyle
 	= "anime_2d_flat"
 	| "cartoon_3d"
+	| "anime_2d"
+	| "anime_ghibli"
+	| "anime_retro_neon"
+	| "anime_standard"
+	| "comic_book"
+	| "ink_punk"
+	| "pixel_art"
+	| "ink_splash"
+	| "jojo_style"
+	| "pop_art"
+	| "realistic_1"
+	| "realistic_2"
 	| "ink_bw_style"
 	| "paper_origami"
 	;
@@ -23,8 +35,28 @@ export interface StyleOption {
 export const STYLE_OPTIONS: readonly StyleOption[] = [
 	{
 		label: "2D Anime",
+		imageUrl: "",
+		value: "anime_2d",
+	},
+	{
+		label: "2D Anime (Flat)",
 		imageUrl: "https://fakeyou.com/images/landing/onboarding/styles/style-2d-anime.webp",
 		value: "anime_2d_flat",
+	},
+	{
+		label: "Anime Ghibli",
+		imageUrl: "",
+		value: "anime_ghibli",
+	},
+	{
+		label: "Anime Retro Neon",
+		imageUrl: "",
+		value: "anime_retro_neon",
+	},
+	{
+		label: "Anime Standard",
+		imageUrl: "",
+		value: "anime_standard",
 	},
 	{
 		label: "3D Cartoon",
@@ -32,14 +64,54 @@ export const STYLE_OPTIONS: readonly StyleOption[] = [
 		value: "cartoon_3d",
 	},
 	{
+		label: "Comic Book",
+		imageUrl: "",
+		value: "comic_book",
+	},
+	{
+		label: "Ink Punk",
+		imageUrl: "",
+		value: "ink_punk",
+	},
+	{
+		label: "Ink Splash",
+		imageUrl: "",
+		value: "ink_splash",
+	},
+	{
 		label: "Ink B&W",
 		imageUrl: "https://fakeyou.com/images/landing/onboarding/styles/style-ink-bw.webp",
 		value: "ink_bw_style",
 	},
 	{
+		label: "Jojo Style",
+		imageUrl: "",
+		value: "jojo_style",
+	},
+	{
 		label: "Origami",
 		imageUrl: "https://fakeyou.com/images/landing/onboarding/styles/style-origami.webp",
 		value: "paper_origami",
+	},
+	{
+		label: "Pixel Art",
+		imageUrl: "",
+		value: "pixel_art",
+	},
+	{
+		label: "Pop Art",
+		imageUrl: "",
+		value: "pop_art",
+	},
+	{
+		label: "Realistic 1",
+		imageUrl: "",
+		value: "realistic_1",
+	},
+	{
+		label: "Realistic 2",
+		imageUrl: "",
+		value: "realistic_2",
 	},
 ];
 
@@ -60,7 +132,6 @@ export class StyleTab extends LitElement {
 		oAThing(): void { console.log("🍕")};
 
 	compositorEnqueue = (sceneToken: string) => () => {
-		console.log("🏎️",this.sceneToken,sceneToken);
 		EnqueueEngineCompositing("",{
 			uuid_idempotency_token: uuid(),
 			media_file_token: sceneToken,
@@ -69,8 +140,6 @@ export class StyleTab extends LitElement {
 			skybox: "meadow_4k",
 		}).then((res: any) => {
       if (res && res.success) {
-      	console.log("💎",res.inference_job_token);
-
 		window.parent.postMessage(
 			`studio-scene-composited:compositeJobToken:${ res.inference_job_token }`,
 			"*"
@@ -81,7 +150,6 @@ export class StyleTab extends LitElement {
 	}
 
 	thingy = ({ target }: any ) => {
-		console.log("🏎️", this.sceneToken);
 	}
 
 	protected override render = (): TemplateResult => html`
