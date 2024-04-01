@@ -7,12 +7,10 @@ use space_editor::{
     prelude::*,
     space_editor_ui::{tools::gizmo::GizmoToolPlugin, EditorPluginGroup},
 };
+use space_editor::prelude::space_undo::AppAutoUndo;
 
 use crate::{
-    anim::SkeletalJoint,
-    camera_controller::{CameraController, CameraMotionSystem},
-    input::{Action, InputAction, Lifecycle},
-    is_editor, MainCamera,
+    anim::SkeletalJoint, camera_controller::{CameraController, CameraMotionSystem}, input::{Action, InputAction, Lifecycle}, interaction::Selectable, is_editor, scene::SceneElement, MainCamera
 };
 
 #[derive(Resource, Deref, DerefMut)]
@@ -72,6 +70,13 @@ impl Plugin for DebugPlugin {
                 // .disable::<MeshlessVisualizerPlugin>()
                 .disable::<space_editor::prelude::SelectedPlugin>(),
         );
+
+        app.auto_undo::<Handle<StandardMaterial>>();
+        app.auto_undo::<SkeletalJoint>();
+        app.auto_undo::<Handle<Mesh>>();
+        app.auto_undo::<SceneElement>();
+        app.auto_undo::<Selectable>();
+        
 
         app.add_systems(Update, sync_editor_camera);
         app.add_systems(
