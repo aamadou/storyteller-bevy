@@ -13,6 +13,8 @@ use crate::{
         NearlyZero, Velocity,
     },
 };
+use bevy::render::camera::Viewport;
+use crate::MainCamera;
 
 pub struct CameraControllerPlugin;
 
