@@ -1,11 +1,20 @@
 use bevy::prelude::*;
 use space_editor::prelude::*;
 
+use crate::StudioMode;
+
 pub struct PersistancePlugin;
 
 impl Plugin for PersistancePlugin {
     fn build(&self, app: &mut App) {
         info!("PersistancePlugin::build");
+
+        if let Some(state) = app.world.get_resource::<StudioMode>() {
+            if *state == StudioMode::Headless {
+                return;
+            }
+        }
+
         app.editor_tab_by_trait(
             EditorTabName::Other("Persistance".to_string()),
             DebugPersistanceTab::default(),

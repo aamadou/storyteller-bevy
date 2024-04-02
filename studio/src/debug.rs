@@ -9,6 +9,7 @@ use space_editor::{
     space_editor_ui::{tools::gizmo::GizmoToolPlugin, EditorPluginGroup},
 };
 
+use crate::StudioMode;
 use crate::{
     anim::SkeletalJoint,
     camera_controller::{CameraController, CameraMotionSystem},
@@ -57,37 +58,48 @@ impl Plugin for DebugPlugin {
                 ),
             );
 
-        //space_editor stuff
-        // app.add_plugins(UndoPlugin);
-        app.add_plugins(
-            EditorPluginGroup
-                .build()
-                .disable::<EditorUiCore>()
-                .add_before::<GameViewPlugin, _>(EditorUiCore {
-                    disable_no_editor_cams: false,
-                })
-                // .disable::<EguiPlugin>()
-                .disable::<DefaultInspectorConfigPlugin>()
-                .disable::<EditorPickingPlugin>()
-                .disable::<EditorDefaultCameraPlugin>()
-                // .disable::<BottomMenuPlugin>()
-                .disable::<GizmoToolPlugin>()
-                // .disable::<EditorGizmoConfigPlugin>()
-                // .disable::<MeshlessVisualizerPlugin>()
-                .disable::<space_editor::prelude::SelectedPlugin>(),
-        );
+        let editor_ui_group = EditorPluginGroup
+            .build()
+            .disable::<EditorUiCore>()
+            .add_before::<GameViewPlugin, _>(EditorUiCore {
+                disable_no_editor_cams: false,
+            })
+            // .disable::<EguiPlugin>()
+            .disable::<DefaultInspectorConfigPlugin>()
+            .disable::<EditorPickingPlugin>()
+            .disable::<EditorDefaultCameraPlugin>()
+            // .disable::<BottomMenuPlugin>()
+            .disable::<GizmoToolPlugin>()
+            // .disable::<EditorGizmoConfigPlugin>()
+            // .disable::<MeshlessVisualizerPlugin>()
+            .disable::<space_editor::prelude::SelectedPlugin>();
 
-        app.auto_undo::<Handle<StandardMaterial>>();
-        app.auto_undo::<SkeletalJoint>();
-        app.auto_undo::<Handle<Mesh>>();
-        app.auto_undo::<SceneElement>();
-        app.auto_undo::<Selectable>();
+        let mut only_core = false;
 
-        app.add_systems(Update, sync_editor_camera);
-        app.add_systems(
-            Update,
-            update_editor_ui_mode.run_if(resource_changed::<DebugMode>),
-        );
+        if let Some(state) = app.world.get_resource::<StudioMode>() {
+            if *state == StudioMode::Headless {
+                only_core = true;
+            }
+        }
+
+        if only_core {
+            app
+                .add_plugins(PrefabPlugin)
+                .add_plugins(EditorCore);
+        } else {
+            app.add_plugins(editor_ui_group);
+            app.auto_undo::<Handle<StandardMaterial>>();
+            app.auto_undo::<SkeletalJoint>();
+            app.auto_undo::<Handle<Mesh>>();
+            app.auto_undo::<SceneElement>();
+            app.auto_undo::<Selectable>();
+            
+            app.add_systems(Update, sync_editor_camera);
+            app.add_systems(
+                Update,
+                update_editor_ui_mode.run_if(resource_changed::<DebugMode>),
+            );
+        }
     }
 }
 

@@ -20,7 +20,7 @@ use space_editor::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::material::short_material::ShortMaterial;
+use crate::{material::short_material::ShortMaterial, StudioMode};
 use crate::{
     interaction::Selection,
     wasm::{self, StaticBuffer, WasmMessageBuffer},
@@ -30,6 +30,12 @@ pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
+        if let Some(state) = app.world.get_resource::<StudioMode>() {
+            if *state == StudioMode::Headless {
+                return;
+            }
+        }
+
         app.init_resource::<EntityDescription>();
         app.add_event::<UpdateEntityDescription>();
 

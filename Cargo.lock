@@ -6082,7 +6082,7 @@ dependencies = [
 [[package]]
 name = "space_bevy_xpbd_plugin"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
@@ -6093,7 +6093,7 @@ dependencies = [
 [[package]]
 name = "space_editor"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "bevy",
  "space_bevy_xpbd_plugin",
@@ -6104,7 +6104,7 @@ dependencies = [
 [[package]]
 name = "space_editor_core"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "bevy",
  "bevy_egui",
@@ -6119,7 +6119,7 @@ dependencies = [
 [[package]]
 name = "space_editor_ui"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "anyhow",
  "bevy",
@@ -6147,7 +6147,7 @@ dependencies = [
 [[package]]
 name = "space_persistence"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "bevy",
  "ron",
@@ -6157,7 +6157,7 @@ dependencies = [
 [[package]]
 name = "space_prefab"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
@@ -6171,7 +6171,7 @@ dependencies = [
 [[package]]
 name = "space_shared"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "anyhow",
  "bevy",
@@ -6184,7 +6184,7 @@ dependencies = [
 [[package]]
 name = "space_undo"
 version = "0.5.0"
-source = "git+https://github.com/rewin123/space_editor?rev=948090e407558017874de491c5297aa1d2e9d21e#948090e407558017874de491c5297aa1d2e9d21e"
+source = "git+https://github.com/rewin123/space_editor?rev=0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b#0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"
 dependencies = [
  "bevy",
  "pretty-type-name",

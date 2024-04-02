@@ -48,7 +48,7 @@ futures = "0.3.30"
 image = "0.25.0"
 bytemuck = "1.14.1"
 
-space_editor = {git = "https://github.com/rewin123/space_editor", rev = "948090e407558017874de491c5297aa1d2e9d21e"}
+space_editor = {git = "https://github.com/rewin123/space_editor", rev = "0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
 wasm-bindgen-futures = "0.4"
