@@ -37,6 +37,7 @@ import "@storyteller/studio-web/studio";
 import "@storyteller/studio-web/transform-toolbar";
 import "./anim-editor.element";
 import "./help.element";
+import "./temp-video-preview.element";
 
 import "./app.element.scss";
 
@@ -59,6 +60,7 @@ export class AppElement extends LitElement {
 	private api = new StorytellerApi();
 
 	#addToSceneButtonRef = createRef<ButtonElement>();
+	#videoStylePreviewBtnRef = createRef<ButtonElement>();
 	#mediaLibraryRef = createRef<DialogElement>();
 	#inspectorRef = createRef<HTMLDivElement>();
 	#hierarchyRef = createRef<SceneHierarchyElement>();
@@ -132,7 +134,7 @@ export class AppElement extends LitElement {
 		<sts-scene-data-provider>
 		<sts-overlay-provider>
 			<sts-iframe-messaging-bridge></sts-iframe-messaging-bridge>
-			
+
 			${this.#params.mode === StudioMode.Editor ? html`
 				<sts-add-to-scene-menu
 					.trigger=${this.#addToSceneButtonRef}
@@ -191,6 +193,12 @@ export class AppElement extends LitElement {
 							class="add-to-scene-dropdown"
 						>
 						</sts-button>
+						<sts-button
+							${ref(this.#videoStylePreviewBtnRef)}
+							icon="films"
+							class="video-style-preview-dropdown"
+						>
+						</sts-button>
 					<sts-transform-toolbar></sts-transform-toolbar>
 				</div>
 
@@ -205,7 +213,7 @@ export class AppElement extends LitElement {
 						<div class="sidebar-header">
 							${this.sidebars.map(({title, name}) => {
 								return html`<sts-button class=${classMap({"current-tab": name === this.currentSidebar, "sidebar-tab": true})}>${title}</sts-button>`
-							})}	
+							})}
 						</div>
 
 						${this.renderSidebar()}
@@ -223,7 +231,7 @@ export class AppElement extends LitElement {
 					<div class="entity-inspector">
 						<sts-entity-inspector></sts-entity-inspector>
 					</div>
-				
+
 					<sts-anim-editor
 						class="timeline"
 						style=${styleMap({
@@ -231,14 +239,19 @@ export class AppElement extends LitElement {
 				})}
 					></sts-anim-editor>
 			` : nothing}
-			
+
+
+			<sts-temp-video-preview
+				.trigger=${ this.#videoStylePreviewBtnRef }>
+			</sts-temp-video-preview>
+
 			<!-- Dialogs and modals -->
 			${this.showHelp ? html`
 			<div class="help">
 				<sts-help></sts-help>
 				</div>
 			` : nothing}
-	</div>
+		</div>
 
 
 			${this.loading ? html`
