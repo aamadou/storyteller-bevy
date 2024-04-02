@@ -80,7 +80,7 @@ impl RemoteAssetReader {
         Ok(reader)
     }
 
-    #[cfg(feature = "wasm")]
+    #[cfg(all(feature = "wasm", target_family = "wasm"))]
     async fn load_local<'a>(&'a self, path: &'a Path) -> Result<Box<Reader<'a>>, AssetReaderError> {
         let token = path
             .ext_file_prefix()
@@ -109,12 +109,16 @@ impl AssetReader for RemoteAssetReader {
         &'a self,
         path: &'a Path,
     ) -> BoxedFuture<'a, Result<Box<Reader<'a>>, AssetReaderError>> {
-        if cfg!(not(feature = "wasm")) {
+        #[cfg(not(all(feature = "wasm", target_family = "wasm")))]
+        {
             info!("wasm mode not detected");
             // NB: Headless mode (server rendering) is running without a Tokio runtime.
             // The reqwest HTTP client requires async-compat to function at runtime.
             Box::pin(Compat::new(async move { self.load(path).await }))
-        } else {
+        }
+
+        #[cfg(all(feature = "wasm", target_family = "wasm"))]
+        {
             info!("wasm mode");
             if let Some(window) = web_sys::window() {
                 if let Ok(search) = window.location().search() {
@@ -159,7 +163,7 @@ impl IntoError<AssetReaderError> for reqwest::Error {
     }
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(all(feature = "wasm", target_family = "wasm"))]
 mod wasm {
     use std::task::Waker;
 

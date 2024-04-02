@@ -5,7 +5,7 @@ import * as studio from "@storyteller/studio";
 
 const mockApi = window.location.search.includes("mock-api");
 
-interface StorytellerApiInterface {
+interface IStorytellerApi {
 	createScene(file: File): Promise<MediaFileToken>
 	session(): Promise<Session>
 	listMediaFiles(options: ListMediaFilesOptions): Promise<ListMediaFilesResult>
@@ -18,7 +18,7 @@ interface StorytellerApiInterface {
 	mediaFile(token: MediaFileToken): Promise<MediaFile>
 }
 
-class StorytellerApiBase implements StorytellerApiInterface {
+class StorytellerApiBase implements IStorytellerApi {
 	#api = axios.create({
 		baseURL: "https://api.fakeyou.com",
 		withCredentials: true,
@@ -137,7 +137,7 @@ interface LocalDbSchema extends DBSchema {
 	}
 }
 
-class StorytellerApiMock implements StorytellerApiInterface {
+class StorytellerApiMock implements IStorytellerApi {
 	database?: IDBPDatabase<LocalDbSchema>;
 	dateFormat: Intl.DateTimeFormat = new Intl.DateTimeFormat("en-us")
 
@@ -435,7 +435,7 @@ class StorytellerApiMock implements StorytellerApiInterface {
 	}
 }
 
-export class StorytellerApi implements StorytellerApiInterface {
+export class StorytellerApi implements IStorytellerApi {
 	createScene(file: File): Promise<string> {
 		return this.api_base.createScene(file)
 	}
@@ -457,7 +457,7 @@ export class StorytellerApi implements StorytellerApiInterface {
 	mediaFile(token: string): Promise<MediaFile> {
 		return this.api_base.mediaFile(token)
 	}
-	api_base: StorytellerApiInterface = mockApi ? new StorytellerApiMock() : new StorytellerApiBase();
+	api_base: IStorytellerApi = mockApi ? new StorytellerApiMock() : new StorytellerApiBase();
 }
 
 export class ApiError<T extends AxiosResponse = AxiosResponse> extends Error {
