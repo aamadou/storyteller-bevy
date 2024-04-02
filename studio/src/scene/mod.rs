@@ -188,7 +188,6 @@ fn check_loading(
     r_scene_state: Res<State<SceneState>>,
     asset_server: Res<AssetServer>,
 ) {
-    info!("Checking loading: {}", *frames_without_loading);
     // Avoid transitioning from `SceneState::None` directly to `SceneState::Active`.
     // We will always be initializing the scene with _something_, so if the
     // `LoadingQueue` is empty when we're in `SceneState::None`, it just means
@@ -222,7 +221,6 @@ fn check_loading(
 
                 load_state == LoadState::Loading || dep_load_state == DependencyLoadState::Loading
             } else {
-                info!("Can't find handle: {}", h.id());
                 false
             }
         });
