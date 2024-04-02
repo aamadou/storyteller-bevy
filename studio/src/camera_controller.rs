@@ -1,7 +1,8 @@
 use std::f32::consts;
 
 use bevy::{
-    prelude::*, window::{CursorGrabMode, PrimaryWindow}
+    prelude::*,
+    window::{CursorGrabMode, PrimaryWindow},
 };
 
 use crate::{
@@ -26,10 +27,9 @@ impl Plugin for CameraControllerPlugin {
                 camera_control_kinematic,
                 (process_physical_inputs, process_focus_inputs).before(InterpolationSystem),
                 (camera_control_physical, interp_camera_focus).after(InterpolationSystem),
-                
             )
                 .in_set(CameraMotionSystem),
-        ); 
+        );
 
         #[cfg(not(feature = "wasm"))]
         app.add_systems(PreUpdate, sync_camera_viewport);
@@ -39,8 +39,8 @@ impl Plugin for CameraControllerPlugin {
 #[cfg(not(feature = "wasm"))]
 fn sync_camera_viewport(
     mut camera: Query<&mut Camera, With<MainCamera>>,
-    mut window: Query<&mut Window, With<PrimaryWindow>>,) 
-{
+    mut window: Query<&mut Window, With<PrimaryWindow>>,
+) {
     let Ok(mut camera) = camera.get_single_mut() else {
         return;
     };
