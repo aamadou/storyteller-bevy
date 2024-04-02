@@ -75,9 +75,10 @@ export class CanvasProviderElement
 	@on("keyup")
 	_pipeKeyboardEvents(event: KeyboardEvent): void {
 		if (event.repeat) return;
-		if (this.#canvas != null) {
-			// If we own the canvas, we're going to catch events emitting from the
-			// canvas and then repeat them, eventually causing a stack overflow
+		const canvas = document.getElementById(this.#canvasId);
+		if (canvas && event.target === canvas) {
+			// If this event originated from the Bevy canvas, repeating it will just
+			// cause an infinite feedback loop and a stack overflow
 			return;
 		}
 

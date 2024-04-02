@@ -1,7 +1,7 @@
 use std::f32::consts;
 
 use bevy::{
-    prelude::*, render::camera::Viewport, window::{CursorGrabMode, PrimaryWindow}
+    prelude::*, window::{CursorGrabMode, PrimaryWindow}
 };
 
 use crate::{
@@ -12,7 +12,6 @@ use crate::{
         NearlyZero, Velocity,
     },
 };
-use crate::MainCamera;
 
 pub struct CameraControllerPlugin;
 
