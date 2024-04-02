@@ -3,7 +3,7 @@ import { v4 as uuid } from "uuid";
 import { DBSchema, IDBPDatabase, openDB } from "idb";
 import * as studio from "@storyteller/studio";
 
-const mockApi = window.location.search.includes("mock-api");
+export const mockApi = window.location.search.includes("mock-api");
 
 interface IStorytellerApi {
 	createScene(file: File): Promise<MediaFileToken>
@@ -18,7 +18,7 @@ interface IStorytellerApi {
 	mediaFile(token: MediaFileToken): Promise<MediaFile>
 }
 
-class StorytellerApiBase implements IStorytellerApi {
+export class StorytellerRemoteApi implements IStorytellerApi {
 	#api = axios.create({
 		baseURL: "https://api.fakeyou.com",
 		withCredentials: true,
@@ -137,7 +137,7 @@ interface LocalDbSchema extends DBSchema {
 	}
 }
 
-class StorytellerApiMock implements IStorytellerApi {
+export class StorytellerLocalApi implements IStorytellerApi {
 	database?: IDBPDatabase<LocalDbSchema>;
 	dateFormat: Intl.DateTimeFormat = new Intl.DateTimeFormat("en-us")
 
@@ -437,27 +437,31 @@ class StorytellerApiMock implements IStorytellerApi {
 
 export class StorytellerApi implements IStorytellerApi {
 	createScene(file: File): Promise<string> {
-		return this.api_base.createScene(file)
+		return this.apiBase.createScene(file)
 	}
 	session(): Promise<Session> {
-		return this.api_base.session()
+		return this.apiBase.session()
 	}
 	listMediaFiles(options: ListMediaFilesOptions): Promise<ListMediaFilesResult> {
-		return this.api_base.listMediaFiles(options)
+		return this.apiBase.listMediaFiles(options)
 	}
 	uploadMediaFile(file: File, { subtype, mediaClass }: UploadMediaFileOptions): Promise<string> {
-		return this.api_base.uploadMediaFile(file, { subtype, mediaClass })
+		return this.apiBase.uploadMediaFile(file, { subtype, mediaClass })
 	}
 	renameMediaFile(token: string, name: string): Promise<void> {
-		return this.api_base.renameMediaFile(token, name)
+		return this.apiBase.renameMediaFile(token, name)
 	}
 	convertFbxToGltf(token: string): Promise<void> {
-		return this.api_base.convertFbxToGltf(token)
+		return this.apiBase.convertFbxToGltf(token)
 	}
 	mediaFile(token: string): Promise<MediaFile> {
-		return this.api_base.mediaFile(token)
+		return this.apiBase.mediaFile(token)
 	}
-	api_base: IStorytellerApi = mockApi ? new StorytellerApiMock() : new StorytellerApiBase();
+	apiBase: IStorytellerApi;
+
+	constructor(apiBase: IStorytellerApi) {
+		this.apiBase = apiBase
+	}
 }
 
 export class ApiError<T extends AxiosResponse = AxiosResponse> extends Error {

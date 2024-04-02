@@ -11,11 +11,14 @@ import { DialogElement } from "@storyteller/studio-ui/dialog";
 import {
 	SceneHierarchyElement,
 	StorytellerApi,
+	StorytellerLocalApi,
+	StorytellerRemoteApi,
 	StudioURLParams,
+	mockApi,
 } from "@storyteller/studio-web";
 import { match } from "@storyteller/utility";
 import { LitElement, TemplateResult, html, nothing } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
@@ -57,7 +60,7 @@ export class AppElement extends LitElement {
 
 	@state() currentSidebar : string = 'hierarchy';
 
-	private api = new StorytellerApi();
+	@property({ attribute: false }) api: StorytellerApi =  new StorytellerApi(mockApi ? new StorytellerLocalApi() : new StorytellerRemoteApi());
 
 	#addToSceneButtonRef = createRef<ButtonElement>();
 	#videoStylePreviewBtnRef = createRef<ButtonElement>();
