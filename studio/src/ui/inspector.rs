@@ -588,7 +588,7 @@ fn serialize_standart_materal(
 
     ev_inspect.clear();
 
-    if let Some((target, handle)) = r_selection
+    if let Some((_target, handle)) = r_selection
         .as_ref()
         .and_then(|selection| find_handle_in_self_or_children(***selection, &q_children, &q_m))
         .and_then(|target| q_m.get(target).ok().map(|h| (target, h.clone())))
