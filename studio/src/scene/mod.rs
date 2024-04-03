@@ -197,6 +197,7 @@ fn check_loading(
         && **r_scene_state == SceneState::Loading
         && *frames_without_loading > 100
     {
+        info!("Transition to active");
         st_next.set(SceneState::Active);
         return;
     }
@@ -211,7 +212,7 @@ fn check_loading(
 
         let mut not_loaded_count = 0;
 
-        info!("Loading {} assets", loading_queue.queue.len());
+        // info!("Loading {} assets", loading_queue.queue.len());
 
         loading_queue.queue.retain(|h| {
             if let Some((load_state, dep_load_state, _)) = asset_server.get_load_states(h.id()) {

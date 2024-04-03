@@ -30,6 +30,10 @@ pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
+
+        #[cfg(not(feature = "wasm"))]
+        return;
+
         if let Some(state) = app.world.get_resource::<StudioMode>() {
             if *state == StudioMode::Headless {
                 return;
