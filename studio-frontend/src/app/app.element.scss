@@ -53,8 +53,13 @@ $hierarchy-width: 290px;
 		border-radius: 0;
 	}
 
-	.sidebar {
-		display: grid;
+	sts-inspector {}
+
+
+
+	.sidebar, sts-inspector {
+		pointer-events: all;
+		// display: grid;
 		grid-area: sidebar;
 		grid-template-rows: subgrid;
 		z-index: 1;
@@ -63,8 +68,8 @@ $hierarchy-width: 290px;
 
 
 		position: relative;
-		padding: var(--padding);
-		padding-left: 0.5rem;
+		// padding: var(--padding);
+		// padding-left: 0.5rem;
 
 		.resize-handle {
 			position: absolute;
