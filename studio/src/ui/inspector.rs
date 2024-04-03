@@ -20,17 +20,16 @@ use space_editor::{
 };
 use wasm_bindgen::prelude::*;
 
-use crate::{material::short_material::ShortMaterial, StudioMode};
 use crate::{
     interaction::Selection,
     wasm::{self, StaticBuffer, WasmMessageBuffer},
 };
+use crate::{material::short_material::ShortMaterial, StudioMode};
 
 pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
-
         #[cfg(not(feature = "wasm"))]
         return;
 

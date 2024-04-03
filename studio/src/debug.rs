@@ -83,9 +83,7 @@ impl Plugin for DebugPlugin {
         }
 
         if only_core {
-            app
-                .add_plugins(PrefabPlugin)
-                .add_plugins(EditorCore);
+            app.add_plugins(PrefabPlugin).add_plugins(EditorCore);
         } else {
             app.add_plugins(editor_ui_group);
             app.auto_undo::<Handle<StandardMaterial>>();
@@ -93,7 +91,7 @@ impl Plugin for DebugPlugin {
             app.auto_undo::<Handle<Mesh>>();
             app.auto_undo::<SceneElement>();
             app.auto_undo::<Selectable>();
-            
+
             app.add_systems(Update, sync_editor_camera);
             app.add_systems(
                 Update,

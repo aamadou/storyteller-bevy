@@ -5,6 +5,7 @@ use bevy::{
     window::{CursorGrabMode, PrimaryWindow},
 };
 
+use crate::MainCamera;
 use crate::{
     input::{self, Action, CameraMotion, InputAction, Lifecycle},
     interaction::Selection,
@@ -14,7 +15,6 @@ use crate::{
     },
 };
 use bevy::render::camera::Viewport;
-use crate::MainCamera;
 
 pub struct CameraControllerPlugin;
 

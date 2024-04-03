@@ -1,7 +1,10 @@
 use std::time::Duration;
 
 use bevy::{
-    app::{AppExit, ScheduleRunnerPlugin}, asset::AssetMetaCheck, core_pipeline::Skybox, prelude::*
+    app::{AppExit, ScheduleRunnerPlugin},
+    asset::AssetMetaCheck,
+    core_pipeline::Skybox,
+    prelude::*,
 };
 use bevy_web_asset::WebAssetPlugin;
 use space_editor::prelude::{EditorEvent, EditorPrefabPath};
@@ -57,16 +60,19 @@ pub fn start_headless(
         ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / fps as f64)),
         WebAssetPlugin,
         RemoteAssetPlugin,
-        DefaultPlugins.set(WindowPlugin {
-            primary_window: None,
-            exit_condition: bevy::window::ExitCondition::DontExit,
-            close_when_requested: true,
-        }).set(AssetPlugin {
-            mode: AssetMode::Unprocessed,
-            ..default()
-        }),
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: None,
+                exit_condition: bevy::window::ExitCondition::DontExit,
+                close_when_requested: true,
+            })
+            .set(AssetPlugin {
+                mode: AssetMode::Unprocessed,
+                ..default()
+            }),
         ScreenShotPlugin,
-        CommonPlugins.build()
+        CommonPlugins
+            .build()
             .disable::<WorldGridPlugin>()
             .disable::<crate::UiLayerPlugin>(),
     ));
