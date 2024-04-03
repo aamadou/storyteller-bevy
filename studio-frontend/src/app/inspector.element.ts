@@ -8,6 +8,9 @@ import "./inspector-tabs/style-tab";
 import styles from "./inspector.element.scss?inline";
 import "@storyteller/studio-ui/button";
 import "@storyteller/studio-web/scene-hierarchy";
+import {
+	SceneHierarchyElement,
+} from "@storyteller/studio-web";
 
 // const abc = "word";
 
