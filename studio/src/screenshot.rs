@@ -148,7 +148,7 @@ fn extract_screen_capture_components(
     screen_capure_comps: Extract<Query<(Entity, &ScreenCapture), With<Camera>>>,
     scene_state: Extract<Res<State<SceneState>>>,
 ) {
-    if scene_state.get() != &SceneState::Active {
+    if *scene_state.get() != SceneState::Active {
         return;
     };
     for (entity, screen_capture) in screen_capure_comps.iter() {

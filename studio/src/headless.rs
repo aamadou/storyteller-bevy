@@ -209,13 +209,14 @@ fn start_timeline_animation(
     mut ev: EventWriter<TimelineInteractionEvent>,
 ) {
     if keyframes.is_empty() {
-        return;
+        // return;
     }
     commands.remove_resource::<CameraMotion>();
     let total_time = keyframes
         .iter()
         .fold(0f32, |previous, keyframe| previous.max(keyframe.time))
-        .max(3.0);
+        .max(3.0)
+        .min(1.0);
 
     let frames = (total_time * headless_settings.fps).ceil() as u32;
     headless_settings.max_frames = frames;

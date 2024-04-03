@@ -38,6 +38,7 @@ web-sys = { version = "0.3", optional = true, features = [
 	"Document",
 	"HtmlElement",
 	"Window",
+	"Location",
 	"WorkerGlobalScope"
 ] }
 clap = { version = "4.4.18", features = ["derive"] }
@@ -51,10 +52,13 @@ bytemuck = "1.14.1"
 space_editor = {git = "https://github.com/rewin123/space_editor", rev = "0f15c0d6b6b5864f4a05a2d57dfc2066e96d1a3b"}
 anyhow.workspace = true
 serde_repr = "0.1.18"
-wasm-bindgen-futures = "0.4"
 
 async-compat = "0.2"
 uuid = { version = "1", features = ["v4", "serde"]}
+indexed_db_futures = { version = "0.4", optional = true}
+wasm-bindgen-futures = { version = "0.4", optional = true}
+dashmap = "5"
+once_cell = "1"
 bevy_tweening = "0.10.0"
 
 [dependencies.reqwest]
@@ -71,6 +75,8 @@ wasm = [
 	"dep:js-sys",
 	"dep:serde-wasm-bindgen",
 	"dep:web-sys",
+	"dep:indexed_db_futures",
+	"dep:wasm-bindgen-futures",
 	"bevy_rapier3d/wasm-bindgen",
 ]
 desktop = []

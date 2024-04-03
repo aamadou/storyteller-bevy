@@ -195,7 +195,7 @@ fn check_loading(
     // `Handle<T>`s.
     if loading_queue.queue.is_empty()
         && **r_scene_state == SceneState::Loading
-        && *frames_without_loading > 100
+        && *frames_without_loading > 200
     {
         info!("Transition to active");
         st_next.set(SceneState::Active);

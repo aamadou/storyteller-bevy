@@ -11,11 +11,14 @@ import { DialogElement } from "@storyteller/studio-ui/dialog";
 import {
 	SceneHierarchyElement,
 	StorytellerApi,
+	StorytellerLocalApi,
+	StorytellerRemoteApi,
 	StudioURLParams,
+	mockApi,
 } from "@storyteller/studio-web";
 import { match } from "@storyteller/utility";
 import { LitElement, TemplateResult, html, nothing } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
@@ -40,7 +43,6 @@ import "./help.element";
 import "./temp-video-preview.element";
 
 import "./app.element.scss";
-import { mock_save_load } from "./util";
 
 @customElement("app-root")
 @provide({
@@ -58,7 +60,7 @@ export class AppElement extends LitElement {
 
 	@state() currentSidebar : string = 'hierarchy';
 
-	private api = new StorytellerApi();
+	@property({ attribute: false }) api: StorytellerApi =  new StorytellerApi(mockApi ? new StorytellerLocalApi() : new StorytellerRemoteApi());
 
 	#addToSceneButtonRef = createRef<ButtonElement>();
 	#videoStylePreviewBtnRef = createRef<ButtonElement>();
@@ -76,43 +78,15 @@ export class AppElement extends LitElement {
 	async onSceneSaved({ detail: scene }: SceneSavedEvent): Promise<void> {
 		try {
 			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
-			if (mock_save_load()) {
-				/*
-				// NB(brandon, 2024-03-22): Hey Lee-Orr, I'm commenting this out since the file
-				picker isn't defined and the Netlify builds are breaking. Feel free to uncomment
-				this for your testing. We probably just need a local definition file so the
-				builds are happy.
+			
+			const token = await this.api.createScene(file);
 
-				let handle = await window.showSaveFilePicker({
-					suggestedName: "scene",
-					types: [{
-						description: "Scene Files",
-						accept: {
-							"text/ron": [".scn.ron"]
-						}
-					}]
-				});
-				let writable = await handle.createWritable();
-				await writable.write(file);
-				await writable.close();
-				let token = handle.name;
-
-				this.dispatchEvent(new CustomEvent("scene-uploaded", {
-					detail: token,
-					bubbles: true,
-					composed: true,
-				}));
-				*/
-
-			} else {
-				const token = await this.api.createScene(file);
-
-				this.dispatchEvent(new CustomEvent("scene-uploaded", {
-					detail: token,
-					bubbles: true,
-					composed: true,
-				}));
-			}
+			this.dispatchEvent(new CustomEvent("scene-uploaded", {
+				detail: token,
+				bubbles: true,
+				composed: true,
+			}));
+			
 		}
 		catch (err) {
 			console.error(err);
