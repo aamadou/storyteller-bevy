@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
-use bevy::{app::PluginGroupBuilder, prelude::*};
+use bevy::{app::PluginGroupBuilder, asset::AssetMetaCheck, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_web_asset::WebAssetPlugin;
 use scene::ImportSceneEvent;
@@ -152,6 +152,7 @@ pub fn start(init: InitParams, mode: StudioMode, window_config: Option<Window>) 
         focused_mode: bevy::winit::UpdateMode::Continuous,
         unfocused_mode: bevy::winit::UpdateMode::Continuous,
     });
+    app.insert_resource(AssetMetaCheck::Never);
 
     app.add_plugins((
         #[cfg(feature = "wasm")]
