@@ -1,6 +1,5 @@
 use core::fmt;
 
-use bevy::window::WindowResolution;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -21,21 +20,9 @@ impl ViewportSize {
 
 impl Default for ViewportSize {
     fn default() -> Self {
-        WindowResolution::default().into()
-    }
-}
-
-impl From<ViewportSize> for WindowResolution {
-    fn from(value: ViewportSize) -> Self {
-        Self::new(value.width, value.height)
-    }
-}
-
-impl From<WindowResolution> for ViewportSize {
-    fn from(value: WindowResolution) -> Self {
         Self {
-            width: value.width(),
-            height: value.height(),
+            width: 1280.,
+            height: 720.,
         }
     }
 }
@@ -58,11 +45,11 @@ pub mod wasm {
 
     use super::ViewportSize;
 
-    static RESIZE_BUF: WasmMessageBuffer<ViewportSize> = WasmMessageBuffer::new();
+    static RESIZE_BUF: WasmMessageBuffer<(ViewportSize, f32)> = WasmMessageBuffer::new();
 
     #[wasm_bindgen]
-    pub fn resize(viewport_size: ViewportSize) {
-        RESIZE_BUF.write_message(viewport_size);
+    pub fn resize(viewport_size: ViewportSize, scale_factor: f32) {
+        RESIZE_BUF.write_message((viewport_size, scale_factor));
     }
 
     pub struct ViewportPlugin;
@@ -77,30 +64,37 @@ pub mod wasm {
     }
 
     #[derive(Event, Clone, Copy)]
-    struct ViewportResizeEvent(ViewportSize);
+    struct ViewportResizeEvent {
+        pub size: ViewportSize,
+        pub scale_factor: f32,
+    }
 
     fn sync_window_to_viewport(
         mut events: EventReader<ViewportResizeEvent>,
         mut window: Query<&mut Window>,
         mut q_camera: Query<&mut Camera, With<MainCamera>>,
     ) {
-        if let Some(event) = events.read().last() {
-            let ViewportSize { width, height } = event.0;
-            window.single_mut().resolution.set(width, height);
+        if let Some(ViewportResizeEvent { size, scale_factor }) = events.read().last() {
+            let ViewportSize { width, height } = size;
+
+            window.single_mut().resolution.set(*width, *height);
             q_camera.single_mut().viewport = Some(Viewport {
-                physical_size: UVec2::new(width as u32, height as u32),
+                physical_size: UVec2::new(
+                    (width * scale_factor) as u32,
+                    (height * scale_factor) as u32,
+                ),
                 ..Default::default()
             });
-            info!("Viewport size: ({:.2}, {:.2})", width, height);
+            info!("Viewport size: ({width:.2}, {height:.2}) [{scale_factor:.2}]");
         }
     }
 
     fn dispatch_resize_events(mut events: EventWriter<ViewportResizeEvent>) {
-        if let Some(resize) = RESIZE_BUF.take_message() {
-            events.send(ViewportResizeEvent(resize));
+        if let Some((size, scale_factor)) = RESIZE_BUF.take_message() {
+            events.send(ViewportResizeEvent { size, scale_factor });
             info!(
-                "Dispatch Viewport size: ({:.2}, {:.2})",
-                resize.width, resize.height
+                "Dispatch Viewport size: ({:.2}, {:.2}) [{scale_factor:.2}]",
+                size.width, size.height,
             );
         }
     }

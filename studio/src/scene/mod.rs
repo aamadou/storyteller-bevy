@@ -10,9 +10,13 @@ use bevy::{
     math::vec2,
     pbr::ShadowFilteringMethod,
     prelude::*,
-    render::{camera::RenderTarget, primitives::Aabb},
+    render::{
+        camera::{RenderTarget, Viewport},
+        primitives::Aabb,
+    },
     scene::InstanceId,
     utils::HashSet,
+    window::PrimaryWindow,
 };
 #[cfg(feature = "wasm")]
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -310,10 +314,18 @@ pub struct SceneData {
 #[derive(Component)]
 pub struct SceneRoot;
 
-fn initialize(mut cmd: Commands) {
+fn initialize(mut cmd: Commands, q_window: Query<&Window, With<PrimaryWindow>>) {
     // Camera, graphics settings
     let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
+
+    let window = q_window.single();
+    info!(
+        "Window: ({:.2} x {:.2}) [{:.2}]",
+        window.width(),
+        window.height(),
+        window.scale_factor(),
+    );
 
     cmd.spawn((
         Name::new("Main Camera"),
@@ -325,6 +337,13 @@ fn initialize(mut cmd: Commands) {
             tonemapping: Tonemapping::BlenderFilmic,
             camera: Camera {
                 hdr: true,
+                viewport: Some(Viewport {
+                    physical_size: UVec2::new(
+                        (window.width() * window.scale_factor()) as u32,
+                        (window.height() * window.scale_factor()) as u32,
+                    ),
+                    ..default()
+                }),
                 ..default()
             },
             ..default()

@@ -64,7 +64,7 @@ export class StudioElement extends LitElement {
 	#onResize(): void {
 		const { width, height } = this.getBoundingClientRect();
 
-		studio.resize(new ViewportSize(width, height));
+		studio.resize(new ViewportSize(width, height), window.devicePixelRatio);
 
 		this.dispatchEvent(new CustomEvent("viewport-resized", {
 			detail: { width, height },
@@ -83,6 +83,7 @@ export class StudioElement extends LitElement {
 			canvasSelector: `#${this._canvasProvider?.canvasId}`,
 			canvasAlt: "Storyteller Studio",
 			viewportSize: new ViewportSize(width, height),
+			scaleFactor: window.devicePixelRatio,
 		};
 
 		try {
