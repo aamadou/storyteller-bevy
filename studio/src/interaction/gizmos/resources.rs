@@ -99,25 +99,25 @@ pub(super) fn init_resources(
         uniform_scale_cube,
     });
 
-    let translate_x = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::RED));
-    let translate_yz = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::RED));
+    let translate_x = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
+    let translate_yz = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
 
-    let translate_y = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::GREEN));
-    let translate_xz = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::GREEN));
+    let translate_y = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
+    let translate_xz = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
 
-    let translate_z = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::BLUE));
-    let translate_xy = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::BLUE));
+    let translate_z = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
+    let translate_xy = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
 
-    let translate_ss = ra_mats.add(Into::<GizmoMaterial>::into(Color::WHITE));
+    let translate_ss = ra_mats.add(GizmoMaterial::from(Color::WHITE));
 
-    let rotate_x = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::RED));
-    let rotate_y = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::GREEN));
-    let rotate_z = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::BLUE));
-    let rotate_ss = ra_mats.add(Into::<GizmoMaterial>::into(Color::WHITE));
+    let rotate_x = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
+    let rotate_y = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
+    let rotate_z = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
+    let rotate_ss = ra_mats.add(GizmoMaterial::from(Color::WHITE));
 
-    let scale_x = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::RED));
-    let scale_y = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::GREEN));
-    let scale_z = ra_mats.add(Into::<GizmoMaterial>::into(design_system::Color::BLUE));
+    let scale_x = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
+    let scale_y = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
+    let scale_z = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
 
     let rotate_trackball = ra_mats.add(GizmoMaterial {
         color: Color::WHITE.with_a(0.0),
