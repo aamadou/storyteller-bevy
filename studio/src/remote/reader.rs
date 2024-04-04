@@ -95,9 +95,12 @@ impl RemoteAssetReader {
 
         let bytes = wasm::LoadLocalFromIdb::new(token);
         info!("Sent request to bevy");
-        let bytes = bytes
-            .await
-            .map_err(|e| AssetReaderError::Io(Arc::new(std::io::Error::new(ErrorKind::Other, format!("{e:?}")))))?;
+        let bytes = bytes.await.map_err(|e| {
+            AssetReaderError::Io(Arc::new(std::io::Error::new(
+                ErrorKind::Other,
+                format!("{e:?}"),
+            )))
+        })?;
 
         let reader: Box<Reader> = Box::new(VecReader::new(bytes));
         Ok(reader)
