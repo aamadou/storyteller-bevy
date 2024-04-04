@@ -85,10 +85,10 @@ impl RemoteAssetReader {
         let token = path
             .ext_file_prefix()
             .ok_or_else(|| {
-                AssetReaderError::Io(std::io::Error::new(
+                AssetReaderError::Io(Arc::new(std::io::Error::new(
                     ErrorKind::Other,
                     format!("Failed to parse token from '{path:?}'"),
-                ))
+                )))
             })?
             .to_str()
             .unwrap();
@@ -97,7 +97,7 @@ impl RemoteAssetReader {
         info!("Sent request to bevy");
         let bytes = bytes
             .await
-            .map_err(|e| std::io::Error::new(ErrorKind::Other, format!("{e:?}")))?;
+            .map_err(|e| AssetReaderError::Io(Arc::new(std::io::Error::new(ErrorKind::Other, format!("{e:?}")))))?;
 
         let reader: Box<Reader> = Box::new(VecReader::new(bytes));
         Ok(reader)
