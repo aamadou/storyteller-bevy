@@ -192,12 +192,20 @@ impl Default for Keyframe {
 #[derive(Component, Clone, Debug, Reflect, PartialEq)]
 #[reflect(Component)]
 pub struct TimedAnimationClipAsset {
-    clip: Handle<AnimationClip>,
+    clip_path: String,
+    #[reflect(ignore)]
+    clip: Option<Handle<AnimationClip>>,
     speed: f32,
+    cut_in: Option<f32>,
+    cut_out: Option<f32>,
 }
 
 #[derive(Component, Clone, Debug, PartialEq)]
-pub struct TimedAnimationClipDuration(f32);
+pub struct TimedAnimationClipDuration {
+    duration: f32,
+    cut_in: f32,
+    full_clip_duration: f32,
+}
 
 #[derive(Component, Clone, Debug)]
 enum RetargetedClipReference {
@@ -238,8 +246,11 @@ impl PartialOrd for TimedAnimationClipAsset {
 impl Default for TimedAnimationClipAsset {
     fn default() -> Self {
         Self {
+            clip_path: Default::default(),
             clip: Default::default(),
             speed: 1.0,
+            cut_in: None,
+            cut_out: None,
         }
     }
 }
@@ -414,6 +425,7 @@ fn process_keyframe_events(
             } => {
                 if let Ok((_target, transform, animation_target)) = q_animation_targets.get(*target)
                 {
+                    let clip_path = format!("{clip_path}#Animation0");
                     commands.spawn((
                         Name::new(display_name.to_owned()),
                         PrefabMarker,
@@ -427,8 +439,11 @@ fn process_keyframe_events(
                             target: *animation_target,
                         },
                         TimedAnimationClipAsset {
-                            clip: asset_server.load(format!("{clip_path}#Animation0")),
+                            clip: Some(asset_server.load(&clip_path)),
+                            clip_path,
                             speed: 1.0,
+                            cut_in: None,
+                            cut_out: None,
                         },
                         retargeting_type.clone(),
                     ));
@@ -679,11 +694,12 @@ pub fn timeline_bound_component_animator_system<T: Component>(
 struct TimedAnimationClipLens {
     clip: Handle<AnimationClip>,
     duration: f32,
+    inner_start: f32,
 }
 
 impl bevy_tweening::lens::Lens<AnimationPlayer> for TimedAnimationClipLens {
     fn lerp(&mut self, target: &mut AnimationPlayer, ratio: f32) {
-        let inner_time = self.duration * ratio;
+        let inner_time = self.duration * ratio + self.inner_start;
         if target.animation_clip() != &self.clip {
             target.play(self.clip.clone());
             target.pause();
@@ -753,15 +769,17 @@ fn generate_clip_animation(
 
         let (last, mut clip_timeline) = keyframes.fold(
             (
-                Option::<(f32, f32, Handle<AnimationClip>)>::None,
+                Option::<(f32, f32, f32, Handle<AnimationClip>)>::None,
                 Vec::<BoxedTweenable<AnimationPlayer>>::new(),
             ),
             |(last_clip, mut clip_timeline), (keyframe, asset, duration, reference, _entity)| {
                 let time = keyframe.time;
 
-                let (last_start, last_duration, last_clip) = match last_clip {
-                    Some((start, duration, clip)) => (start, duration, Some(clip)),
-                    None => (0., 0., None),
+                let (last_start, last_duration, inner_start, last_clip) = match last_clip {
+                    Some((start, duration, inner_start, clip)) => {
+                        (start, duration, inner_start, Some(clip))
+                    }
+                    None => (0., 0., 0., None),
                 };
 
                 let mut reached_now = false;
@@ -782,6 +800,7 @@ fn generate_clip_animation(
                                 TimedAnimationClipLens {
                                     clip: last_clip,
                                     duration,
+                                    inner_start,
                                 },
                             )
                             .into(),
@@ -796,25 +815,33 @@ fn generate_clip_animation(
                     }
                 }
 
-                let duration = duration.0;
+                let inner_start = duration.cut_in;
+                let duration = duration.duration;
                 let clip = match reference {
-                    RetargetedClipReference::UseOrigin => &asset.clip,
-                    RetargetedClipReference::RenamedRoot { retargeted } => retargeted,
-                    RetargetedClipReference::Mixamo { retargeted } => retargeted,
-                    RetargetedClipReference::MocapNet { retargeted } => retargeted,
+                    RetargetedClipReference::UseOrigin => asset.clip.clone(),
+                    RetargetedClipReference::RenamedRoot { retargeted } => Some(retargeted.clone()),
+                    RetargetedClipReference::Mixamo { retargeted } => Some(retargeted.clone()),
+                    RetargetedClipReference::MocapNet { retargeted } => Some(retargeted.clone()),
                 };
 
-                (Some((time, duration, clip.clone())), clip_timeline)
+                (
+                    clip.map(|clip| (time, duration, inner_start, clip)),
+                    clip_timeline,
+                )
             },
         );
 
-        if let Some((_, duration, clip)) = last {
+        if let Some((_, duration, inner_start, clip)) = last {
             if duration > 0f32 {
                 clip_timeline.push(
                     Tween::new(
                         EaseMethod::Linear,
                         Duration::from_secs_f32(duration),
-                        TimedAnimationClipLens { clip, duration },
+                        TimedAnimationClipLens {
+                            clip,
+                            duration,
+                            inner_start,
+                        },
                     )
                     .into(),
                 );
@@ -843,13 +870,28 @@ pub fn update_timed_animation_clip_duration(
     mut commands: Commands,
     query: Query<(Entity, &TimedAnimationClipAsset), Without<TimedAnimationClipDuration>>,
     clips: Res<Assets<AnimationClip>>,
+    asset_server: Res<AssetServer>,
 ) {
     for (entity, clip_asset) in &query {
-        if let Some(clip) = clips.get(&clip_asset.clip) {
-            let duration = clip.duration();
-            commands
-                .entity(entity)
-                .insert(TimedAnimationClipDuration(duration));
+        if let Some(clip) = &clip_asset.clip {
+            if let Some(clip) = clips.get(clip) {
+                let full_clip_duration = clip.duration();
+                let cut_in = clip_asset.cut_in.unwrap_or_default();
+                let duration = if let Some(cut_out) = clip_asset.cut_out {
+                    full_clip_duration.min(cut_out)
+                } else {
+                    full_clip_duration
+                };
+                commands.entity(entity).insert(TimedAnimationClipDuration {
+                    duration,
+                    cut_in,
+                    full_clip_duration,
+                });
+            }
+        } else {
+            let mut clip_asset = clip_asset.clone();
+            clip_asset.clip = Some(asset_server.load(&clip_asset.clip_path));
+            commands.entity(entity).insert(clip_asset);
         }
     }
 }
@@ -869,6 +911,7 @@ fn retarget_timed_animation_clip(
         ),
     >,
     animation_targets: Query<(Entity, &AnimationTarget, &Name), With<Skeleton>>,
+    children: Query<(&Name, Option<&Children>)>,
     mut clips: ResMut<Assets<AnimationClip>>,
 ) {
     let targets = animation_targets
@@ -878,7 +921,8 @@ fn retarget_timed_animation_clip(
 
     for (entity, asset, retarget, keyframe) in &clip_keys {
         info!("Added Animation: {asset:?} with retargeting {retarget:?}");
-        let Some(clip) = clips.get(&asset.clip) else {
+        let Some(clip) = &asset.clip else { continue };
+        let Some(clip) = clips.get(clip) else {
             continue;
         };
         info!("Animation exists");
@@ -892,8 +936,12 @@ fn retarget_timed_animation_clip(
             continue;
         };
 
-        let Some((_target_entity, target_name)) = targets.get(&keyframe.target) else {
+        let Some((target_entity, target_name)) = targets.get(&keyframe.target) else {
             error!("Animation has no target: {keyframe:?}");
+            continue;
+        };
+
+        let Some((_, target_children)) = children.get(*target_entity).ok() else {
             continue;
         };
 
@@ -907,28 +955,28 @@ fn retarget_timed_animation_clip(
                         .insert(RetargetedClipReference::UseOrigin);
                 } else {
                     let mut new_clip = AnimationClip::default();
-                    let first_path = paths.keys().next().cloned();
-                    let new_first_path = first_path.as_ref().map(|path| {
-                        let mut new_path = path.clone();
-                        if let Some(root_name) = new_path.parts.first_mut() {
-                            root_name.set(target_name.to_string());
-                        }
-                        new_path
-                    });
+                    let mut empty = true;
                     for (path, bone_id) in paths.iter() {
-                        let mut new_path = path.clone();
-                        if let Some(root_name) = new_path.parts.first_mut() {
-                            root_name.set(target_name.to_string());
-                        }
+                        let Some(new_path) =
+                            rebuild_entity_path(target_name, target_children, path, &children)
+                        else {
+                            continue;
+                        };
 
                         let Some(curves) = clip.get_curves(*bone_id) else {
                             continue;
                         };
                         for curve in curves {
                             new_clip.add_curve_to_path(new_path.clone(), curve.clone());
+                            empty = false;
                         }
                     }
-                    info!("Inserted Animation With Renamed Root - original {first_path:?} becomes {new_first_path:?}");
+                    if empty {
+                        error!("Failed to add any curves to animation");
+                        commands.entity(entity).remove::<ClipRetargeting>();
+                        continue;
+                    }
+                    info!("Inserted Animation With Renamed Root");
                     let retargeted = clips.add(new_clip);
                     commands
                         .entity(entity)
@@ -947,6 +995,54 @@ fn retarget_timed_animation_clip(
             }
         }
     }
+}
+
+fn rebuild_entity_path(
+    new_root_name: &Name,
+    root_children: Option<&Children>,
+    original: &EntityPath,
+    named: &Query<(&Name, Option<&Children>)>,
+) -> Option<EntityPath> {
+    if original.parts.is_empty() {
+        error!("Empty Entity Path");
+        return None;
+    }
+
+    let mut current_children = root_children;
+
+    let mut new_parts = Vec::with_capacity(original.parts.len());
+    let mut parts = original.parts.iter();
+
+    new_parts.push(new_root_name.clone());
+
+    let _ = parts.next(); // Skipping the first one
+
+    for part in parts {
+        let children = current_children?;
+        let mut found = false;
+        for child in children.iter() {
+            if let Ok((name, children)) = named.get(*child) {
+                info!("Checking {name:?}");
+                if name.as_str() == part.as_str() {
+                    found = true;
+                    current_children = children;
+                    new_parts.push(name.clone());
+                    break;
+                }
+            }
+        }
+        if !found {
+            warn!(
+                r#"Couldn't find Path: {original:?}
+            Failed at: {part:?}
+            Children are: {children:?}"#
+            );
+            return None;
+        }
+    }
+    let new_path = EntityPath { parts: new_parts };
+    info!("Retargeting: Replaced {original:?} with {new_path:?}");
+    Some(new_path)
 }
 
 #[cfg(feature = "wasm")]
@@ -1302,7 +1398,7 @@ mod wasm {
                             time: keyframe.time,
                             clip: name.to_string(),
                             speed: clip.speed,
-                            duration: duration.map(|v| v.0).unwrap_or_default(),
+                            duration: duration.map(|v| v.duration).unwrap_or_default(),
                         })
                         .map_err(|e| format!("{e}"))
                         {
