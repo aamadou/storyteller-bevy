@@ -1,6 +1,6 @@
 use std::{str::FromStr, time::Duration};
 
-use bevy::{asset::AssetPath, prelude::*, utils::hashbrown::HashMap};
+use bevy::{prelude::*, utils::hashbrown::HashMap};
 
 use bevy_tweening::{
     lens::{TransformPositionLens, TransformRotationLens, TransformScaleLens},
@@ -825,10 +825,7 @@ fn generate_clip_animation(
                 };
 
                 (
-                    match clip {
-                        Some(clip) => Some((time, duration, inner_start, clip)),
-                        None => None
-                    },
+                    clip.map(|clip| (time, duration, inner_start, clip)),
                     clip_timeline,
                 )
             },
@@ -924,9 +921,7 @@ fn retarget_timed_animation_clip(
 
     for (entity, asset, retarget, keyframe) in &clip_keys {
         info!("Added Animation: {asset:?} with retargeting {retarget:?}");
-        let Some(clip) = &asset.clip else {
-            continue
-        };
+        let Some(clip) = &asset.clip else { continue };
         let Some(clip) = clips.get(clip) else {
             continue;
         };
@@ -1037,9 +1032,11 @@ fn rebuild_entity_path(
             }
         }
         if !found {
-            warn!(r#"Couldn't find Path: {original:?}
+            warn!(
+                r#"Couldn't find Path: {original:?}
             Failed at: {part:?}
-            Children are: {children:?}"#);
+            Children are: {children:?}"#
+            );
             return None;
         }
     }
