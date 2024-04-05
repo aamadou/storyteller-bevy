@@ -20,6 +20,10 @@ import "./bubble-select.element";
 import "@storyteller/studio-ui/button";
 import { STYLE_OPTIONS, type VstStyle } from "./inspector-tabs/style-tab";
 
+export enum CompositorJobStatus {
+	Success = "success",
+	Failure = "failure",
+}
 
 @customElement("sts-style-workspace")
 export class StyleWorkspace extends LitElement {
@@ -132,7 +136,8 @@ export class StyleWorkspace extends LitElement {
 		event.stopPropagation();
 	}
 
-	@on("window:scene-uploaded") getSceneToken({ detail }) {
+	@on("window:scene-uploaded")
+	getSceneToken({ detail }: CustomEvent<string>) {
 		console.log("👺", detail);
 		this.sceneToken = detail;
 	}
@@ -146,13 +151,19 @@ export class StyleWorkspace extends LitElement {
 				media_file_token: this.sceneToken,
 			}).then((res: EngineCompositerResponse) => {
 				console.log("👻",res);
-			}); 
+
+				this.dispatchEvent(new CustomEvent("compositor-status", {
+					detail: res.success
+						? CompositorJobStatus.Success
+						: CompositorJobStatus.Failure
+				}));
+			});
 		}
 
 	}
 
 
-	protected override render = () => html`
+	protected override render = (): TemplateResult => html`
 		<div class="video-style-preview__page_container">
 			<div class="video-style-preview__previews">
 				<div class="video-style-preview__panel">

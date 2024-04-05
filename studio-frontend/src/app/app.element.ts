@@ -23,6 +23,8 @@ import { classMap } from "lit/directives/class-map.js";
 import { createRef, ref } from "lit/directives/ref.js";
 import { styleMap } from "lit/directives/style-map.js";
 
+import { CompositorJobStatus } from "./style-workspace.element";
+
 import "@storyteller/studio-ui/button";
 import "@storyteller/studio-ui/dialog";
 import "@storyteller/studio-ui/icon";
@@ -72,11 +74,14 @@ export class AppElement extends LitElement {
 
 	@state() sceneToken?: string;
 
+	@state() _compositorJobStatus?: CompositorJobStatus;
+
 	#addToSceneButtonRef = createRef<ButtonElement>();
 	#videoStylePreviewBtnRef = createRef<ButtonElement>();
 	#mediaLibraryRef = createRef<DialogElement>();
 	#inspectorRef = createRef<HTMLDivElement>();
 	#hierarchyRef = createRef<SceneHierarchyElement>();
+	#jobStatusDialogRef = createRef<DialogElement>();
 
 	#params = new StudioURLParams();
 
@@ -88,7 +93,7 @@ export class AppElement extends LitElement {
 	async onSceneSaved({ detail: scene }: SceneSavedEvent): Promise<void> {
 		try {
 			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
-			
+
 			const token = await this.api.createScene(file);
 
 			this.sceneToken = token;
@@ -98,7 +103,7 @@ export class AppElement extends LitElement {
 				bubbles: true,
 				composed: true,
 			}));
-			
+
 		}
 		catch (err) {
 			console.error(err);
@@ -143,17 +148,18 @@ export class AppElement extends LitElement {
 		return html`<></>`;
 	}
 
-	switchStage(name, debug) {
-		console.log(`🎚️ from: ${ debug }`, name, WorkspaceMode.Stage);
-		return (event) => {
-			switch(name) {
-				case WorkspaceMode.Stage: 
-					this.workspace = WorkspaceMode.Stage;
-					break;
-				case WorkspaceMode.Style: 
-					this.workspace = WorkspaceMode.Style;
-					break;
-			}
+	switchStage(mode: WorkspaceMode, debug?: unknown) {
+		console.log(`🎚️ from: ${ debug }`, mode, WorkspaceMode.Stage);
+		return () => {
+			this.workspace = mode;
+			// switch(name) {
+			// 	case WorkspaceMode.Stage:
+			// 		this.workspace = WorkspaceMode.Stage;
+			// 		break;
+			// 	case WorkspaceMode.Style:
+			// 		this.workspace = WorkspaceMode.Style;
+			// 		break;
+			// }
 		}
 	}
 
@@ -251,10 +257,15 @@ export class AppElement extends LitElement {
 			` : nothing}
 
 
-				` : html`<sts-style-workspace
-						.trigger=${ this.#videoStylePreviewBtnRef }
-						.sceneToken=${ this.sceneToken }
-						.switchStage=${ this.switchStage }
+			` : html`
+				<sts-style-workspace
+					.trigger=${ this.#videoStylePreviewBtnRef }
+					.sceneToken=${ this.sceneToken! }
+					.switchStage=${ this.switchStage }
+					@compositor-status=${({ detail }: CustomEvent<CompositorJobStatus>) => {
+						this._compositorJobStatus = detail;
+						this.#jobStatusDialogRef.value?.open();
+					}}
 				></sts-style-workspace>`
 			}
 			<!-- Actions toolbar -->
@@ -284,14 +295,20 @@ export class AppElement extends LitElement {
 				})}
 			></sts-anim-editor>
 
-			
+
 			<sts-temp-video-preview
 				.trigger=${ this.#videoStylePreviewBtnRef }>
 			</sts-temp-video-preview>
 
-
-			<sts-job-status>
-			</sts-job-status>
+			<sts-dialog
+				${ref(this.#jobStatusDialogRef)}
+				skipWrapper
+				.template=${[this, html`
+					<sts-job-status-dialog
+						.status=${this._compositorJobStatus}
+					></sts-job-status-dialog>
+				`] as const}
+			></sts-dialog>
 
 			<!-- Dialogs and modals -->
 			${this.showHelp ? html`
