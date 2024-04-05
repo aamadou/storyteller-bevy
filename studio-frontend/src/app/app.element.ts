@@ -40,9 +40,15 @@ import "@storyteller/studio-web/studio";
 import "@storyteller/studio-web/transform-toolbar";
 import "./anim-editor.element";
 import "./help.element";
-import "./temp-video-preview.element";
+import "./job-status.element";
+import "./style-workspace.element";
 
 import "./app.element.scss";
+
+export enum WorkspaceMode {
+	Stage,
+	Style
+}
 
 @customElement("app-root")
 @provide({
@@ -60,7 +66,11 @@ export class AppElement extends LitElement {
 
 	@state() currentSidebar : string = 'hierarchy';
 
+	@state() workspace : WorkspaceMode = WorkspaceMode.Stage;
+
 	@property({ attribute: false }) api: StorytellerApi =  new StorytellerApi(mockApi ? new StorytellerLocalApi() : new StorytellerRemoteApi());
+
+	@state() sceneToken?: string;
 
 	#addToSceneButtonRef = createRef<ButtonElement>();
 	#videoStylePreviewBtnRef = createRef<ButtonElement>();
@@ -80,6 +90,8 @@ export class AppElement extends LitElement {
 			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
 			
 			const token = await this.api.createScene(file);
+
+			this.sceneToken = token;
 
 			this.dispatchEvent(new CustomEvent("scene-uploaded", {
 				detail: token,
@@ -131,6 +143,21 @@ export class AppElement extends LitElement {
 		return html`<></>`;
 	}
 
+	switchStage(name, debug) {
+		console.log(`🎚️ from: ${ debug }`, name, WorkspaceMode.Stage);
+		return (event) => {
+			switch(name) {
+				case WorkspaceMode.Stage: 
+					this.workspace = WorkspaceMode.Stage;
+					break;
+				case WorkspaceMode.Style: 
+					this.workspace = WorkspaceMode.Style;
+					break;
+			}
+		}
+	}
+
+
 	protected override render() {
 		return html`
 		<sts-canvas-provider class="app-root">
@@ -154,38 +181,21 @@ export class AppElement extends LitElement {
 
 		<div class="wrapper" style=${styleMap({ "--sidebar-width": `${this.inspectorWidth}px` })}>
 			<!-- Scene view -->
-			<sts-studio
-				class=${classMap({
-					"studio-scene": true,
-					"block-pointer-events": this.resizingPanel,
-				})}
-				.objectId=${this.#params.objectId}
-				.bvhPath=${this.#params.bvh}
-				.mixamoPath=${this.#params.mixamo}
-				.sceneImport=${this.#params.sceneImport}
-				.storytellerScene=${this.#params.scene}
-				.skyboxId=${this.#params.skybox ?? "test_scene"}
-				.mode=${this.#params.mode}
-			></sts-studio>
 
-			<!-- Actions toolbar -->
-			<sts-toolbar class="action-toolbar">
-				<sts-toolbar-group>
-					${this.#params.mode === StudioMode.Editor ? html`
-						<sts-button
-							@click=${() => studio.saveScene()}
-						>
-							Save Scene
-						</sts-button>
-					` : nothing}
-					<sts-button
-						class=${classMap({ active: this.showHelp })}
-						@click=${this.toggleHelp}
-					>
-						Help
-					</sts-button>
-				</sts-toolbar-group>
-			</sts-toolbar>
+			${ this.workspace === WorkspaceMode.Stage ?
+				html`<sts-studio
+					class=${classMap({
+						"studio-scene": true,
+						"block-pointer-events": this.resizingPanel,
+					})}
+					.objectId=${this.#params.objectId}
+					.bvhPath=${this.#params.bvh}
+					.mixamoPath=${this.#params.mixamo}
+					.sceneImport=${this.#params.sceneImport}
+					.storytellerScene=${this.#params.scene}
+					.skyboxId=${this.#params.skybox ?? "test_scene"}
+					.mode=${this.#params.mode}
+				></sts-studio>
 
 			<!-- Studio-mode-only elements -->
 			${this.#params.mode === StudioMode.Editor ? html`
@@ -198,6 +208,8 @@ export class AppElement extends LitElement {
 						</sts-button>
 						<sts-button
 							${ref(this.#videoStylePreviewBtnRef)}
+							name="Style"
+							@click=${ this.switchStage(WorkspaceMode.Style) }
 							icon="films"
 							class="video-style-preview-dropdown"
 						>
@@ -232,21 +244,54 @@ export class AppElement extends LitElement {
 					</section>
 
 					<div class="entity-inspector">
-						<sts-entity-inspector></sts-entity-inspector>
+						<sts-entity-inspector
+						></sts-entity-inspector>
 					</div>
 
-					<sts-anim-editor
-						class="timeline"
-						style=${styleMap({
-					right: `${this.inspectorWidth + 32}px`
-				})}
-					></sts-anim-editor>
 			` : nothing}
 
 
+				` : html`<sts-style-workspace
+						.trigger=${ this.#videoStylePreviewBtnRef }
+						.sceneToken=${ this.sceneToken }
+						.switchStage=${ this.switchStage }
+				></sts-style-workspace>`
+			}
+			<!-- Actions toolbar -->
+			<sts-toolbar class="action-toolbar">
+				<sts-toolbar-group>
+					${this.#params.mode === StudioMode.Editor ? html`
+						<sts-button
+							@click=${() => studio.saveScene()}
+						>
+							Save Scene
+						</sts-button>
+					` : nothing}
+					<sts-button
+						class=${classMap({ active: this.showHelp })}
+						@click=${this.toggleHelp}
+					>
+						Help
+					</sts-button>
+				</sts-toolbar-group>
+			</sts-toolbar>
+
+
+			<sts-anim-editor
+				class="timeline"
+				style=${styleMap({
+					right: `${this.inspectorWidth + 32}px`
+				})}
+			></sts-anim-editor>
+
+			
 			<sts-temp-video-preview
 				.trigger=${ this.#videoStylePreviewBtnRef }>
 			</sts-temp-video-preview>
+
+
+			<sts-job-status>
+			</sts-job-status>
 
 			<!-- Dialogs and modals -->
 			${this.showHelp ? html`

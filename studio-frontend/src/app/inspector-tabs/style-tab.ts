@@ -3,7 +3,7 @@ import { LitElement, TemplateResult, html, unsafeCSS } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { v4 as uuid } from "uuid";
 
-import { EnqueueEngineCompositing } from "../api/EnqueueEngineCompositing";
+import { EngineCompositer } from "../api/EngineCompositer";
 
 import styles from "./style-tab.scss?inline";
 
@@ -132,7 +132,7 @@ export class StyleTab extends LitElement {
 		oAThing(): void { console.log("🍕")};
 
 	compositorEnqueue = (sceneToken: string) => () => {
-		EnqueueEngineCompositing("",{
+		EngineCompositer("",{
 			uuid_idempotency_token: uuid(),
 			media_file_token: sceneToken,
 			camera: "zoom",

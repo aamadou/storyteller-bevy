@@ -1,6 +1,6 @@
 import MakeRequest from "./MakeRequest";
 
-export interface EnqueueEngineCompositingRequest {
+export interface EngineCompositerRequest {
   uuid_idempotency_token: string,
   media_file_token: string,
   camera?: string,
@@ -8,12 +8,12 @@ export interface EnqueueEngineCompositingRequest {
   skybox?: string,
 }
 
-export interface EnqueueEngineCompositingResponse {
+export interface EngineCompositerResponse {
   success: boolean,
   inference_job_token?: string
 }
 
-export const EnqueueEngineCompositing = MakeRequest<string, EnqueueEngineCompositingRequest, EnqueueEngineCompositingResponse,{}>({
+export const EngineCompositer = MakeRequest<string, EngineCompositerRequest, EngineCompositerResponse,{}>({
   method: "POST",
   routingFunction: () => `/v1/conversion/enqueue_render_engine_scene`,
 });
