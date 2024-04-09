@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM x11docker/xfce
 # as rust-base
 
 # NB: This can be "stable" or another version.
@@ -17,13 +17,23 @@ RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y \
         build-essential \
         cmake \
-        libasound2-dev \
-        libudev-dev \
+        mesa-utils \
         curl \
         fontconfig \
         libfontconfig1-dev \
         libssl-dev \
-        pkg-config
+        pkg-config \
+        g++ \
+        pkg-config \
+        libx11-dev \
+        libasound2-dev \
+        libudev-dev \
+        libxkbcommon-x11-0 \
+        libwayland-dev \
+        libxkbcommon-dev \
+        mesa-vulkan-drivers \
+        xterm
+
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
@@ -50,3 +60,11 @@ RUN LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH} \
   $HOME/.cargo/bin/cargo build \
   --release \
   --bin studio-headless
+WORKDIR /workdir
+
+RUN mv $HOME/.cargo /workdir/.cargo && chmod -R 777 /workdir/.cargo
+
+COPY ./ .
+RUN cp /tmp/target/release/studio-headless /workdir/studio-headless
+
+# CMD xterm
