@@ -1,6 +1,5 @@
-import { drag, on, provide } from "@storyteller/framework";
+import { on, provide } from "@storyteller/framework";
 import {
-	type SceneSavedEvent,
 	type SceneStateEvent,
 	SceneState,
 	StudioMode,
@@ -76,25 +75,6 @@ export class AppElement extends LitElement {
 
 	protected override createRenderRoot(): Element | ShadowRoot {
 		return this;
-	}
-
-	@on("scene-saved")
-	async onSceneSaved({ detail: scene }: SceneSavedEvent): Promise<void> {
-		try {
-			const file = new File([scene], "scene.scn.ron", { type: "text/ron" });
-
-			const token = await this.api.createScene(file);
-
-			this.dispatchEvent(new CustomEvent("scene-uploaded", {
-				detail: token,
-				bubbles: true,
-				composed: true,
-			}));
-
-		}
-		catch (err) {
-			console.error(err);
-		}
 	}
 
 	@on("scene-state")
