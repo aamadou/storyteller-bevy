@@ -95,5 +95,4 @@ features = [
 	"backend_raycast",
 	"backend_sprite",
 	"debug",
-	"selection",
 ]
