@@ -30,7 +30,32 @@ impl Plugin for CameraControllerPlugin {
             )
                 .in_set(CameraMotionSystem),
         );
+
+        #[cfg(not(feature = "wasm"))]
+        app.add_systems(PreUpdate, sync_camera_viewport);
     }
+}
+
+#[cfg(not(feature = "wasm"))]
+fn sync_camera_viewport(
+    mut camera: Query<&mut Camera, With<crate::MainCamera>>,
+    window: Query<&Window, With<PrimaryWindow>>,
+) {
+    use bevy::render::camera::Viewport;
+
+    let Ok(mut camera) = camera.get_single_mut() else {
+        return;
+    };
+
+    let Ok(window) = window.get_single() else {
+        return;
+    };
+
+    camera.viewport = Some(Viewport {
+        physical_position: UVec2::new(0, 0),
+        physical_size: UVec2::new(window.physical_width(), window.physical_height()),
+        ..default()
+    });
 }
 
 #[derive(Component)]
@@ -314,8 +339,8 @@ fn do_pan(
     };
 
     // Pan along local XY plane, with the distance scaled by the radius
-    let up = xform.up();
-    let left = xform.left();
+    let up = xform.up().xyz();
+    let left = xform.left().xyz();
     let delta = (pan.y * up + pan.x * left) * controller.radius;
 
     // Update camera translation and focus point

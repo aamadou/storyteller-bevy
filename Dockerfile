@@ -23,6 +23,10 @@ RUN apt-get update \
         fontconfig \
         libfontconfig1-dev \
         libssl-dev \
+        librust-wayland-commons-dev \
+        librust-wayland-sys-dev \
+        libwayland-client++0 \
+        libwayland-client0 \
         pkg-config
 
 # Install Rust
@@ -49,4 +53,5 @@ COPY ./ .
 RUN LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH} \
   $HOME/.cargo/bin/cargo build \
   --release \
-  --bin studio-headless
+  --bin studio-headless \
+  --features headless

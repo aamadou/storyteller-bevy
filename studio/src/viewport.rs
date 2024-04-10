@@ -48,10 +48,13 @@ impl fmt::Debug for ViewportSize {
 
 #[cfg(feature = "wasm")]
 pub mod wasm {
-    use bevy::prelude::*;
+    use bevy::{prelude::*, render::camera::Viewport};
     use wasm_bindgen::prelude::*;
 
-    use crate::wasm::{StaticBuffer, WasmMessageBuffer};
+    use crate::{
+        wasm::{StaticBuffer, WasmMessageBuffer},
+        MainCamera,
+    };
 
     use super::ViewportSize;
 
@@ -66,9 +69,10 @@ pub mod wasm {
 
     impl Plugin for ViewportPlugin {
         fn build(&self, app: &mut App) {
-            app.add_event::<ViewportResizeEvent>()
-                .add_systems(PreUpdate, dispatch_resize_events)
-                .add_systems(Update, sync_window_to_viewport);
+            app.add_event::<ViewportResizeEvent>().add_systems(
+                PreUpdate,
+                (dispatch_resize_events, sync_window_to_viewport).chain(),
+            );
         }
     }
 
@@ -78,16 +82,33 @@ pub mod wasm {
     fn sync_window_to_viewport(
         mut events: EventReader<ViewportResizeEvent>,
         mut window: Query<&mut Window>,
+        mut q_camera: Query<&mut Camera, With<MainCamera>>,
     ) {
         if let Some(event) = events.read().last() {
             let ViewportSize { width, height } = event.0;
-            window.single_mut().resolution.set(width, height);
+            let mut window = window.single_mut();
+            let scale_factor = window.scale_factor() as f32;
+            window
+                .resolution
+                .set(width * scale_factor, height * scale_factor);
+            q_camera.single_mut().viewport = Some(Viewport {
+                physical_size: UVec2::new(
+                    (width * scale_factor) as u32,
+                    (height * scale_factor) as u32,
+                ),
+                ..Default::default()
+            });
+            info!("Viewport size: ({:.2}, {:.2})", width, height);
         }
     }
 
     fn dispatch_resize_events(mut events: EventWriter<ViewportResizeEvent>) {
         if let Some(resize) = RESIZE_BUF.take_message() {
             events.send(ViewportResizeEvent(resize));
+            info!(
+                "Dispatch Viewport size: ({:.2}, {:.2})",
+                resize.width, resize.height
+            );
         }
     }
 }

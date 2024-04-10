@@ -3,7 +3,7 @@ use bevy::{
     core_pipeline::{core_3d, prepass::ViewPrepassTextures},
     prelude::*,
     render::{
-        render_graph::{RenderGraphApp, ViewNode, ViewNodeRunner},
+        render_graph::{RenderGraphApp, RenderLabel, ViewNode, ViewNodeRunner},
         render_resource::{
             Buffer, BufferDescriptor, BufferUsages, ImageCopyBuffer, ImageDataLayout, MapMode,
         },
@@ -11,12 +11,14 @@ use bevy::{
         view::ViewTarget,
         Extract, Render, RenderSet,
     },
+    tasks::Task,
 };
 use bytemuck::AnyBitPattern;
 use image::{
     error::UnsupportedErrorKind, EncodableLayout, ImageBuffer, ImageError, Pixel,
     PixelWithColorType, Rgba,
 };
+use std::sync::Mutex;
 use wgpu::{Extent3d, MaintainBase};
 
 use crate::scene::SceneState;
@@ -51,16 +53,18 @@ impl Plugin for ScreenShotPlugin {
             )
             //Render Graph Additions
             .add_render_graph_node::<ViewNodeRunner<ScreenCaptureNode>>(
-                core_3d::graph::NAME,
-                ScreenCaptureNode::NAME,
+                core_3d::graph::Core3d,
+                ScreenCaptureNode,
             )
-            .add_render_graph_edges(
-                core_3d::graph::NAME,
-                &[
-                    core_3d::graph::node::TONEMAPPING,
-                    ScreenCaptureNode::NAME,
-                    core_3d::graph::node::END_MAIN_PASS_POST_PROCESSING,
-                ],
+            .add_render_graph_edge(
+                core_3d::graph::Core3d,
+                core_3d::graph::Node3d::Tonemapping,
+                ScreenCaptureNode,
+            )
+            .add_render_graph_edge(
+                core_3d::graph::Core3d,
+                ScreenCaptureNode,
+                core_3d::graph::Node3d::EndMainPassPostProcessing,
             );
     }
 }
@@ -112,7 +116,7 @@ impl ScreenCapture {
     }
 
     pub fn should_capture(&self) -> bool {
-        self.frames < self.max_frames && self.is_capturing()
+        self.frames <= self.max_frames && self.is_capturing()
     }
 
     pub fn frames_captured(&self) -> u32 {
@@ -128,10 +132,17 @@ fn update_screen_capture_on_extract_step(
     mut screen_captures: Query<&mut ScreenCapture>,
     mut exit_event: EventWriter<AppExit>,
 ) {
+    let loading_count;
+    {
+        let mut queue = QUEUE_SAVE.lock().unwrap();
+        queue.retain(|task| !task.is_finished());
+        loading_count = queue.len();
+    }
+
     for mut screen_capture in screen_captures.iter_mut() {
         screen_capture.frames += 1;
 
-        if !screen_capture.should_capture() {
+        if !screen_capture.should_capture() && loading_count == 0 {
             exit_event.send(AppExit);
         }
         // if screen_capture.number_of_frames == 0 {
@@ -146,7 +157,7 @@ fn extract_screen_capture_components(
     screen_capure_comps: Extract<Query<(Entity, &ScreenCapture), With<Camera>>>,
     scene_state: Extract<Res<State<SceneState>>>,
 ) {
-    if scene_state.get() != &SceneState::Active {
+    if *scene_state.get() != SceneState::Active {
         return;
     };
     for (entity, screen_capture) in screen_capure_comps.iter() {
@@ -185,7 +196,7 @@ fn prepare_screen_capture_buffers(
             let size = texture.size();
             let format = texture.format();
             let bytes_per_row =
-                (size.width / format.block_dimensions().0) * format.block_size(None).unwrap();
+                (size.width / format.block_dimensions().0) * format.block_copy_size(None).unwrap();
             let padded_bytes_per_row =
                 RenderDevice::align_copy_bytes_per_row(bytes_per_row as usize) as u32;
 
@@ -210,12 +221,8 @@ fn prepare_screen_capture_buffers(
 //                        Screen Shot View Node
 //==============================================================================
 
-#[derive(Default)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel, Default)]
 struct ScreenCaptureNode;
-
-impl ScreenCaptureNode {
-    pub const NAME: &'static str = "ScreenCaptureNode";
-}
 
 impl ViewNode for ScreenCaptureNode {
     type ViewQuery = (
@@ -252,6 +259,8 @@ impl ViewNode for ScreenCaptureNode {
 //==============================================================================
 //                        Saving the buffer to file
 //==============================================================================
+
+static QUEUE_SAVE: Mutex<Vec<Task<()>>> = Mutex::new(Vec::new());
 
 fn save_buffer_to_file(
     mut frames_to_skip: Local<Option<u32>>,
@@ -297,14 +306,19 @@ fn save_buffer_to_file(
             screen_capture.to_directory, screen_capture.frames
         );
 
-        save_buffer::<Rgba<u8>>(&main_image_values, &buffers.main_buffer_extent, &path);
+        let pool = bevy::tasks::AsyncComputeTaskPool::get();
+        let extent = buffers.main_buffer_extent;
+        let task = pool.spawn(async move {
+            save_buffer::<Rgba<u8>>(main_image_values, extent, path.clone());
+        });
+        QUEUE_SAVE.lock().unwrap().push(task);
     }
 }
 
 fn save_buffer<P: Pixel + PixelWithColorType>(
-    image_bytes: &[P::Subpixel],
-    source_size: &Extent3d,
-    path: &str,
+    image_bytes: Vec<P::Subpixel>,
+    source_size: Extent3d,
+    path: String,
 ) where
     P::Subpixel: AnyBitPattern,
     [P::Subpixel]: EncodableLayout,

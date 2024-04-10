@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use space_editor::space_prefab::ext::{Deref, DerefMut};
 
 use crate::math::{NearlyEq, NearlyZero};
 
@@ -56,7 +57,7 @@ where
                 Easing::SineOut => self.t.curve_sin_out(),
             };
 
-            t.lerp(self.initial, self.target)
+            Lerp::lerp(t, self.initial, self.target)
         }
     }
 }
@@ -68,8 +69,8 @@ where
 {
     fn default() -> Self {
         Self {
-            initial: default(),
-            target: default(),
+            initial: T::default(),
+            target: T::default(),
             t: 0.,
             easing: Easing::Linear,
         }

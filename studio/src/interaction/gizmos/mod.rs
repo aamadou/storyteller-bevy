@@ -46,8 +46,7 @@ impl Plugin for GizmoPlugin {
         app.add_systems(
             PreUpdate,
             spawn_gizmo_camera.run_if(
-                any_with_component::<MainCamera>()
-                    .and_then(not(any_with_component::<GizmoCamera>())),
+                any_with_component::<MainCamera>.and_then(not(any_with_component::<GizmoCamera>)),
             ),
         );
         app.add_systems(
@@ -55,11 +54,11 @@ impl Plugin for GizmoPlugin {
             (
                 despawn_existing_gizmo.run_if(
                     resource_changed_or_removed::<Selection>()
-                        .or_else(resource_changed::<TransformMode>()),
+                        .or_else(resource_changed::<TransformMode>),
                 ),
                 spawn_gizmo.after(despawn_existing_gizmo).run_if(
-                    resource_exists::<Selection>()
-                        .and_then(not(any_with_component::<TransformGizmo>())),
+                    resource_exists::<Selection>
+                        .and_then(not(any_with_component::<TransformGizmo>)),
                 ),
                 (update_target_global_trasform, sync_gizmo_transform)
                     .chain()

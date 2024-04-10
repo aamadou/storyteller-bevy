@@ -257,7 +257,7 @@ pub(super) fn on_translate(
             let plane_vector = axis_ws.cross(axis_tan);
 
             // Find the intersection of the camera-to-world ray against that plane
-            let Some(hit_dist) = ray.intersect_plane(origin_ws, plane_vector) else {
+            let Some(hit_dist) = ray.intersect_plane(origin_ws, Plane3d::new(plane_vector)) else {
                 return;
             };
             let hit_point = ray.origin + ray.direction * hit_dist;
@@ -290,7 +290,7 @@ pub(super) fn on_translate(
             };
 
             // Find the intersection of the camera-to-world ray against that plane
-            let Some(hit_dist) = ray.intersect_plane(origin_ws, plane_normal) else {
+            let Some(hit_dist) = ray.intersect_plane(origin_ws, Plane3d::new(plane_normal)) else {
                 return;
             };
             let target_ws = ray.origin + ray.direction * hit_dist;

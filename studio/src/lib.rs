@@ -1,6 +1,6 @@
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 
-use bevy::{app::PluginGroupBuilder, prelude::*};
+use bevy::{app::PluginGroupBuilder, asset::AssetMetaCheck, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 use bevy_web_asset::WebAssetPlugin;
 use scene::ImportSceneEvent;
@@ -16,6 +16,7 @@ mod camera_controller;
 mod change_tracking;
 mod debug;
 mod design_system;
+#[cfg(feature = "headless")]
 pub mod headless;
 mod hierarchy;
 mod input;
@@ -28,6 +29,7 @@ mod path;
 mod persistance;
 mod remote;
 pub mod scene;
+#[cfg(feature = "headless")]
 pub mod screenshot;
 mod skybox;
 mod ui;
@@ -89,7 +91,7 @@ impl PluginGroup for CommonPlugins {
             .add(InterpolationPlugin)
             .add(ScenePlugin)
             .add(MaterialPlugin)
-            .add(SkyboxPlugin)
+            // .add(SkyboxPlugin)
             .add(StudioInputPlugin)
             .add(UiLayerPlugin)
             .add(WorldGridPlugin)
@@ -148,6 +150,11 @@ pub fn start(init: InitParams, mode: StudioMode, window_config: Option<Window>) 
     let mut app = App::new();
 
     app.insert_resource(mode);
+    app.insert_resource(bevy::winit::WinitSettings {
+        focused_mode: bevy::winit::UpdateMode::Continuous,
+        unfocused_mode: bevy::winit::UpdateMode::Continuous,
+    });
+    app.insert_resource(AssetMetaCheck::Never);
 
     app.add_plugins((
         #[cfg(feature = "wasm")]

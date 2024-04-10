@@ -1,11 +1,20 @@
 use bevy::prelude::*;
 use space_editor::prelude::*;
 
+use crate::StudioMode;
+
 pub struct PersistancePlugin;
 
 impl Plugin for PersistancePlugin {
     fn build(&self, app: &mut App) {
         info!("PersistancePlugin::build");
+
+        if let Some(state) = app.world.get_resource::<StudioMode>() {
+            if *state == StudioMode::Headless {
+                return;
+            }
+        }
+
         app.editor_tab_by_trait(
             EditorTabName::Other("Persistance".to_string()),
             DebugPersistanceTab::default(),
@@ -31,11 +40,11 @@ impl EditorTab for DebugPersistanceTab {
         world: &mut World,
     ) {
         if ui.button("Save").clicked() {
-            world.send_event(EditorEvent::Save(EditorPrefabPath::MemoryCahce));
+            world.send_event(EditorEvent::Save(EditorPrefabPath::MemoryCache));
         }
 
         if ui.button("Load").clicked() {
-            world.send_event(EditorEvent::Load(EditorPrefabPath::MemoryCahce));
+            world.send_event(EditorEvent::Load(EditorPrefabPath::MemoryCache));
         }
 
         if ui.button("Clear level").clicked() {
@@ -68,7 +77,7 @@ mod wasm {
 
     pub(super) fn forward_save_scene_events(mut ew_editor_events: EventWriter<EditorEvent>) {
         if SAVE_SCENE.take_message().is_some() {
-            ew_editor_events.send(EditorEvent::Save(EditorPrefabPath::MemoryCahce));
+            ew_editor_events.send(EditorEvent::Save(EditorPrefabPath::MemoryCache));
         }
     }
 

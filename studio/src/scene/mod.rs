@@ -1,17 +1,12 @@
 use bevy::{
-    asset::{DependencyLoadState, LoadState, RecursiveDependencyLoadState},
-    core_pipeline::{
-        bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
-        fxaa::Fxaa,
-        tonemapping::Tonemapping,
-    },
+    asset::{DependencyLoadState, LoadState},
+    core_pipeline::{tonemapping::Tonemapping, Skybox},
     gltf::Gltf,
     math::vec2,
-    pbr::ShadowFilteringMethod,
     prelude::*,
-    render::{camera::RenderTarget, primitives::Aabb},
+    render::primitives::Aabb,
     scene::InstanceId,
-    utils::{EntityHashSet, HashSet},
+    utils::HashSet,
 };
 #[cfg(feature = "wasm")]
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -24,19 +19,18 @@ use space_editor::{
 };
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
-use wgpu::{TextureDescriptor, TextureUsages};
 
 use crate::{
     anim::timeline_animation::AnimationTarget,
     camera_controller::{CameraController, CameraControllerBundle},
-    change_tracking::{ChangeTracker, ChangeTrackingPlugin},
     debug::DebugPoint,
-    headless::{is_headless, is_not_headless, HeadlessSettings},
     is_editor,
     math::{Combinable, Extrema},
-    screenshot::ScreenCapture,
     MainCamera,
 };
+
+#[cfg(feature = "headless")]
+use crate::screenshot::ScreenCapture;
 
 #[cfg(feature = "wasm")]
 mod wasm;
@@ -48,28 +42,24 @@ pub struct SceneSpawnerSystem;
 
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ChangeTrackingPlugin);
+        #[cfg(not(feature = "headless"))]
+        app.add_plugins(crate::change_tracking::ChangeTrackingPlugin);
 
         app.insert_resource(ClearColor(Color::hsl(0.0, 0.0, 0.25)))
             .insert_resource(Msaa::Off)
-            .add_state::<SceneState>()
+            .init_state::<SceneState>()
             .add_event::<LoadLibraryObjectEvent>()
             .add_event::<LoadSceneEvent>()
             .add_event::<ImportSceneEvent>()
-            .add_systems(
-                Startup,
-                (
-                    initialize.run_if(is_not_headless),
-                    initialiaze_headless.run_if(is_headless),
-                ),
-            )
+            .add_systems(Startup, initialize)
             .add_systems(
                 Update,
                 (
                     init_object_loading,
                     init_scene_import,
                     init_scene_loading,
-                    start_capture.run_if(is_headless),
+                    #[cfg(feature = "headless")]
+                    start_capture,
                 )
                     .in_set(SceneSpawnerSystem),
             )
@@ -88,18 +78,22 @@ impl Plugin for ScenePlugin {
             ),
         );
 
+        app.init_resource::<SkyboxHolder>();
+        app.add_systems(Update, attach_skybox);
+
         //Auto loading screen
         //Register handles on which we will look to show loading screen
         app.init_resource::<LoadingQueue>();
         app.add_systems(
             PostUpdate,
             (
-                check_loading,
                 auto_add_handle::<Scene>,
                 auto_add_handle::<Mesh>,
                 auto_add_handle::<StandardMaterial>,
             ),
         );
+
+        app.add_systems(PreUpdate, check_loading);
 
         //setup default light
         app.add_systems(Startup, minimal_scene_setup);
@@ -111,12 +105,29 @@ impl Plugin for ScenePlugin {
                 wasm::handle_spawn_asset_messages,
                 wasm::notify_state_changes
                     .map(bevy::utils::error)
-                    .run_if(resource_changed::<State<SceneState>>()),
+                    .run_if(resource_changed::<State<SceneState>>),
                 wasm::notify_loading_queue_changes.map(bevy::utils::error),
             ),
         );
 
         app.editor_registry::<SceneElement>();
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct SkyboxHolder(pub Option<Skybox>);
+
+fn attach_skybox(
+    mut cmd: Commands,
+    skybox_holder: ResMut<SkyboxHolder>,
+    mut q_camera: Query<Entity, (With<Camera3d>, Without<Skybox>)>,
+) {
+    let Some(skybox) = skybox_holder.0.as_ref() else {
+        return;
+    };
+
+    for entity in q_camera.iter_mut() {
+        cmd.entity(entity).insert(skybox.clone());
     }
 }
 
@@ -127,7 +138,7 @@ fn minimal_scene_setup(mut cmd: Commands) {
         DirectionalLightBundle {
             directional_light: DirectionalLight {
                 shadows_enabled: false,
-                illuminance: 20000.0,
+                illuminance: 5000.0,
                 ..default()
             },
             transform: Transform::default().looking_at(Vec3::NEG_ONE, Vec3::Y),
@@ -160,6 +171,7 @@ pub struct LoadingQueue {
 }
 
 fn check_loading(
+    mut frames_without_loading: Local<usize>,
     mut loading_queue: ResMut<LoadingQueue>,
     mut st_next: ResMut<NextState<SceneState>>,
     r_scene_state: Res<State<SceneState>>,
@@ -170,37 +182,38 @@ fn check_loading(
     // `LoadingQueue` is empty when we're in `SceneState::None`, it just means
     // our startup routine hasn't yet gotten to the point of processing any
     // `Handle<T>`s.
-    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading {
+    if loading_queue.queue.is_empty()
+        && **r_scene_state == SceneState::Loading
+        && *frames_without_loading > 200
+    {
+        info!("Transition to active");
         st_next.set(SceneState::Active);
         return;
     }
 
+    if loading_queue.queue.is_empty() && **r_scene_state == SceneState::Loading {
+        *frames_without_loading += 1;
+    }
+
     if !loading_queue.queue.is_empty() {
+        *frames_without_loading = 0;
         //filter queue to only include notloaded assets
 
         let mut not_loaded_count = 0;
 
+        // info!("Loading {} assets", loading_queue.queue.len());
+
         loading_queue.queue.retain(|h| {
-            if let Some((load_state, dep_load_state, rec_load_state)) =
-                asset_server.get_load_states(h.id())
-            {
-                let is_loaded = dep_load_state == DependencyLoadState::Loaded;
-
-                let is_failed = dep_load_state == DependencyLoadState::Failed
-                    || rec_load_state == RecursiveDependencyLoadState::Failed
-                    || load_state == LoadState::Failed;
-
+            if let Some((load_state, dep_load_state, _)) = asset_server.get_load_states(h.id()) {
                 if load_state == LoadState::NotLoaded {
                     not_loaded_count += 1;
                 }
 
-                !(is_failed || is_loaded)
+                load_state == LoadState::Loading || dep_load_state == DependencyLoadState::Loading
             } else {
                 false
             }
         });
-
-        info!("Loading {} assets", loading_queue.queue.len());
 
         if loading_queue.queue.len() - not_loaded_count == 0 {
             //not change state
@@ -212,9 +225,10 @@ fn check_loading(
 
 fn auto_add_handle<T: Asset>(
     mut queue: ResMut<LoadingQueue>,
-    query: Query<&Handle<T>, Added<Handle<T>>>,
+    query: Query<&Handle<T>, Changed<Handle<T>>>,
 ) {
     for h in query.iter() {
+        info!("Added: {}", h.id());
         queue.queue.push(h.clone().untyped());
     }
 }
@@ -285,7 +299,17 @@ pub struct SceneData {
 #[derive(Component)]
 pub struct SceneRoot;
 
+#[cfg(not(feature = "headless"))]
 fn initialize(mut cmd: Commands) {
+    use crate::change_tracking::ChangeTracker;
+    use bevy::{
+        core_pipeline::{
+            bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
+            fxaa::Fxaa,
+        },
+        pbr::ShadowFilteringMethod,
+    };
+
     // Camera, graphics settings
     let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
@@ -321,11 +345,15 @@ fn initialize(mut cmd: Commands) {
     ));
 }
 
-fn initialiaze_headless(
+#[cfg(feature = "headless")]
+fn initialize(
     mut cmd: Commands,
     mut image_assets: ResMut<Assets<Image>>,
-    headless_settings: Res<HeadlessSettings>,
+    headless_settings: Res<crate::headless::HeadlessSettings>,
 ) {
+    use bevy::render::camera::RenderTarget;
+    use wgpu::{TextureDescriptor, TextureUsages};
+
     // Camera, graphics settings
     let focus = Vec3::ZERO;
     let camera_xform = Transform::from_xyz(-2.5, 4.5, 5.0).looking_at(focus, Vec3::Y);
@@ -453,7 +481,7 @@ fn tag_scene_elements(
 fn autoplay_animations(
     mut cmd: Commands,
     mut l_done: Local<HashSet<String>>,
-    mut l_animating: Local<EntityHashSet<Entity>>,
+    mut l_animating: Local<HashSet<Entity>>,
     ra_gltfs: Res<Assets<Gltf>>,
     ra_anims: Res<Assets<AnimationClip>>,
     q_prefabs: Query<(&GltfPrefab, &Handle<Gltf>)>,
@@ -541,7 +569,7 @@ fn frame_scene_in_view(
 
             // Project each corner onto the camera plane
             let v = p - plane_origin;
-            let proj = p - v.project_onto_normalized(plane_normal);
+            let proj = p - v.project_onto_normalized(plane_normal.xyz());
 
             cmd.spawn(DebugPoint {
                 point: proj,
@@ -611,6 +639,7 @@ fn frame_scene_in_view(
     cam_xform.translation = cam.focus + cam_xform.back() * radius;
 }
 
+#[cfg(feature = "headless")]
 fn start_capture(mut captures: Query<&mut ScreenCapture, Added<ScreenCapture>>) {
     for mut capture in captures.iter_mut() {
         capture.start_capturing();

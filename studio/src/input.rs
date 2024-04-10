@@ -50,8 +50,8 @@ impl Plugin for StudioInputPlugin {
 /// Logs all `InputAction`s emitted, along with the input state at the time they
 /// were fired, with `debug` verbosity.
 fn log_input_actions(
-    ri_keyboard: Res<Input<KeyCode>>,
-    ri_mouse_buttons: Res<Input<MouseButton>>,
+    ri_keyboard: Res<ButtonInput<KeyCode>>,
+    ri_mouse_buttons: Res<ButtonInput<MouseButton>>,
     mut er_input_actions: EventReader<InputAction>,
 ) {
     if er_input_actions.is_empty() {
@@ -78,9 +78,20 @@ fn log_input_actions(
     let mod_keys = [AltLeft, AltRight, ShiftLeft, ControlLeft, ControlRight]
         .into_iter()
         .collect::<HashSet<_>>();
-    let action_keys = [W, A, S, D, E, Q, Escape, Grave, Delete, F]
-        .into_iter()
-        .collect::<HashSet<_>>();
+    let action_keys = [
+        KeyCode::KeyW,
+        KeyCode::KeyA,
+        KeyCode::KeyS,
+        KeyCode::KeyD,
+        KeyCode::KeyE,
+        KeyCode::KeyQ,
+        KeyCode::Escape,
+        KeyCode::Quote,
+        KeyCode::Delete,
+        KeyCode::KeyF,
+    ]
+    .into_iter()
+    .collect::<HashSet<_>>();
 
     let keys_pressed = ri_keyboard.get_pressed().copied().collect::<HashSet<_>>();
     let keys_display = keys_pressed
@@ -151,16 +162,19 @@ impl From<Selection> for Action {
 
 // TODO: Make the bindings of raw device inputs to InputActions configurable
 
-fn translate_selection_events(keyboard: Res<Input<KeyCode>>, mut input: EventWriter<InputAction>) {
+fn translate_selection_events(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut input: EventWriter<InputAction>,
+) {
     if keyboard.just_pressed(KeyCode::Escape) {
         input.send(InputAction(Lifecycle::Start, Selection::Clear.into()));
     } else if keyboard.just_released(KeyCode::Escape) {
         input.send(InputAction(Lifecycle::Stop, Selection::Clear.into()));
     }
 
-    if keyboard.just_pressed(KeyCode::F) {
+    if keyboard.just_pressed(KeyCode::KeyF) {
         input.send(InputAction(Lifecycle::Start, Selection::Focus.into()));
-    } else if keyboard.just_released(KeyCode::F) {
+    } else if keyboard.just_released(KeyCode::KeyF) {
         input.send(InputAction(Lifecycle::Stop, Selection::Focus.into()));
     }
 
@@ -171,11 +185,14 @@ fn translate_selection_events(keyboard: Res<Input<KeyCode>>, mut input: EventWri
     }
 }
 
-fn translate_debug_toggle(keyboard: Res<Input<KeyCode>>, mut input: EventWriter<InputAction>) {
+fn translate_debug_toggle(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut input: EventWriter<InputAction>,
+) {
     if keyboard.pressed(KeyCode::ControlLeft) || keyboard.pressed(KeyCode::ControlRight) {
-        if keyboard.just_pressed(KeyCode::Grave) {
+        if keyboard.just_pressed(KeyCode::Backquote) {
             input.send(InputAction(Lifecycle::Start, Action::ToggleDebug));
-        } else if keyboard.just_released(KeyCode::Grave) {
+        } else if keyboard.just_released(KeyCode::Backquote) {
             input.send(InputAction(Lifecycle::Stop, Action::ToggleDebug));
         }
     }
@@ -183,8 +200,8 @@ fn translate_debug_toggle(keyboard: Res<Input<KeyCode>>, mut input: EventWriter<
 
 fn translate_dcc_camera_events(
     mouse_motion: Res<LastFrameMouseDelta>,
-    mouse_buttons: Res<Input<MouseButton>>,
-    keyboard: Res<Input<KeyCode>>,
+    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     mut input: EventWriter<InputAction>,
 ) {
     let delta = mouse_motion.get();
@@ -288,12 +305,19 @@ fn translate_dcc_camera_events(
 
 fn translate_fps_camera_events(
     mut mouse_wheel: EventReader<MouseWheel>,
-    keyboard: Res<Input<KeyCode>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
     mut input: EventWriter<InputAction>,
 ) {
     // Camera Translation (FPS-like)
-    use KeyCode::*;
-    let wasd_keys = [W, A, S, D, E, Q];
+
+    let wasd_keys = [
+        KeyCode::KeyW,
+        KeyCode::KeyA,
+        KeyCode::KeyS,
+        KeyCode::KeyD,
+        KeyCode::KeyE,
+        KeyCode::KeyQ,
+    ];
     let wasd_keys_set = wasd_keys.into_iter().collect::<HashSet<_>>();
 
     // A little unfortunate that `get_pressed()` doesn't just return a reference
@@ -308,12 +332,12 @@ fn translate_fps_camera_events(
         let mut mvmt = Vec3::ZERO;
 
         #[rustfmt::skip] {
-        if wasd_keys_pressed.contains(&W) { mvmt.z -= 1.; }
-        if wasd_keys_pressed.contains(&A) { mvmt.x -= 1.; }
-        if wasd_keys_pressed.contains(&S) { mvmt.z += 1.; }
-        if wasd_keys_pressed.contains(&D) { mvmt.x += 1.; }
-        if wasd_keys_pressed.contains(&E) { mvmt.y += 1.; }
-        if wasd_keys_pressed.contains(&Q) { mvmt.y -= 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyW) { mvmt.z -= 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyA) { mvmt.x -= 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyS) { mvmt.z += 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyD) { mvmt.x += 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyE) { mvmt.y += 1.; }
+        if wasd_keys_pressed.contains(&KeyCode::KeyQ) { mvmt.y -= 1.; }
         };
 
         let mvmt = mvmt.normalize_or_zero();
@@ -394,9 +418,9 @@ fn read_mouse_delta(
 }
 
 // TODO: Make it configurable
-fn send_undo_event(mut events: EventWriter<UndoRedo>, keyboard: Res<Input<KeyCode>>) {
+fn send_undo_event(mut events: EventWriter<UndoRedo>, keyboard: Res<ButtonInput<KeyCode>>) {
     if keyboard.pressed(KeyCode::ControlLeft)
-        && keyboard.just_pressed(KeyCode::Z)
+        && keyboard.just_pressed(KeyCode::KeyZ)
         && !keyboard.pressed(KeyCode::ShiftLeft)
     {
         events.send(UndoRedo::Undo);
@@ -404,7 +428,7 @@ fn send_undo_event(mut events: EventWriter<UndoRedo>, keyboard: Res<Input<KeyCod
     }
 
     if keyboard.pressed(KeyCode::ControlLeft)
-        && keyboard.just_pressed(KeyCode::Z)
+        && keyboard.just_pressed(KeyCode::KeyZ)
         && keyboard.pressed(KeyCode::ShiftLeft)
     {
         events.send(UndoRedo::Redo);

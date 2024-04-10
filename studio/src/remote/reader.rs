@@ -1,6 +1,5 @@
-use std::{io::ErrorKind, path::Path};
+use std::{io::ErrorKind, path::Path, sync::Arc};
 
-use async_compat::Compat;
 use bevy::{
     asset::io::{AssetReader, AssetReaderError, PathStream, Reader, VecReader},
     prelude::*,
@@ -22,10 +21,10 @@ impl RemoteAssetReader {
         let token = path
             .ext_file_prefix()
             .ok_or_else(|| {
-                AssetReaderError::Io(std::io::Error::new(
+                AssetReaderError::Io(Arc::new(std::io::Error::new(
                     ErrorKind::Other,
                     format!("Failed to parse token from '{path:?}'"),
-                ))
+                )))
             })?
             .to_str()
             .unwrap();
@@ -41,10 +40,10 @@ impl RemoteAssetReader {
                 .json::<GetMediaFileSuccessResponse>()
                 .await
                 .map_err(IntoError::<AssetReaderError>::into),
-            other => Err(AssetReaderError::Io(std::io::Error::new(
+            other => Err(AssetReaderError::Io(Arc::new(std::io::Error::new(
                 ErrorKind::Other,
                 format!("Status Code from endpoint: {other}"),
-            ))),
+            )))),
         }?;
 
         let url = format!(
@@ -70,10 +69,10 @@ impl RemoteAssetReader {
                 .map_err(IntoError::<AssetReaderError>::into)?
                 .into_iter()
                 .collect::<Vec<_>>()),
-            other => Err(AssetReaderError::Io(std::io::Error::new(
+            other => Err(AssetReaderError::Io(Arc::new(std::io::Error::new(
                 ErrorKind::Other,
                 format!("Status Code from bucket URL: {other}"),
-            ))),
+            )))),
         }?;
 
         let reader: Box<Reader> = Box::new(VecReader::new(bytes));
@@ -85,19 +84,22 @@ impl RemoteAssetReader {
         let token = path
             .ext_file_prefix()
             .ok_or_else(|| {
-                AssetReaderError::Io(std::io::Error::new(
+                AssetReaderError::Io(Arc::new(std::io::Error::new(
                     ErrorKind::Other,
                     format!("Failed to parse token from '{path:?}'"),
-                ))
+                )))
             })?
             .to_str()
             .unwrap();
 
         let bytes = wasm::LoadLocalFromIdb::new(token);
         info!("Sent request to bevy");
-        let bytes = bytes
-            .await
-            .map_err(|e| std::io::Error::new(ErrorKind::Other, format!("{e:?}")))?;
+        let bytes = bytes.await.map_err(|e| {
+            AssetReaderError::Io(Arc::new(std::io::Error::new(
+                ErrorKind::Other,
+                format!("{e:?}"),
+            )))
+        })?;
 
         let reader: Box<Reader> = Box::new(VecReader::new(bytes));
         Ok(reader)
@@ -114,7 +116,9 @@ impl AssetReader for RemoteAssetReader {
             info!("wasm mode not detected");
             // NB: Headless mode (server rendering) is running without a Tokio runtime.
             // The reqwest HTTP client requires async-compat to function at runtime.
-            Box::pin(Compat::new(async move { self.load(path).await }))
+            Box::pin(async_compat::Compat::new(
+                async move { self.load(path).await },
+            ))
         }
 
         #[cfg(all(feature = "wasm", target_family = "wasm"))]
@@ -159,7 +163,10 @@ trait IntoError<Output> {
 
 impl IntoError<AssetReaderError> for reqwest::Error {
     fn into(self) -> AssetReaderError {
-        AssetReaderError::Io(std::io::Error::new(ErrorKind::Other, format!("{self}")))
+        AssetReaderError::Io(Arc::new(std::io::Error::new(
+            ErrorKind::Other,
+            format!("{self}"),
+        )))
     }
 }
 
@@ -181,7 +188,7 @@ mod wasm {
         type: "request-file";
         detail: string;
     }
-    
+
     declare global {
         export interface GlobalEventHandlersEventMap {
             "request-file": RequestFileEvent;

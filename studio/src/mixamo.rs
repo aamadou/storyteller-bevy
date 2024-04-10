@@ -6,13 +6,13 @@ pub struct MixamoPlugin;
 impl Plugin for MixamoPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<MixamoImportEvent>();
-        app.add_state::<MixamoState>();
+        app.init_state::<MixamoState>();
 
         app.add_systems(
             Update,
             (
                 import_mixamo_scene,
-                tick_mixamo_import.run_if(resource_exists::<MixamoImport>()),
+                tick_mixamo_import.run_if(resource_exists::<MixamoImport>),
                 tick_scene_spawning.run_if(in_state(MixamoState::Spawning)),
                 start_mixamo_anim.run_if(in_state(MixamoState::Processing)),
             ),

@@ -37,10 +37,7 @@ fn spawn_world_grid(
     mut ra_meshes: ResMut<Assets<Mesh>>,
     mut ra_mat_proc_grid: ResMut<Assets<ProceduralGridMaterial>>,
 ) {
-    let plane = ra_meshes.add(Mesh::from(shape::Plane {
-        size: 200.0,
-        subdivisions: 0,
-    }));
+    let plane = ra_meshes.add(Plane3d::default());
     let proc_grid = ra_mat_proc_grid.add(ProceduralGridMaterial {});
 
     cmd.spawn((
@@ -53,7 +50,7 @@ fn spawn_world_grid(
             MaterialMeshBundle {
                 mesh: plane.clone(),
                 material: proc_grid.clone(),
-                transform: Transform::IDENTITY,
+                transform: Transform::IDENTITY.with_scale(Vec3::splat(200.0)),
                 ..default()
             },
             NotShadowCaster,

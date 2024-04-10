@@ -153,7 +153,7 @@ fn take_screenshots(
                 src_buffer,
                 img.width(),
                 img.height(),
-                ColorType::Rgb8,
+                ColorType::Rgb8.into(),
             ) {
                 error!("{err}");
                 return;

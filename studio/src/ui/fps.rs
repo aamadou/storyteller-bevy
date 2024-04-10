@@ -14,7 +14,7 @@ impl Plugin for FpsCounterPlugin {
             .add_systems(Update, update)
             .add_systems(
                 Update,
-                update_visibility.run_if(resource_exists_and_changed::<DebugMode>()),
+                update_visibility.run_if(resource_exists_and_changed::<DebugMode>),
             );
     }
 }
@@ -31,11 +31,12 @@ fn layout(mut cmd: Commands) {
             ..default()
         },
     )
-    .with_text_alignment(TextAlignment::Right)
+    .with_text_justify(JustifyText::Right)
     .with_style(Style {
         position_type: PositionType::Absolute,
         right: Val::Px(16.),
         bottom: Val::Px(16.),
+
         ..default()
     });
 
@@ -53,7 +54,7 @@ fn update(
     diag: Res<DiagnosticsStore>,
     mut counter: Query<&mut Text, With<FramerateCounter>>,
 ) {
-    if let Some(fps_diag) = diag.get(FrameTimeDiagnosticsPlugin::FPS) {
+    if let Some(fps_diag) = diag.get(&FrameTimeDiagnosticsPlugin::FPS) {
         let fps = if let Some(fps_smoothed) = fps_diag.smoothed() {
             fps_smoothed
         } else {

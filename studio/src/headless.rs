@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use bevy::{
     app::{AppExit, ScheduleRunnerPlugin},
+    asset::AssetMetaCheck,
+    core_pipeline::Skybox,
     prelude::*,
+    winit::WinitPlugin,
 };
 use bevy_web_asset::WebAssetPlugin;
 use space_editor::prelude::{EditorEvent, EditorPrefabPath};
@@ -11,7 +14,7 @@ use wgpu::Extent3d;
 use crate::{
     anim::timeline_animation::{Keyframe, TimelineInteractionEvent},
     bvh::{BvhAnimCompleteEvent, TestBvh},
-    scene::SceneState,
+    scene::{SceneState, SkyboxHolder},
     screenshot::{ScreenCapture, ScreenShotPlugin},
     BvhPlugin, CommonPlugins, LoadLibraryObjectEvent, LoadSceneEvent, MainCamera,
     MixamoImportEvent, MixamoPlugin, RemoteAssetPlugin, SkyboxId, StudioMode, WorldGridPlugin,
@@ -37,7 +40,7 @@ pub fn start_headless(
     mode: HeadlessMode,
     fps: u32,
     outout_dir: &str,
-    frames_to_capture: u32,
+    frames_to_capture: Option<u32>,
     image_res: Extent3d,
 ) -> App {
     let mut app = App::new();
@@ -52,17 +55,38 @@ pub fn start_headless(
         frame_delta: 1.0 / (fps as f32),
     });
 
+    app.insert_resource(AssetMetaCheck::Never);
+
     app.add_plugins((
         ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(1.0 / fps as f64)),
         WebAssetPlugin,
         RemoteAssetPlugin,
-        DefaultPlugins.set(WindowPlugin {
-            primary_window: None,
-            exit_condition: bevy::window::ExitCondition::DontExit,
-            close_when_requested: true,
-        }),
+        DefaultPlugins
+            .set(TaskPoolPlugin {
+                task_pool_options: TaskPoolOptions {
+                    async_compute: bevy::core::TaskPoolThreadAssignmentPolicy {
+                        min_threads: 1,
+                        max_threads: usize::MAX,
+                        percent: 0.75,
+                    },
+                    ..default()
+                },
+            })
+            .set(WindowPlugin {
+                primary_window: None,
+                exit_condition: bevy::window::ExitCondition::DontExit,
+                close_when_requested: true,
+            })
+            .set(AssetPlugin {
+                mode: AssetMode::Unprocessed,
+                ..default()
+            })
+            .disable::<WinitPlugin>(),
         ScreenShotPlugin,
-        CommonPlugins.build().disable::<WorldGridPlugin>(),
+        CommonPlugins
+            .build()
+            .disable::<WorldGridPlugin>()
+            .disable::<crate::UiLayerPlugin>(),
     ));
 
     match mode {
@@ -78,7 +102,6 @@ pub fn start_headless(
                     ew.send(LoadLibraryObjectEvent("Mannequin.gltf".to_string()));
                 },
             );
-
             app.add_systems(
                 PostUpdate,
                 check_for_bvh_capture_complete.run_if(in_state(SceneState::Active)),
@@ -87,12 +110,18 @@ pub fn start_headless(
         HeadlessMode::Scene(scene, skybox) => {
             app.add_systems(
                 Startup,
-                move |mut cmd: Commands, mut ew: EventWriter<EditorEvent>| {
-                    cmd.insert_resource(SkyboxId(skybox.clone()));
-                    ew.send(EditorEvent::Load(EditorPrefabPath::File(scene.clone())))
+                move |mut cmd: Commands,
+                      mut ew: EventWriter<EditorEvent>,
+                      asset_server: Res<AssetServer>| {
+                    cmd.insert_resource(SkyboxHolder(Some(Skybox {
+                        image: asset_server.load(skybox.clone()),
+                        brightness: 1.0,
+                    })));
+
+                    ew.send(EditorEvent::Load(EditorPrefabPath::File(scene.clone())));
                 },
-            )
-            .add_systems(OnEnter(SceneState::Active), start_timeline_animation);
+            );
+            app.add_systems(OnEnter(SceneState::Active), start_timeline_animation);
         }
         HeadlessMode::Mixamo(mixamo_path, skybox) => {
             app.add_plugins(MixamoPlugin);
@@ -119,19 +148,11 @@ pub fn start_headless(
     app
 }
 
-pub fn is_headless(studio_state: Res<StudioMode>) -> bool {
-    *studio_state == StudioMode::Headless
-}
-
-pub fn is_not_headless(studio_state: Res<StudioMode>) -> bool {
-    *studio_state != StudioMode::Headless
-}
-
 #[derive(Resource)]
 pub struct HeadlessSettings {
     pub output_dims: Extent3d,
     pub output_dir: String,
-    pub max_frames: u32,
+    pub max_frames: Option<u32>,
     pub fps: f32,
     pub frame_delta: f32,
 }
@@ -145,7 +166,7 @@ impl Default for HeadlessSettings {
                 depth_or_array_layers: 1,
             },
             output_dir: "./screen_shots/".to_string(),
-            max_frames: u32::MAX,
+            max_frames: None,
             fps: 24.0,
             frame_delta: 1.0 / 24.0,
         }
@@ -189,6 +210,7 @@ fn check_for_mixamo_capture_complete(
     }
 }
 
+#[cfg(not(feature = "wasm"))]
 fn start_timeline_animation(
     mut headless_settings: ResMut<HeadlessSettings>,
     keyframes: Query<&Keyframe>,
@@ -197,21 +219,34 @@ fn start_timeline_animation(
     mut ev: EventWriter<TimelineInteractionEvent>,
 ) {
     if keyframes.is_empty() {
+        let camera = camera.single();
+        commands.entity(camera).insert(
+            ScreenCapture::from_out(&headless_settings.output_dir)
+                //Part of quick hack, see screenshot.rs#261
+                .with_max_frames(headless_settings.max_frames.unwrap_or(0) + 3),
+        );
+        if headless_settings.max_frames.is_none() {
+            error!("Both keyframes and max_frames are empty. Aborting.");
+        }
         return;
     }
     commands.remove_resource::<CameraMotion>();
     let total_time = keyframes
         .iter()
-        .fold(0f32, |previous, keyframe| previous.max(keyframe.time))
+        .fold(1f32, |previous, keyframe| previous.max(keyframe.time))
         .max(3.0);
 
-    let frames = (total_time * headless_settings.fps).ceil() as u32;
-    headless_settings.max_frames = frames;
+    let mut frames = (total_time * headless_settings.fps).ceil() as u32;
+    if let Some(max_frames) = headless_settings.max_frames {
+        frames = max_frames;
+    }
+    info!("Frames to capture {}", frames);
+    headless_settings.max_frames = Some(frames);
     ev.send(TimelineInteractionEvent::Play);
     let camera = camera.single();
     commands.entity(camera).insert(
         ScreenCapture::from_out(&headless_settings.output_dir)
             //Part of quick hack, see screenshot.rs#261
-            .with_max_frames(headless_settings.max_frames + 3),
+            .with_max_frames(frames + 3),
     );
 }

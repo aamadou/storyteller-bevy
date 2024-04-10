@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{design_system, math::geo};
 
-use super::material::GizmoMaterial;
+use super::material::*;
 
 #[derive(Resource, Reflect, Debug, Default)]
 #[reflect(Resource)]
@@ -38,22 +38,23 @@ pub(super) struct GizmoMats {
     pub rotate_ss: Handle<GizmoMaterial>,
 }
 
+#[allow(deprecated)]
 pub(super) fn init_resources(
     mut cmd: Commands,
     mut ra_meshes: ResMut<Assets<Mesh>>,
     mut ra_mats: ResMut<Assets<GizmoMaterial>>,
 ) {
-    let translate_line = ra_meshes.add(Mesh::from(shape::Cylinder {
+    let translate_line = ra_meshes.add(Cylinder {
         radius: 0.03,
-        height: 0.8,
-        resolution: 6,
-        segments: 1,
-    }));
+        half_height: 0.4,
+    });
+
     let translate_arrow = ra_meshes.add(Mesh::from(geo::Cone {
         radius: 0.115,
         length: 0.4,
         resolution: 12,
     }));
+
     let translate_plane = ra_meshes.add(Mesh::from(geo::Plane2Sided { size: 0.25 }));
     let translate_ss = ra_meshes.add(
         Mesh::try_from(shape::Icosphere {
@@ -98,25 +99,25 @@ pub(super) fn init_resources(
         uniform_scale_cube,
     });
 
-    let translate_x = ra_mats.add(design_system::Color::RED.into());
-    let translate_yz = ra_mats.add(design_system::Color::RED.into());
+    let translate_x = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
+    let translate_yz = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
 
-    let translate_y = ra_mats.add(design_system::Color::GREEN.into());
-    let translate_xz = ra_mats.add(design_system::Color::GREEN.into());
+    let translate_y = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
+    let translate_xz = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
 
-    let translate_z = ra_mats.add(design_system::Color::BLUE.into());
-    let translate_xy = ra_mats.add(design_system::Color::BLUE.into());
+    let translate_z = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
+    let translate_xy = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
 
-    let translate_ss = ra_mats.add(Color::WHITE.into());
+    let translate_ss = ra_mats.add(GizmoMaterial::from(Color::WHITE));
 
-    let rotate_x = ra_mats.add(design_system::Color::RED.into());
-    let rotate_y = ra_mats.add(design_system::Color::GREEN.into());
-    let rotate_z = ra_mats.add(design_system::Color::BLUE.into());
-    let rotate_ss = ra_mats.add(Color::WHITE.into());
+    let rotate_x = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
+    let rotate_y = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
+    let rotate_z = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
+    let rotate_ss = ra_mats.add(GizmoMaterial::from(Color::WHITE));
 
-    let scale_x = ra_mats.add(design_system::Color::RED.into());
-    let scale_y = ra_mats.add(design_system::Color::GREEN.into());
-    let scale_z = ra_mats.add(design_system::Color::BLUE.into());
+    let scale_x = ra_mats.add(GizmoMaterial::from(design_system::Color::RED));
+    let scale_y = ra_mats.add(GizmoMaterial::from(design_system::Color::GREEN));
+    let scale_z = ra_mats.add(GizmoMaterial::from(design_system::Color::BLUE));
 
     let rotate_trackball = ra_mats.add(GizmoMaterial {
         color: Color::WHITE.with_a(0.0),

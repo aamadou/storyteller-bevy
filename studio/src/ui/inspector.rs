@@ -12,24 +12,33 @@ use serde_json::{self, json, Map as JsonMap, Value as JsonValue};
 use space_editor::{
     space_editor_ui::{
         editor_tab::{EditorTab, EditorTabName},
-        EditorUiAppExt,
+        ui_plugin::EditorUiAppExt,
     },
     space_prefab::{
-        component::MeshPrimitivePrefab, editor_registry::EditorRegistryExt, save::SaveState,
+        component::MeshPrimitive3dPrefab, editor_registry::EditorRegistryExt, save::SaveState,
     },
 };
 use wasm_bindgen::prelude::*;
 
-use crate::material::short_material::ShortMaterial;
 use crate::{
     interaction::Selection,
     wasm::{self, StaticBuffer, WasmMessageBuffer},
 };
+use crate::{material::short_material::ShortMaterial, StudioMode};
 
 pub struct InspectorPlugin;
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
+        #[cfg(not(feature = "wasm"))]
+        return;
+
+        if let Some(state) = app.world.get_resource::<StudioMode>() {
+            if *state == StudioMode::Headless {
+                return;
+            }
+        }
+
         app.init_resource::<EntityDescription>();
         app.add_event::<UpdateEntityDescription>();
 
@@ -67,7 +76,7 @@ impl Plugin for InspectorPlugin {
 
         app.register_inspect::<Transform>();
         app.register_inspect::<Name>();
-        app.register_inspect::<MeshPrimitivePrefab>();
+        app.register_inspect::<MeshPrimitive3dPrefab>();
 
         //register standart material
         {

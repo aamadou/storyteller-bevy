@@ -1,6 +1,6 @@
 #import bevy_pbr::forward_io::VertexOutput
 
-@group(1) @binding(0)
+@group(2) @binding(0)
 var<uniform> material_color: vec4<f32>;
 
 @fragment
