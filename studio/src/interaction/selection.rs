@@ -150,8 +150,10 @@ fn update_selection(
                     },
                 );
 
-                if hits.is_empty() && !is_multi {
-                    cmd.remove_resource::<Selection>();
+                if hits.is_empty() {
+                    if !is_multi {
+                        cmd.remove_resource::<Selection>();
+                    }
                     continue;
                 }
 
