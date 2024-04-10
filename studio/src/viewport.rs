@@ -87,7 +87,7 @@ pub mod wasm {
         if let Some(event) = events.read().last() {
             let ViewportSize { width, height } = event.0;
             let mut window = window.single_mut();
-            let scale_factor = window.scale_factor() as f32;
+            let scale_factor = window.scale_factor();
             window
                 .resolution
                 .set(width * scale_factor, height * scale_factor);
