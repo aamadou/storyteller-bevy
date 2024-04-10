@@ -164,7 +164,7 @@ fn update_selection(
                     cmd.remove_resource::<Selection>();
                 }
             }
-            (Lifecycle::Ongoing, input::Selection::Marquee(Rect { min, max })) => {
+            (Lifecycle::Ongoing, input::Selection::Marquee(Rect { min: _, max: _ })) => {
                 // TODO
                 // let center = (*max - *min) / 2.;
                 // let width = max.x - min.x;
@@ -177,7 +177,7 @@ fn update_selection(
                 //     Color::rgba(1., 1., 0., 0.4),
                 // );
             }
-            (Lifecycle::Stop, input::Selection::Marquee(Rect { min, max })) => {
+            (Lifecycle::Stop, input::Selection::Marquee(Rect { min: _, max: _ })) => {
                 // TODO
             }
             _ => {}

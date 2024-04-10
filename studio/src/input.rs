@@ -497,6 +497,7 @@ fn log_input_actions(
     mut er_editor_actions: EventReader<EditorAction>,
 ) {
     #[derive(Clone, Copy, Debug)]
+    #[allow(dead_code)] // Spurious warning; these fields _are_ being read by the `Debug` impl
     enum InputAction {
         Camera(CameraAction),
         Selection(SelectionAction),
