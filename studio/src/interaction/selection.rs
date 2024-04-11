@@ -6,6 +6,7 @@ use bevy_mod_outline::{
 };
 use bevy_mod_picking::PickableBundle;
 use bevy_mod_raycast::prelude::{Raycast, RaycastSettings};
+use bevy_rapier3d::{pipeline::QueryFilter, plugin::RapierContext};
 use space_editor::prelude::space_undo::{self, NewChange, RemovedEntity};
 
 use crate::{
@@ -130,6 +131,7 @@ fn update_selection(
     q_selectables: Query<&Selectable>,
     q_pickables: Query<&bevy_mod_picking::prelude::Pickable>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    r_rapier_context: Option<Res<RapierContext>>,
 ) {
     for SelectionAction(lifecycle, action) in er_selection.read() {
         match (lifecycle, action) {
@@ -139,26 +141,51 @@ fn update_selection(
             (_, input::Selection::Single(mouse_pos)) | (_, input::Selection::Multi(mouse_pos)) => {
                 let is_multi = matches!(action, input::Selection::Multi(_));
 
-                // Raycast to find the pickable entity under the cursor
+                // Cast a camera-to-world ray...
                 let (cam, cam_xform) = q_camera.single();
                 let ray = cam.viewport_to_world(cam_xform, *mouse_pos).unwrap();
-                let hits = raycast.cast_ray(
+
+                // Hit test against standard meshes...
+                let raycast_hits = raycast.cast_ray(
                     ray,
                     &RaycastSettings {
                         filter: &|ent: Entity| q_pickables.contains(ent),
                         ..default()
                     },
                 );
+                // And also against Rapier colliders
+                let rapier_hit = r_rapier_context.as_ref().and_then(|ctx| {
+                    ctx.cast_ray(
+                        ray.origin,
+                        *ray.direction,
+                        f32::MAX,
+                        false,
+                        QueryFilter::default(),
+                    )
+                });
 
-                if hits.is_empty() {
+                // Combine both sets of hit results and bail early if it's empty
+                let mut combined_hits = raycast_hits
+                    .iter()
+                    .map(|(ent, data)| (*ent, data.distance()))
+                    .chain(rapier_hit)
+                    .collect::<Vec<_>>();
+
+                if combined_hits.is_empty() {
                     if !is_multi {
                         cmd.remove_resource::<Selection>();
                     }
                     continue;
                 }
 
-                let (ent, _) = &hits[0];
-                if let Some(ent) = nearest_selectable_parent(*ent, &q_parents, &q_selectables) {
+                // Sort by distance from the camera and look for a `Selectable`
+                // parent among the results
+                combined_hits.sort_unstable_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+
+                if let Some(ent) = combined_hits
+                    .into_iter()
+                    .find_map(|(ent, _)| nearest_selectable_parent(ent, &q_parents, &q_selectables))
+                {
                     cmd.insert_resource(Selection(ent));
                 } else {
                     cmd.remove_resource::<Selection>();
