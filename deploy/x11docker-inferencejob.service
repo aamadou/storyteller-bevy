@@ -1,0 +1,10 @@
+# https://github.com/mviereck/x11docker/issues/154
+[Unit]
+Description=run bevy with x11docker
+
+[Service]
+# TODO: pre job pull down secrets, pull env vars also?
+ExecStart=x11docker -D --xvfb --network --gpu=no --printenv --fallback=no --home=~/shared-with-x-serv --size=720x480 -- -e NVIDIA_DRIVER_CAPABILITIES=all --runtime=nvidia --gpus all --env-file /home/ubuntu/storyteller/storyteller-bevy/deploy/secrets.env -- docker.io/library/xfce-bevy-ubuntu-local /storyteller/inference-job
+
+[Install]
+WantedBy=multi-user.target

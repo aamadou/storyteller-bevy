@@ -4,8 +4,6 @@ FROM x11docker/xfce
 # NB: This can be "stable" or another version.
 ARG RUST_TOOLCHAIN="1.75.0"
 
-WORKDIR /tmp
-
 # NB: cmake is required for freetype-sys-0.13.1, which in turn has only been added for egui.
 # NB: fontconfig is required by servo-fontconfig-sys, which is in the dependency chain for egui.
 # NB: libfontconfig-dev is required by servo-fontconfig-sys, which is in the dependency chain for egui.
@@ -34,6 +32,17 @@ RUN apt-get update \
         mesa-vulkan-drivers \
         xterm
 
+ARG USERNAME=ubuntu
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    #
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
@@ -44,27 +53,29 @@ RUN $HOME/.cargo/bin/rustup show
 RUN $HOME/.cargo/bin/rustc --version
 RUN $HOME/.cargo/bin/cargo --version
 
-# Install NPM
-# https://nodejs.org/en
-# https://github.com/nodesource/distributions
-#RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - && \
-#  apt-get install -y nodejs
+WORKDIR /src
 
-# NB: Now we build and test our code.
 COPY Cargo.lock .
 COPY Cargo.toml .
-COPY ./ .
 
+COPY . .
+
+ARG WORKDIR=/storyteller
+ENV CARGO_TARGET_DIR=$WORKDIR
 
 RUN LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH} \
   $HOME/.cargo/bin/cargo build \
   --release \
   --bin studio-headless
-WORKDIR /workdir
 
-RUN mv $HOME/.cargo /workdir/.cargo && chmod -R 777 /workdir/.cargo
+RUN cp runner.sh $WORKDIR
 
-COPY ./ .
-RUN cp /tmp/target/release/studio-headless /workdir/studio-headless
+WORKDIR $WORKDIR
 
-# CMD xterm
+RUN mv release/studio-headless $WORKDIR/studio-headless
+
+COPY --from=inference-job-local inference-job $WORKDIR/inference-job
+
+RUN chown -R $USERNAME $WORKDIR 
+
+USER $USERNAME
